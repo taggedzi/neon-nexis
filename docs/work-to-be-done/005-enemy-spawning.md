@@ -67,4 +67,4 @@ keep their existing schedules. Batch sizes, caps, rewards and objectives do not 
   `git diff --check` passed.
 - Pending player checks: early/mid/late pacing and rewards/upgrade viability.
   Lower spawn frequency is a balance change, not issue 001 performance evidence.
-- Implementation commit: pending.
+- Implementation commit: `b027e65`.
