@@ -429,26 +429,16 @@ function drawPlayer(c,p,theme){
   if(!p)return;
   const alpha=p.invuln>0?.55+Math.sin(G.time*32)*.35:1;
   c.save();c.translate(p.x,p.y);c.rotate(N.Driving.angle(p)+Math.PI/2);
-  glow(c,0,0,32,'#00f0ff',.22);
+  glow(c,0,0,32,p.shipColor,.22);
   // thruster
   const sp=Math.hypot(p.vx,p.vy);
   if(sp>40){
     const th=Math.min(18,4+sp*.035);
     c.save();c.globalCompositeOperation='lighter';c.globalAlpha=.55;
-    c.strokeStyle='#00f0ff';c.lineWidth=2;
+    c.strokeStyle=p.shipColor;c.lineWidth=2;
     c.beginPath();c.moveTo(-4,12);c.lineTo(-2,12+th);c.moveTo(4,12);c.lineTo(2,12+th);c.stroke();c.restore();
   }
-  // hull
-  c.beginPath();
-  c.moveTo(0,-20);c.lineTo(-11,10);c.lineTo(-4,7);c.lineTo(0,14);c.lineTo(4,7);c.lineTo(11,10);c.closePath();
-  c.fillStyle='rgba(0,240,255,.08)';c.fill();
-  c.strokeStyle=p.hitFlash>0?'#fff':'#00f0ff';c.lineWidth=1.7;c.lineJoin='round';c.stroke();
-  // wings / core
-  c.strokeStyle=N.withAlpha('#ff2bd6',.75);c.lineWidth=1;
-  c.beginPath();c.moveTo(-7,2);c.lineTo(7,2);c.moveTo(0,-12);c.lineTo(0,9);c.stroke();
-  c.fillStyle='#fff';c.beginPath();c.arc(0,-4,2.4,0,TAU);c.fill();
-  // aim tip
-  c.fillStyle='#00f0ff';c.beginPath();c.moveTo(0,-24);c.lineTo(-2.5,-18);c.lineTo(2.5,-18);c.closePath();c.fill();
+  N.Ships.drawHull(c,p);
   c.restore();
   // shields / invuln ring
   if(p.stats.maxShield>0){
@@ -578,7 +568,7 @@ function drawEffects(c,theme){
     }else if(e.type==='afterimage'){
       c.save();c.globalAlpha=a*.45;c.translate(e.x,e.y);c.rotate(e.angle+Math.PI/2);
       c.strokeStyle=e.color;c.lineWidth=1;
-      c.beginPath();c.moveTo(0,-20);c.lineTo(-11,10);c.lineTo(-4,7);c.lineTo(0,14);c.lineTo(4,7);c.lineTo(11,10);c.closePath();c.stroke();
+      N.Ships.path(c,e.shipType);c.stroke();
       c.restore();
     }
   }

@@ -5,13 +5,14 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','settings','pause','inventory','levelup','overflow','gameover','complete','howto','credits','confirm'];
+const screens=['boot','menu','ship','settings','pause','inventory','levelup','overflow','gameover','complete','howto','credits','confirm'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
 let confirmReturn=null;
 let confirmYes=null;
 let bootReady=false;
+let shipSelection=null;
 const focusTimers=[];
 
 function screenEl(name){return document.getElementById('screen-'+name);}
@@ -86,15 +87,13 @@ UI.init=function(){
   });
   $('btn-new-run').addEventListener('click',()=>{
     if(N.hasSave()){
-      UI.confirm('OVERWRITE SAVE?','A stored run exists on this browser. Starting a new protocol will overwrite its latest checkpoint.',()=>{
-        G.newRun();
-        UI.hideAll();
-      },'PURGE & START');
+      UI.confirm('START A NEW RUN?','A stored run exists. Continue to ship selection; launching the new run will replace its checkpoint.',()=>UI.showShipSelection(),'CHOOSE SHIP');
     }else{
-      G.newRun();
-      UI.hideAll();
+      UI.showShipSelection();
     }
   });
+  $('btn-ship-cancel').addEventListener('click',()=>UI.showMenu());
+  $('btn-ship-launch').addEventListener('click',()=>G.newRun(shipSelection));
   $('btn-howto').addEventListener('click',()=>showScreen('howto'));
   $('btn-settings').addEventListener('click',()=>openSettings('menu'));
   $('btn-credits').addEventListener('click',()=>showScreen('credits'));
@@ -209,6 +208,26 @@ function openSettings(returnName){
   N.Audio.ui('click');
 }
 UI.openSettings=openSettings;
+UI.showShipSelection=function(){
+  const saved=N.readSave()?.player;
+  shipSelection={shipType:N.Ships.get(saved?.shipType).id,
+    shipColor:N.Ships.palette.some(p=>p.color===saved?.shipColor)?saved.shipColor:N.Ships.palette[0].color};
+  const refresh=()=>{
+    $('ship-types').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipType===shipSelection.shipType)));
+    $('ship-colors').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipColor===shipSelection.shipColor)));
+    N.Ships.preview($('ship-preview'),shipSelection);
+  };
+  const types=$('ship-types'),colors=$('ship-colors');types.innerHTML='';colors.innerHTML='';
+  for(const t of N.Ships.types){
+    const b=document.createElement('button');b.type='button';b.textContent=t.name;b.dataset.shipType=t.id;
+    b.addEventListener('click',()=>{shipSelection.shipType=t.id;refresh();});types.appendChild(b);
+  }
+  for(const color of N.Ships.palette){
+    const b=document.createElement('button');b.type='button';b.textContent=color.name;b.dataset.shipColor=color.color;b.style.setProperty('--choice-color',color.color);
+    b.addEventListener('click',()=>{shipSelection.shipColor=color.color;refresh();});colors.appendChild(b);
+  }
+  refresh();showScreen('ship');
+};
 function closeSettings(){
   N.Input.cancelCapture();
   N.Audio.ui('back');
@@ -584,7 +603,7 @@ function backAction(){
     case 'settings': closeSettings();break;
     case 'pause': G.resumeGame();break;
     case 'inventory': G.closeInventory();break;
-    case 'howto': case 'credits': UI.showMenu();break;
+    case 'howto': case 'credits': case 'ship': UI.showMenu();break;
     case 'confirm': {
       confirmYes=null;
       const ret=confirmReturn;confirmReturn=null;

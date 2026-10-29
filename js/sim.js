@@ -140,7 +140,7 @@ G.updatePlayer=function(dt){
     p.trailTimer-=dt;
     if(p.trailTimer<=0){
       p.trailTimer=.035;
-      G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),color:'#00f0ff',life:.28,maxLife:.28,size:p.radius});
+      G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),shipType:p.shipType,color:p.shipColor,life:.28,maxLife:.28,size:p.radius});
     }
   }else{
     const targetSpeed=p.stats.moveSpeed*(p.buffs.speed>0?1.42:1);
@@ -149,11 +149,12 @@ G.updatePlayer=function(dt){
     p.vx+=(tx-p.vx)*accel;p.vy+=(ty-p.vy)*accel;
     if(move.len>.05){
       p.trailTimer-=dt;
-      if(p.trailTimer<=0){p.trailTimer=.06;G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),color:'#087f91',life:.22,maxLife:.22,size:p.radius*.9});}
+      if(p.trailTimer<=0){p.trailTimer=.06;G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),shipType:p.shipType,color:p.shipColor==='#00f0ff'?'#087f91':N.mix(p.shipColor,'#000000',.45),life:.22,maxLife:.22,size:p.radius*.9});}
     }
   }
   p.x+=p.vx*dt;p.y+=p.vy*dt;
-  p.x=clamp(p.x,20,G.level.width-20);p.y=clamp(p.y,20,G.level.height-20);
+  const margin=Math.max(20,N.Ships.get(p.shipType).radius);
+  p.x=clamp(p.x,margin,G.level.width-margin);p.y=clamp(p.y,margin,G.level.height-margin);
   G.updateCamera(dt);
   // Aim through the camera used to draw this frame, including its shake offset.
   aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
@@ -492,7 +493,7 @@ G.updateEnemyBullets=function(dt){
     b.x+=b.vx*dt;b.y+=b.vy*dt;
     b.spin+=dt*4;
     if(b.life<=0||b.x<-30||b.y<-30||b.x>G.level.width+30||b.y>G.level.height+30){b.dead=true;continue;}
-    if(p&&!p.dead&&p.invuln<=0&&N.dist2(b.x,b.y,p.x,p.y)<(b.size+p.radius)*(b.size+p.radius)){
+    if(p&&!p.dead&&p.invuln<=0&&N.Ships.intersectsCircle(p,b.x,b.y,b.size)){
       G.damagePlayer(b.damage,b.x,b.y,false);
       b.dead=true;
       G.addParticles(b.x,b.y,b.color,6,{speed:90,life:.3,size:1.5});
@@ -511,7 +512,7 @@ G.updateMines=function(dt){
         for(const e of G.enemies){if(!e.dead&&N.dist2(m.x,m.y,e.x,e.y)<(m.radius*.75+e.r)*(m.radius*.75+e.r)){trigger=true;break;}}
         if(!trigger)for(const a of G.level.anchors){if(a.alive&&N.dist2(m.x,m.y,a.x,a.y)<(m.radius*.75+a.r)*(m.radius*.75+a.r)){trigger=true;break;}}
         if(!trigger)for(const c of G.level.caches){if(c.alive&&N.dist2(m.x,m.y,c.x,c.y)<(m.radius*.75+c.r)*(m.radius*.75+c.r)){trigger=true;break;}}
-      }else if(G.player&&!G.player.dead&&N.dist2(m.x,m.y,G.player.x,G.player.y)<(m.radius*.7+G.player.radius)*(m.radius*.7+G.player.radius)){trigger=true;}
+      }else if(G.player&&!G.player.dead&&N.Ships.intersectsCircle(G.player,m.x,m.y,m.radius*.7)){trigger=true;}
     }
     if(trigger||m.life<=0){
       G.explode(m.x,m.y,m.radius,m.damage,m.color,m.owner,{particles:12,shake:2.4,big:false,glitch:.14});

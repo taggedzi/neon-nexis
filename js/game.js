@@ -226,6 +226,7 @@ function makeWeapon(id,tier=1,level=1){
 function makePlayer(){
   const p={
     x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:-Math.PI/2,
+    shipType:'dart',shipColor:'#00f0ff',
     hp:null,shield:null,level:1,xp:0,xpNext:G.xpForLevel(1),
     weapons:[makeWeapon(N.STARTING_WEAPON,1,1)],
     passives:[{id:'vector',stacks:1}],
@@ -362,11 +363,12 @@ function getLootName(it){
 G.getLootName=getLootName;
 
 // ——— run lifecycle ———
-G.newRun=function(){
+G.newRun=function(selection){
   N.Input.resetMovement();
   const seed=(Math.random()*0xFFFFFFFF)>>>0;
   G.run={seed,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
+  Object.assign(G.player,N.Ships.selection(selection));
   G.level=generateLevel(1,null);
   G.player.x=G.level.cx;G.player.y=G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
@@ -464,7 +466,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
     version:SAVE_VERSION,savedAt:Date.now(),
     run:{seed:G.run.seed,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
-      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,
+      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,shipType:p.shipType,shipColor:p.shipColor,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
       core:(p.core||[]).slice(),activeWeapon:p.activeWeapon,weaponSlots:p.weaponSlots,passiveSlots:p.passiveSlots,
       dashCharges:p.dashCharges,dashTimer:p.dashTimer,buffs:Object.assign({},p.buffs),invuln:0
@@ -555,6 +557,7 @@ function hydratePlayer(sp,lvl){
     totalDamage:0,healAccum:0,dead:false,shieldRegenFx:0
   };
   if(!p.weapons.length) p.weapons=[makeWeapon(N.STARTING_WEAPON,1,1)];
+  Object.assign(p,N.Ships.selection(sp));
   p.activeWeapon=clamp(p.activeWeapon,0,p.weapons.length-1);
   G.rebuildStats(p,false);
   p.hp=clamp(+sp.hp||p.stats.maxHp,1,p.stats.maxHp);
@@ -853,7 +856,7 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
     for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r))G.damageAnchor(a,damage,{x,y,explosion:true});}
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r))G.damageCache(c,damage,{x,y,explosion:true});}
   }else{
-    if(!G.player.dead&&N.dist2(x,y,G.player.x,G.player.y)<(radius+G.player.radius)*(radius+G.player.radius))G.damagePlayer(damage,x,y,false);
+    if(!G.player.dead&&N.Ships.intersectsCircle(G.player,x,y,radius))G.damagePlayer(damage,x,y,false);
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r))G.damageCache(c,damage,{x,y,explosion:true});}
   }
 };

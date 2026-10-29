@@ -394,7 +394,7 @@ G.updateEnemies=function(dt){
       }
     }
     // contact damage
-    if(!p.dead&&N.dist2(e.x,e.y,p.x,p.y)<(e.r*.8+p.radius)*(e.r*.8+p.radius)){
+    if(!p.dead&&N.Ships.intersectsCircle(p,e.x,e.y,e.r*.8)){
       if(p.invuln<=0){
         if(p.stats.thorns>0){
           G.damageEnemy(e,p.stats.thorns,{x:p.x,y:p.y,source:'thorns',allowPayload:false});
@@ -403,7 +403,7 @@ G.updateEnemies=function(dt){
         G.damagePlayer(e.contact,e.x,e.y,true);
       }
       // gentle physical separation so hostiles do not erase the pilot instantly
-      if(N.dist2(e.x,e.y,p.x,p.y)<(e.r*.55+p.radius)*(e.r*.55+p.radius)){
+      if(N.Ships.intersectsCircle(p,e.x,e.y,e.r*.55)){
         const a=Math.atan2(p.y-e.y,p.x-e.x),push=Math.min(6,dt*80);
         p.x+=Math.cos(a)*push;p.y+=Math.sin(a)*push;
       }

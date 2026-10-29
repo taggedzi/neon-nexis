@@ -6,7 +6,7 @@ tracking IDs; GitHub is not required.
 | ID | Issue | Status |
 | --- | --- | --- |
 | 001 | [Improve overall performance, especially during large enemy waves](001-performance.md) | Implemented — needs validation |
-| 002 | [Choose ship type and color before a run](002-ship-selection.md) | Planned |
+| 002 | [Choose ship type and color before a run](002-ship-selection.md) | Implemented — needs validation |
 | 003 | [Center the ship and improve camera tracking](003-camera-follow.md) | Implemented — needs validation |
 | 004 | [Add ship-relative driving controls](004-control-options.md) | Implemented — needs validation |
 | 005 | [Reduce enemy spawn frequency](005-enemy-spawning.md) | Planned |
