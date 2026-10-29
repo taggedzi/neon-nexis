@@ -1,11 +1,39 @@
-/node_modules/
-/dist/
-/test-results/
-/playwright-report/
+# Local browser automation captures, logs, and reports
 /.playwright-mcp/
-/.aws/
+/playwright-report/
+/test-results/
+
+# Local browser profiles and save exports: keep these in the named directories
 /browser-profiles/
 /local-saves/
+
+# Local credentials and environment configuration
+/.aws/
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Optional development dependencies and Python caches
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor and operating-system temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Keep source assets, shared editor/agent configuration, and intentional
+# validation evidence (including tools/performance/results-*.json) trackable.
+
+# Public release staging
+/dist/

@@ -26,6 +26,20 @@ required. Graphics and audio are generated locally; there is no game backend.
 Use a current desktop browser with Canvas and Web Audio support. Gamepad support
 depends on the browser and device; physical-controller validation is still pending.
 
+## Browser support targets
+
+These are development goals, not compatibility or performance guarantees. Browser
+checks must record the actual version and environment tested.
+
+| Browser | Desired target | Validation status |
+| --- | --- | --- |
+| Firefox | Current stable desktop release | Cross-browser acceptance pending |
+| Google Chrome | Current stable desktop release | Cross-browser acceptance pending |
+| Chromium | Current stable desktop release | Cross-browser acceptance pending |
+
+This matrix does not promise support for every operating system, controller,
+mobile device, or older browser version.
+
 ## Play
 
 Choose a ship and color, stay mobile, and build your loadout from weapons,
@@ -76,6 +90,10 @@ The game is under active hobby development. Some implemented features still
 need player, controller, or performance validation. See the
 [local backlog](docs/work-to-be-done/README.md) for current status and known work.
 
+Release versions use the date convention described above. No public deployment
+has been performed. Changelog setup remains pending deployment validation; see
+[issue 013](docs/work-to-be-done/013-deployment-and-changelog.md).
+
 Bug reports, focused improvements, and documentation fixes are welcome. Read
 [Contributing](CONTRIBUTING.md) before opening a pull request and follow the
 [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities using the
@@ -88,6 +106,9 @@ Bug reports, focused improvements, and documentation fixes are welcome. Read
 - `js/` — game logic, procedural assets, input, rendering, and interface.
 - `tools/` — development checks and performance tooling.
 - `docs/work-to-be-done/` — local issue tracker and validation records.
+
+Developers and AI contributors should read the
+[web development style guide](docs/web-development-style-guide.md).
 
 ## License
 

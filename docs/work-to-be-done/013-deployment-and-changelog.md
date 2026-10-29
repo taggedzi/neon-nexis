@@ -54,9 +54,15 @@ Later checklist topics remain deferred. See [decisions](../decisions.md).
   invalid/overflow run numbers passed. No real release/version was published.
 - Packaging exclusions, metadata, LF/UTF-8/final newlines, local Markdown file
   link targets and `git diff --check` passed. Reports/profiles/dist are ignored.
-- Integration: This independent branch starts from local main and does not
-  incorporate the unmerged `docs/branch-workflow-and-decisions` branch. Overlapping
-  documentation additions will need reconciliation when both branches are merged.
+- Integration: The original implementation commit is `57d059d`. The owner later
+  requested resolution of PR #2 conflicts after documentation PR #1 merged.
+  Integrated `origin/main` at `109bde2`, preserving its style guide, whitespace,
+  branch/review rules and decision history alongside the newer approved CI/CD
+  and save policies. Combined ignore rules, synchronized issue 013 status, and
+  removed superseded current-policy claims. Runtime files were not changed.
+  Resolution checks passed: no conflict markers, local Markdown file targets,
+  UTF-8/LF/final newlines, combined ignore rules and `git diff --check`. Gameplay
+  tests were not repeated for this documentation-only integration.
 - Remaining: GitHub-hosted Actions, Pages configuration/publication, stable browser manual
   checks, physical controllers and real GPU performance remain unvalidated.
 - Export limitation: Browser download initiation is observable; final disk save

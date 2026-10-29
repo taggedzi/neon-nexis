@@ -1,7 +1,12 @@
 # Work to be done
 
 These Markdown documents are the authoritative local tracker. Numbers are local
-tracking IDs; GitHub is not required.
+tracking IDs; GitHub issues are optional.
+
+Changes are delivered on task branches through owner-managed GitHub pull requests,
+as specified in [AGENTS.md](../../AGENTS.md#git-and-delivery). These documents
+preserve scope, decisions, and validation evidence. Project-wide decisions live
+in [the decision log](../decisions.md).
 
 | ID | Issue | Status |
 | --- | --- | --- |

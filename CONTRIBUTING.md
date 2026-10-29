@@ -17,6 +17,10 @@ reports through the [Security Policy](SECURITY.md).
 
 ## Work locally
 
+Follow the [web development style guide](docs/web-development-style-guide.md)
+for practical JavaScript, HTML, CSS, accessibility, and browser API conventions.
+Apply it to the code you change rather than reformatting unrelated files.
+
 Fork the repository, create a branch, and follow the [README](README.md#run-locally)
 to serve the game. No package-manager build is required. If using a coding agent,
 also follow [AGENTS.md](AGENTS.md).
@@ -30,8 +34,32 @@ dependencies first.
 For work covered by a local issue, keep its status, acceptance evidence, and
 **Implementation and validation** section synchronized with the backlog index.
 GitHub issues can link to these documents; they do not replace their records.
+Record material decisions and their rationale as work proceeds. Project-wide
+decisions belong in [the decision log](docs/decisions.md); task-specific decisions
+belong in the relevant issue. Small maintenance tasks need no new local issue.
+
+For agent-assisted owner work, every task uses a branch. The owner pushes it,
+creates the PR, arranges review, and merges unless explicitly delegated. See
+[AGENTS.md](AGENTS.md#git-and-delivery) for the full handoff rules.
 
 ## Validate your change
+
+### Whitespace and line endings
+
+Use UTF-8 without a byte-order mark, LF line endings, a final newline, and two
+spaces per indentation level. Remove trailing whitespace, except intentional
+Markdown hard breaks (two trailing spaces). Makefiles use tabs; Windows `.bat`
+and `.cmd` scripts use CRLF when checked out. Preserve meaningful whitespace
+inside strings, templates, and fixtures.
+
+The repository's `.gitattributes` controls Git line endings across platforms;
+`.editorconfig` supplies matching defaults in compatible editors. Enable your
+editor's EditorConfig support if needed. Binary assets are not normalized.
+Keep formatting changes limited to the task: do not reindent existing files or
+run repository-wide normalization as part of an unrelated change. Whitespace
+checks remain required even when editor support is enabled.
+
+### Checks
 
 Use checks appropriate to the change and describe what actually ran:
 
