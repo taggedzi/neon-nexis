@@ -84,7 +84,7 @@ as performance fixes.
   full 20-minute continuous-rendering/retained-memory check. Accelerated simulation
   checks are supplemental. Headless timings cannot establish reference-machine
   acceptance.
-- Implementation commit: pending.
+- Implementation commit: `de6feb5` (optimization, benchmark evidence and tracker).
 
 ### Benchmark observations
 
