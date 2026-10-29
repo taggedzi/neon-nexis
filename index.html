@@ -102,11 +102,24 @@
           <div class="pause-stats" id="pause-stats"></div>
           <div class="menu-buttons compact">
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
+            <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
             <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
             <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
           </div>
           <div class="micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-rewards">
+        <div class="panel wide">
+          <span class="eyebrow">PENDING REWARDS</span>
+          <h2>BUILD WHEN READY</h2>
+          <p>Combat is paused. Install equipment or save it for later. Full bays offer a replacement choice. Duplicates upgrade your existing gear.</p>
+          <button class="neon-btn primary" id="btn-rewards-protocol" type="button">CHOOSE PROTOCOL</button>
+          <div id="rewards-list" class="menu-buttons compact"></div>
+          <p id="rewards-capacity"></p>
+          <button class="neon-btn" id="btn-rewards-close" type="button">RETURN TO COMBAT</button>
         </div>
       </section>
 
@@ -215,7 +228,7 @@
             </div>
             <div class="howto-card">
               <h3>04 // LOOT</h3>
-              <p>Destroy data caches and hostile morphs for weapons, passive modules, repairs and corrupt caches. Bays are limited. When full, pause and choose what to eject.</p>
+              <p>Destroy data caches and hostile morphs for weapons, passive modules, repairs and corrupt caches. Bays are limited. Equipment waits in your reward tray, including duplicate upgrades. Open REWARDS when ready; combat pauses while you choose. With a full tray, gear stays on the ground. Protocol choices also wait for you. Ordinary equipment is paced by combat time and kills; boss loot is a bonus.</p>
             </div>
             <div class="howto-card">
               <h3>05 // SECTORS</h3>
@@ -265,6 +278,7 @@
       </section>
     </div>
 
+    <button id="btn-rewards-hud" class="neon-btn reward-hud" type="button" hidden>REWARDS</button>
     <div id="toasts" aria-live="polite"></div>
     <div id="gamepad-status" class="gamepad-status" aria-hidden="true"></div>
   </div>

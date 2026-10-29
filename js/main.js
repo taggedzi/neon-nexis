@@ -36,6 +36,7 @@ function loop(now){
   N.Input.update();
   try{
     N.Game.update(dt);
+    N.UI.updateRewards();
     if(N.UI.overlayOpen())N.UI.handleGamepad();
   }catch(err){console.error('update error',err);}
   N.Input.endFrame();

@@ -381,6 +381,7 @@ G.newRun=function(selection){
   G.mode='playing';
   G.time=0;G.glitch=0;G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;
   G.pendingLevelUps=0;G.overflow=null;G.lastSummary=null;
+  N.Rewards.reset();
   G.spawnInitialEnemies();
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
@@ -405,7 +406,6 @@ G.pauseGame=function(){
 G.resumeGame=function(){
   if(G.mode==='playing') return;
   if(!G.player||G.player.dead){G.setMode('menu');if(N.UI)N.UI.showMenu();return;}
-  if(G.pendingLevelUps>0){G.openLevelUp();return;}
   if(G.overflow){G.openOverflow();return;}
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
@@ -468,6 +468,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   const p=G.player;
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
+    rewards:N.Rewards.snapshot(),
     run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
       x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
@@ -532,6 +533,7 @@ G.loadFromSave=function(save,fromDeath=false){
     // a save taken partway through a multi-level-up sequence).
     G.pendingLevelUps=Math.max(0,Math.max(0,p.level-1)-(p.core||[]).length);
     G.overflow=null;
+    N.Rewards.reset(save.rewards);
     G.spawnInitialEnemies(4);
     G.lastCheckpoint=save;
     G.setMode('playing');
@@ -540,7 +542,6 @@ G.loadFromSave=function(save,fromDeath=false){
     N.Audio.checkpoint();
     G.notify('SIGNAL RESTORED // SECTOR '+String(G.run.level).padStart(2,'0'),'loot',2200);
     G.triggerGlitch(.35,'#00f0ff');
-    if(G.pendingLevelUps>0) G.openLevelUp();
     return true;
   }catch(e){
     console.error('load failed',e);
@@ -640,7 +641,7 @@ G.addXp=function(amount){
   }
 };
 G.checkPendingLevelUp=function(){
-  if(G.pendingLevelUps>0 && G.mode==='playing') G.openLevelUp();
+  // Choices wait in the reward tray until the pilot requests them.
 };
 G.rollProtocols=function(){
   const pool=N.PROTOCOLS.slice();
@@ -675,16 +676,11 @@ G.applyProtocol=function(pid){
   N.Audio.pickup(true);
   G.triggerGlitch(.28,def.color);
   G.saveCheckpoint(true,'levelup');
-  if(G.pendingLevelUps>0){
-    G.levelUpChoices=G.rollProtocols();
-    if(N.UI) N.UI.showLevelUp(G.player,G.levelUpChoices,N.SLOT_MILESTONES[G.player.level]||null);
-  }else{
-    G.setMode('playing');
-    if(N.UI) N.UI.hideAll();
-    N.Input.resetFire();
-    N.Audio.setScene('game');
-    G.notify('PROTOCOL INSTALLED // '+def.name,'loot',1600);
-  }
+  G.setMode('playing');
+  if(N.UI) N.UI.hideAll();
+  N.Input.resetFire();
+  N.Audio.setScene('game');
+  G.notify('PROTOCOL INSTALLED // '+def.name,'loot',1600);
 };
 G.beginOverflow=function(item,kind,def){
   G.overflow={item,kind,def};
@@ -760,9 +756,10 @@ G.dropItem=function(type,index){
 };
 
 // ——— collect items ———
-G.collectGroundItem=function(it,quiet=false){
+G.collectGroundItem=function(it,quiet=false,reviewed=false){
   if(!it||it.collected)return;
   const p=G.player;
+  if(N.Rewards.isEquipment(it)&&!reviewed){N.Rewards.bank(it);return;}
   if(it.kind==='consumable'){
     it.collected=true;
     const c=N.CONSUMABLES[it.itemId];
@@ -868,7 +865,10 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }
 };
-G.spawnGroundLoot=function(loot,x,y,label){
+G.spawnGroundLoot=function(loot,x,y,label,bossReward=false){
+  const paced=N.Rewards.paceLoot(loot,bossReward);
+  if(!paced)return null;
+  loot=paced;
   if(G.level?.layout){const point=N.World.findFree(G.level.layout,x,y,12);x=point.x;y=point.y;}
   const it=lootItemToGround(loot,x,y,label);
   G.groundItems.push(it);
@@ -890,7 +890,7 @@ G.dropForEnemy=function(e){
     loots.push({kind:'consumable',id:cons,color:N.CONSUMABLES[cons].color});
     loots.forEach((l,i)=>{
       const a=Math.random()*TAU,rr=30+i*22;
-      G.spawnGroundLoot(l,e.x+Math.cos(a)*rr,e.y+Math.sin(a)*rr,l.kind==='weapon'?N.WEAPON_BY_ID[l.id].name:(l.kind==='mod'?N.MOD_BY_ID[l.id].name:N.CONSUMABLES[l.id].name));
+      G.spawnGroundLoot(l,e.x+Math.cos(a)*rr,e.y+Math.sin(a)*rr,l.kind==='weapon'?N.WEAPON_BY_ID[l.id].name:(l.kind==='mod'?N.MOD_BY_ID[l.id].name:N.CONSUMABLES[l.id].name),true);
     });
     return;
   }
@@ -933,4 +933,81 @@ G.hydratePlayer=hydratePlayer;
 G.getTheme=themeFor;
 G.rngFor=rngFor;
 G.angleTo=angleTo;
+})();
+
+/* Paced equipment and player-opened rewards. Kept in a separate closure. */
+(function(){
+'use strict';
+const N=window.NEON,G=N.Game;
+const R=N.Rewards={CAPACITY:4,FIRST_SECONDS:18,SECONDS:36,KILLS:8};
+const finite=(value,fallback=0)=>Number.isFinite(value)?value:fallback;
+R.isEquipment=item=>item&&(item.kind==='weapon'||item.kind==='mod');
+R.validItem=function(item){
+  if(!R.isEquipment(item))return null;
+  const def=(item.kind==='weapon'?N.WEAPON_BY_ID:N.MOD_BY_ID)[item.itemId];
+  if(!def)return null;
+  return {kind:item.kind,itemId:def.id,tier:Math.max(1,Math.min(3,Math.floor(finite(item.tier,1)))),color:def.color};
+};
+R.reset=function(saved){
+  G.rewardState={
+    combat:Math.max(0,Math.min(saved?.first===false?R.SECONDS:R.FIRST_SECONDS,finite(saved?.combat))),
+    kills:Math.max(0,Math.min(R.KILLS,Math.floor(finite(saved?.kills)))),
+    first:saved?.first!==false,
+    pending:(Array.isArray(saved?.pending)?saved.pending:[]).map(R.validItem).filter(Boolean).slice(0,R.CAPACITY)
+  };
+};
+R.state=()=>G.rewardState||(R.reset(),G.rewardState);
+R.snapshot=function(){
+  const s=R.state(),pending=s.pending.slice();
+  // Preserve a replacement choice that has already been removed from the tray.
+  if(G.overflow){const item=R.validItem(G.overflow.item);if(item)pending.unshift(item);}
+  return {combat:s.combat,kills:s.kills,first:s.first,pending:pending.slice(0,R.CAPACITY)};
+};
+R.tick=function(dt){
+  if(G.mode!=='playing'||document.hidden||!document.hasFocus())return;
+  if(!G.enemies.some(e=>!e.dead))return;
+  const s=R.state();s.combat=Math.min(s.first?R.FIRST_SECONDS:R.SECONDS,s.combat+Math.max(0,finite(dt)));
+};
+R.onKill=function(){const s=R.state();s.kills=Math.min(R.KILLS,s.kills+1);};
+R.requiredKills=()=>Math.max(4,Math.ceil(R.KILLS/Math.max(1,finite(G.player?.stats.luck,1))));
+R.ready=function(){const s=R.state();return s.combat>=(s.first?R.FIRST_SECONDS:R.SECONDS)&&s.kills>=R.requiredKills();};
+R.paceLoot=function(loot,bossReward=false){
+  if(!R.isEquipment(loot)||bossReward)return loot;
+  if(R.ready()){
+    const s=R.state();s.combat=0;s.kills=0;s.first=false;
+    return loot;
+  }
+  // Withhold gear without changing healing, buffs, or XP drop rates.
+  return null;
+};
+R.bank=function(item){
+  const s=R.state();if(s.pending.length>=R.CAPACITY)return false;
+  const saved=R.validItem(item);if(!saved){item.collected=true;return true;}
+  s.pending.push(saved);item.collected=true;
+  G.notify('EQUIPMENT BANKED // OPEN REWARDS WHEN READY','loot',1600);
+  return true;
+};
+R.count=()=>R.state().pending.length+G.pendingLevelUps;
+G.openRewards=function(){
+  if((G.mode!=='playing'&&G.mode!=='paused')||!G.player||G.player.dead)return false;
+  G.setMode('rewards');N.Input.resetFire();N.Audio.setScene('paused');
+  N.UI.showRewards();return true;
+};
+G.takeReward=function(index){
+  if(G.mode!=='rewards')return;
+  const pending=R.state().pending;
+  if(!Number.isInteger(index)||index<0||index>=pending.length)return;
+  const item=pending.splice(index,1)[0];
+  G.collectGroundItem(item,false,true);
+  G.saveCheckpoint(true,'reward');
+  if(G.mode==='rewards')N.UI.showRewards();
+};
+G.discardReward=function(index){
+  if(G.mode!=='rewards'||!Number.isInteger(index)||index<0||index>=R.state().pending.length)return;
+  R.state().pending.splice(index,1);G.saveCheckpoint(true,'discard');N.UI.showRewards();
+};
+G.choosePendingProtocol=function(){
+  if(G.mode!=='rewards'||G.pendingLevelUps<=0)return;
+  G.setMode('playing');G.openLevelUp();
+};
 })();

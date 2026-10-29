@@ -1,9 +1,135 @@
-/* Run only in a fresh isolated browser context at /?test=discarded-items. */
+/* Run in an isolated browser context: /?test=discarded-items or /?test=rewards. */
 (function(){
 'use strict';
-if(new URLSearchParams(location.search).get('test')!=='discarded-items')throw Error('Use an isolated discarded-items test page');
+const test=new URLSearchParams(location.search).get('test');
+if(!['discarded-items','rewards'].includes(test))throw Error('Use an isolated discarded-items or rewards test page');
 const N=window.NEON,G=N.Game,passed=[];
 function check(value,message){if(!value)throw Error(message);passed.push(message);}
+if(test==='rewards'){
+  const R=N.Rewards,I=N.Input;
+  G.newRun();G.player.invuln=9999;
+  const gear={kind:'weapon',id:G.player.weapons[0].id,tier:1};
+  const item=()=>({kind:'weapon',itemId:gear.id,tier:1});
+  const level=()=>G.player.weapons[0].level;
+  G.enemies=[{dead:false}];
+  for(let i=0;i<100;i++)R.onKill();
+  R.tick(17.9);check(!R.ready(),'dense kills cannot bypass first combat interval');
+  R.tick(.1);check(R.ready(),'first opportunity requires 18 active combat seconds');
+  check(R.paceLoot(gear)===gear,'ready opportunity releases equipment');
+  check(!R.ready()&&R.state().combat===0&&R.state().kills===0,'equipment spends both budgets');
+  for(let i=0;i<100;i++)R.onKill();
+  check(R.paceLoot(gear)===null,'burst kills cannot generate another equipment drop');
+  R.tick(35.9);check(!R.ready(),'later opportunities require 36 combat seconds');R.tick(.1);
+  check(R.ready(),'later opportunity becomes available at 36 seconds');
+  R.paceLoot(gear);R.tick(999);check(!R.ready(),'time alone cannot generate equipment');
+  for(let i=0;i<8;i++)R.onKill();check(R.ready(),'time and kill progress together unlock gear');
+  const before=JSON.stringify(R.snapshot());
+  check(R.paceLoot(gear,true)===gear&&JSON.stringify(R.snapshot())===before,'boss equipment bypasses and preserves ordinary meter');
+  const repair={kind:'consumable',id:'repair'};
+  check(R.paceLoot(repair)===repair&&JSON.stringify(R.snapshot())===before,'consumables preserve their existing rates and do not spend equipment budget');
+  R.reset();G.setMode('paused');R.tick(99);check(R.state().combat===0,'pause cannot advance equipment clock');
+  G.setMode('playing');G.enemies=[];R.tick(99);check(R.state().combat===0,'empty sector time cannot advance equipment clock');
+  G.enemies=[{dead:false}];R.tick(18);check(!R.ready(),'first reward also requires kills');
+  const luck=G.player.stats.luck;G.player.stats.luck=2;
+  for(let i=0;i<4;i++)R.onKill();check(R.ready(),'luck reduces required kills while preserving minimum interval');G.player.stats.luck=luck;
+  R.reset();G.enemies=[];
+  const old=level();G.collectGroundItem(item());
+  check(G.mode==='playing'&&R.state().pending.length===1&&level()===old,'duplicate equipment banks without interruption or automatic upgrading');
+  G.openRewards();const elapsed=G.level.elapsed;G.update(.05);
+  check(G.mode==='rewards'&&G.level.elapsed===elapsed,'reward tray pauses simulation');
+  G.takeReward(0);check(level()===old+1&&R.state().pending.length===0,'requested duplicate installs once');G.resumeGame();
+  for(let i=0;i<4;i++)G.collectGroundItem(item());
+  const floor=G.spawnGroundLoot(gear,G.player.x,G.player.y,null,true);G.updateGroundItems(.016);
+  check(G.mode==='playing'&&!floor.collected&&G.groundItems.includes(floor)&&R.state().pending.length===4,'full tray leaves equipment on the ground');
+  G.openRewards();G.discardReward(0);G.resumeGame();G.updateGroundItems(.016);
+  check(floor.collected&&!G.groundItems.includes(floor)&&R.state().pending.length===4,'freeing tray space allows later pickup');
+  G.addXp(200);
+  check(G.mode==='playing'&&G.pendingLevelUps>1,'multiple XP levels bank choices without pausing');
+  const pending=G.pendingLevelUps;G.openRewards();G.choosePendingProtocol();
+  check(G.mode==='levelup','protocol selection opens only on request');
+  G.applyProtocol(G.levelUpChoices[0].id);
+  check(G.mode==='playing'&&G.pendingLevelUps===pending-1,'one protocol selection returns to combat with others retained');
+  G.pauseGame();G.resumeGame();check(G.mode==='playing','resume does not force pending choices');
+  R.state().combat=7;R.state().kills=3;G.saveCheckpoint(true,'reward-test');const saved=G.lastCheckpoint;
+  check(G.loadFromSave(saved)&&G.mode==='playing'&&R.state().pending.length===4&&R.state().combat===7&&R.state().kills===3&&G.pendingLevelUps===pending-1,'save/continue preserves rewards, pacing and protocols without opening menus');
+  const legacy=JSON.parse(JSON.stringify(saved));delete legacy.rewards;
+  check(G.loadFromSave(legacy)&&R.state().pending.length===0&&R.state().combat===0&&R.state().first,'legacy saves receive explicit reward defaults');
+  G.loadFromSave(saved);const protocols=G.pendingLevelUps;G.completeLevel('timer');
+  check(R.state().pending.length===4&&G.pendingLevelUps===protocols&&R.state().combat===7,'sector transition retains pending rewards and pacing');
+  G.advanceLevel();check(G.mode==='playing','next sector does not force pending choices');
+  G.openRewards();G.discardReward(0);G.resumeGame();
+  const other=N.WEAPONS.find(w=>!G.player.weapons.some(x=>x.id===w.id));
+  G.player.weaponSlots=G.player.weapons.length;G.collectGroundItem({kind:'weapon',itemId:other.id,tier:2});
+  G.openRewards();G.takeReward(R.state().pending.length-1);
+  check(G.mode==='overflow','full bays defer replacement until installation is requested');
+  G.saveCheckpoint(true,'replacement-test');const replacement=G.lastCheckpoint;
+  check(replacement.rewards.pending.some(x=>x.itemId===other.id),'save includes an unresolved replacement');
+  G.loadFromSave(replacement);check(G.mode==='playing'&&R.state().pending.some(x=>x.itemId===other.id),'continue recovers replacement in tray');
+  R.reset({combat:Infinity,kills:-100,first:false,pending:[null,{kind:'mod',itemId:'invalid'},...Array(9).fill(item())]});
+  check(R.state().combat===0&&R.state().kills===0&&R.state().pending.length===4,'malformed reward save fields are validated and queue is bounded');
+  const key=(type,code)=>document.dispatchEvent(new KeyboardEvent(type,{code,bubbles:true}));
+  G.settings.keyboard.rewards='KeyT';G.applySettings(false);I.endFrame();
+  key('keydown','KeyR');G.update(0);check(G.mode==='playing','old rewards key is inactive after remapping');key('keyup','KeyR');I.endFrame();
+  key('keydown','KeyT');G.update(0);check(G.mode==='rewards','remapped rewards key opens tray');key('keyup','KeyT');I.endFrame();
+  key('keydown','Escape');key('keyup','Escape');I.endFrame();check(G.mode==='playing','Escape closes reward tray without reopening pause');
+  G.settings.firingMode='toggle';G.applySettings(false);N.Firing.set('keyboard',false,false);N.Firing.set('keyboard',true,true);N.Firing.set('keyboard',false,false);
+  const toggled=N.Firing.toggled();G.openRewards();
+  check(toggled&&N.Firing.toggled()&&!N.Firing.active(false),'reward tray preserves auto-fire toggle and gates shooting');G.resumeGame();
+  check(N.Firing.toggled(),'returning from rewards preserves auto-fire');
+  G.settings.firingMode='hold';G.applySettings(false);N.Firing.set('keyboard',true,true);G.openRewards();G.resumeGame();
+  check(!N.Firing.active(true),'held fire stays blocked until released after reward interruption');N.Firing.set('keyboard',false,false);
+  const descriptor=Object.getOwnPropertyDescriptor(navigator,'getGamepads');
+  const buttons=Array.from({length:16},()=>({pressed:false,value:0}));
+  Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[{id:'reward-test-pad',buttons,axes:[0,0,0,0]}]});
+  I.update();I.endFrame();G.settings.gamepad.rewards=10;G.applySettings(false);
+  buttons[2]={pressed:true,value:1};I.update();G.update(0);check(G.mode==='playing','old controller reward binding becomes inactive after remapping');
+  buttons[2]={pressed:false,value:0};I.update();I.endFrame();buttons[10]={pressed:true,value:1};I.update();G.update(0);
+  check(G.mode==='rewards','remapped controller button opens tray');
+  buttons[10]={pressed:false,value:0};I.update();I.endFrame();buttons[1]={pressed:true,value:1};I.update();N.UI.handleGamepad();
+  check(G.mode==='playing','controller back returns to combat');
+  if(descriptor)Object.defineProperty(navigator,'getGamepads',descriptor);else delete navigator.getGamepads;
+  I.update();I.endFrame();
+  R.reset();G.enemies=[{dead:false}];
+  const focus=document.hasFocus;document.hasFocus=()=>false;R.tick(99);document.hasFocus=focus;
+  check(R.state().combat===0,'unfocused gameplay cannot advance reward timer');
+  const hiddenDescriptor=Object.getOwnPropertyDescriptor(document,'hidden');
+  Object.defineProperty(document,'hidden',{configurable:true,value:true});R.tick(99);
+  if(hiddenDescriptor)Object.defineProperty(document,'hidden',hiddenDescriptor);else delete document.hidden;
+  check(R.state().combat===0,'hidden tab cannot advance reward timer');
+  R.reset();let drops=0;
+  for(let seconds=0;seconds<300;seconds++){
+    R.tick(1);
+    for(let kill=0;kill<100;kill++){R.onKill();if(R.paceLoot(gear))drops++;}
+  }
+  check(drops===8,'five-minute dense workload yields eight ordinary equipment rewards rather than scaling with 30,000 kills');
+  R.reset();G.groundItems=[];
+  G.dropForEnemy({role:'shooter',x:G.player.x,y:G.player.y,color:'#fff'});
+  check(G.groundItems.length===0,'ordinary enemy equipment uses shared pacing gate');
+  R.state().combat=18;R.state().kills=8;
+  G.dropForEnemy({role:'shooter',x:G.player.x,y:G.player.y,color:'#fff'});
+  check(G.groundItems.length===1&&G.groundItems[0].kind==='mod','ready enemy equipment spends shared opportunity');
+  G.dropForEnemy({role:'warden',x:G.player.x,y:G.player.y,color:'#fff'});
+  check(G.groundItems.length===1,'elite gear cannot bypass equipment interval');
+  G.dropForEnemy({role:'boss',x:G.player.x,y:G.player.y,color:'#fff'});
+  check(G.groundItems.length===4,'boss cascade preserves weapon, module and consumable bonus');
+  for(const corrupt of [false,true]){
+    const cache={id:'reward-cache-test',alive:true,hp:1,x:G.player.x,y:G.player.y,r:15,corrupt,loot:{kind:'mod',id:'kinetic'}};
+    const count=G.groundItems.length;G.destroyCache(cache);
+    check(!cache.alive&&G.groundItems.length===count,`${corrupt?'corrupt':'normal'} cache safely respects exhausted equipment budget`);
+  }
+  R.state().combat=36;R.state().kills=8;
+  const cache={id:'reward-cache-ready',alive:true,hp:1,x:G.player.x,y:G.player.y,r:15,corrupt:true,loot:{kind:'mod',id:'kinetic'}};
+  G.destroyCache(cache);check(G.groundItems.at(-1).color==='#ff335c'&&!R.ready(),'eligible corrupt cache retains appearance and spends shared equipment budget');
+  const settings=N.deepClone(G.settings);
+  N.saveSettings({keyboard:{dash:'KeyR'},gamepad:{dash:2}});
+  const migrated=N.loadSettings();
+  check(migrated.keyboard.dash==='KeyR'&&migrated.keyboard.rewards!=='KeyR'&&migrated.gamepad.dash===2&&migrated.gamepad.rewards!==2,'new reward defaults preserve conflicting legacy custom bindings');
+  N.saveSettings({keyboard:{dash:'KeyR',fire:'KeyT',inventory:'KeyB'},gamepad:{dash:2,fire:8,inventory:10,pause:11}});
+  const unbound=N.loadSettings();
+  check(unbound.keyboard.rewards===null&&unbound.gamepad.rewards===null,'migration leaves rewards unbound when fallback keys/buttons are occupied');
+  N.saveSettings(settings);
+  G.setMode('paused');window.rewardsResult={passed:passed.length,checks:passed};return;
+}
 function setup(){
   G.newRun();G.player.weaponSlots=1;G.player.passiveSlots=1;
   const fresh=G.spawnGroundLoot({kind:'consumable',id:'repair'},G.player.x+500,G.player.y);
@@ -26,9 +152,11 @@ for(const kind of ['weapon','mod']){
   for(const action of ['swap','decline']){
     ({fresh,weapon,mod}=setup());
     const incomingDef=kind==='weapon'?weapon:mod;
-    const incoming=G.spawnGroundLoot({kind,id:incomingDef.id},G.player.x,G.player.y);
+    const incoming=G.spawnGroundLoot({kind,id:incomingDef.id},G.player.x,G.player.y,null,true);
     G.updateGroundItems(1/60);
-    check(G.mode==='overflow'&&G.overflow?.item===incoming,`${kind} ${action}: fresh gear opens overflow`);
+    check(G.mode==='playing'&&N.Rewards.state().pending.length===1,`${kind} ${action}: fresh gear banks without interruption`);
+    G.openRewards();G.takeReward(0);
+    check(G.mode==='overflow'&&G.overflow?.item.itemId===incoming.itemId,`${kind} ${action}: requested gear opens overflow`);
     if(action==='swap')G.swapOverflow(kind,0);else G.leaveOverflow();
     check(G.mode==='playing'&&!G.overflow,`${kind} ${action}: resumes gameplay`);
     check(G.groundItems.length===1&&G.groundItems[0]===fresh,`${kind} ${action}: no discarded or replaced pickup remains`);

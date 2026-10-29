@@ -5,7 +5,7 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','ship','settings','pause','inventory','levelup','overflow','gameover','complete','howto','credits','confirm'];
+const screens=['boot','menu','ship','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
@@ -82,8 +82,7 @@ UI.init=function(){
   $('btn-continue').addEventListener('click',()=>{
     const save=N.readSave();
     if(!save){UI.toast('NO SAVED RUN // BEGIN A NEW PROTOCOL','warn');refreshSaveMeta();return;}
-    // loadFromSave manages the interface itself: it hides overlays and re-opens
-    // the level-up screen when unspent protocol choices were recovered.
+    // Continue restores pending rewards without interrupting gameplay.
     if(!G.loadFromSave(save,false)) UI.toast('SAVE COULD NOT BE RESTORED','danger');
   });
   $('btn-new-run').addEventListener('click',()=>{
@@ -116,6 +115,10 @@ UI.init=function(){
     UI.toast('SYSTEM DEFAULTS RESTORED','loot');
   });
 
+  $('btn-rewards-hud').addEventListener('click',()=>G.openRewards());
+  $('btn-pause-rewards').addEventListener('click',()=>G.openRewards());
+  $('btn-rewards-close').addEventListener('click',()=>G.resumeGame());
+  $('btn-rewards-protocol').addEventListener('click',()=>G.choosePendingProtocol());
   // pause
   $('btn-resume').addEventListener('click',()=>G.resumeGame());
   $('btn-inventory').addEventListener('click',()=>G.openInventory());
@@ -135,7 +138,7 @@ UI.init=function(){
 
   // gameover
   $('btn-restore').addEventListener('click',()=>{
-    // restoreCheckpoint -> loadFromSave manages overlays and may re-open level-up.
+    // Restore keeps recovered choices pending in the reward tray.
     if(!G.restoreCheckpoint()) UI.toast('CHECKPOINT RESTORE FAILED','danger');
   });
   $('btn-gameover-menu').addEventListener('click',()=>{G.completeToMenu();UI.showMenu();});
@@ -367,7 +370,7 @@ function renderSettings(){
           </div>
         </div>
         ${toggleHTML('rightStickFire','RIGHT STICK FIRES')}
-        <div class="data-block"><p>Use LMB, the remapped Fire key, or the mapped controller Fire button. Hold mode fires while pressed. Toggle mode changes ON/OFF once per press. Optional right-stick firing uses each neutral-to-aim movement as a press in directional mode. Menus, pause, focus loss, mode changes and new runs reset continuous fire OFF. Release held fire inputs before rearming after an interruption. Aiming and weapon cooldowns are unchanged.</p></div>
+        <div class="data-block"><p>Use LMB, the remapped Fire key, or the mapped controller Fire button. Hold mode fires while pressed. Toggle mode changes ON/OFF once per press. Optional right-stick firing uses each neutral-to-aim movement as a press in directional mode. Auto-fire stays ON until toggled OFF, including across menus, pause, focus loss and new runs. Weapons only fire during focused gameplay. Changing firing modes resets auto-fire OFF. Release held fire inputs before rearming after an interruption. Aiming and weapon cooldowns are unchanged.</p></div>
       </div>
       <div class="settings-section"><h3>KEYBOARD BINDINGS</h3>
         ${N.KEY_ACTIONS.map(([action,label])=>`
@@ -518,6 +521,30 @@ function itemCard(kind,it,index,active,disableDrop){
   return card;
 }
 
+UI.updateRewards=function(){
+  const button=$('btn-rewards-hud'),count=N.Rewards.count();
+  button.hidden=G.mode!=='playing'||count===0;
+  if(button.hidden)return;
+  const key=G.settings.keyboard.rewards,pad=G.settings.gamepad.rewards;
+  const label=`REWARDS ${count} · ${N.keyLabel(key)} / ${N.padLabel(pad)}`;
+  if(button.textContent!==label)button.textContent=label;
+};
+UI.showRewards=function(){
+  const pending=N.Rewards.state().pending,list=$('rewards-list');list.replaceChildren();
+  const protocol=$('btn-rewards-protocol');
+  protocol.textContent=`CHOOSE PROTOCOL (${G.pendingLevelUps})`;protocol.disabled=G.pendingLevelUps<=0;
+  pending.forEach((item,index)=>{
+    const def=(item.kind==='weapon'?N.WEAPON_BY_ID:N.MOD_BY_ID)[item.itemId];
+    const row=document.createElement('div');row.className='overflow-item';
+    row.innerHTML=`<div class="item-copy"><b>${esc(def.name)}</b><small>${esc(def.desc||def.tag)}${item.kind==='weapon'?' · TIER '+item.tier:''}</small></div><button class="swap-btn" type="button">INSTALL</button><button class="item-drop" type="button">DISCARD</button>`;
+    row.querySelector('.swap-btn').addEventListener('click',()=>G.takeReward(index));
+    row.querySelector('.item-drop').addEventListener('click',()=>G.discardReward(index));
+    list.appendChild(row);
+  });
+  $('rewards-capacity').textContent=`EQUIPMENT ${pending.length}/${N.Rewards.CAPACITY} · Full tray leaves new equipment on the ground. Unspent protocols are always retained.`;
+  showScreen('rewards');
+};
+
 UI.showOverflow=function(data){
   if(!data)return;
   const {kind,def,item}=data;
@@ -620,6 +647,7 @@ function backAction(){
     case 'settings': closeSettings();break;
     case 'pause': G.resumeGame();break;
     case 'inventory': G.closeInventory();break;
+    case 'rewards': G.resumeGame();break;
     case 'howto': case 'credits': case 'ship': UI.showMenu();break;
     case 'confirm': {
       confirmYes=null;
@@ -640,11 +668,16 @@ function activateFocused(){
 function onKeyDown(e){
   if(!currentScreen||N.Input.isCapturing())return;
   if(e.code==='Escape'){
-    if(currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'){
+    if(currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'){
       // Stop the event so the gameplay input layer does not also register this
       // press and immediately re-open the pause screen after resuming.
       e.preventDefault();e.stopPropagation();backAction();
     }
+    return;
+  }
+  if(e.code===G.settings.keyboard.rewards&&(currentScreen==='rewards'||currentScreen==='pause')){
+    e.preventDefault();e.stopPropagation();
+    if(currentScreen==='rewards')G.resumeGame();else G.openRewards();
     return;
   }
   const invKey=(G.settings.keyboard&&G.settings.keyboard.inventory)||'KeyI';

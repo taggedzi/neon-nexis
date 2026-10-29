@@ -67,3 +67,10 @@ Fire inputs: LMB, remappable keyboard Fire (default F), mapped controller Fire
 - Changed-JavaScript syntax and `git diff --check` passed.
 - Pending: physical controller check and owner firing/aiming review.
 - Implementation commit: `0142e40`.
+
+## Follow-up decision (009)
+
+The owner superseded the reset-on-interruption rule on 2026-10-29: preserve
+auto-fire until explicitly toggled off. See [009](009-autofire-persistence.md) for
+the fix and current validation; historical reset test results above describe the
+original implementation. Changing firing modes still resets the toggle.

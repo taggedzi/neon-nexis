@@ -13,6 +13,17 @@ tracking IDs; GitHub is not required.
 | 006 | [Remove discarded items](006-discarded-items.md) | Implemented — needs validation |
 | 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Implemented — needs validation |
 | 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Implemented — needs validation |
+| 009 | [Preserve auto-fire through item selection and interruptions](009-autofire-persistence.md) | Implemented — needs validation |
+| 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
+
+### 009 implementation and validation update
+
+Auto-fire now preserves its session toggle through interruptions; mode changes
+explicitly clear it. See [issue 009](009-autofire-persistence.md) for implementation
+and evidence. The browser firing suite passed 53 assertions during issue 010 work,
+following 40 earlier Node VM checks. Physical controller testing and owner review
+specifically of firing persistence remain pending. Shared-folder access is fixed
+and issue/index status is synchronized.
 
 ## Implementation sequence and validation
 
@@ -38,3 +49,14 @@ not yet been verified through profiling or a code review.
 GitHub distribution, licensing, website deployment, and broader code organization
 remain separate planning topics. This backlog records the eight requested gameplay
 changes without choosing a hosting setup or prescribing a rewrite.
+
+## 010 — Reward pacing and deferred choices
+
+Status: Done. See [issue 010](010-reward-pacing.md) for
+implementation decisions, acceptance evidence and the full validation record.
+
+Paced equipment and player-opened rewards are implemented. Browser checks passed:
+53 reward assertions, 39 discarded-item assertions and 53 firing assertions.
+Shared-folder access is repaired, unused files are removed, and issue/index status
+is synchronized. The owner confirmed validation passed on 2026-10-29. Physical
+controller testing is not claimed; recorded controller checks use synthetic input.

@@ -616,10 +616,8 @@ G.updateGroundItems=function(dt){
     }
     if(d<radius&&N.World.clear(p.x,p.y,it.x,it.y)){
       G.collectGroundItem(it,false);
-      // Remove the pickup immediately even when collection opened an overlay
-      // (overflow / level-up); otherwise a checkpoint saved during that overlay
-      // would serialize a consumed item and duplicate it on reload.
-      G.groundItems.splice(i,1);
+      // Banked/consumed items leave the floor; a full reward tray retains gear.
+      if(it.collected)G.groundItems.splice(i,1);
       if(G.mode!=='playing') return;
     }
   }
@@ -663,7 +661,7 @@ G.completeLevel=function(reason){
   p.shieldDelay=0;
   p.dashCharges=p.maxDashCharges;
   p.buffs.overclock=0;p.buffs.speed=0;p.buffs.magnet=0;
-  G.pendingLevelUps=0;G.overflow=null;
+  G.overflow=null;
   G.level=G.generateLevel(G.run.level,null);
   p.x=G.level.layout?.spawn.x||G.level.cx;p.y=G.level.layout?.spawn.y||G.level.cy;p.vx=0;p.vy=0;
   G.camera.x=p.x;G.camera.y=p.y;G.camera.shake=0;
@@ -700,6 +698,8 @@ G.update=function(dt){
   if(!G.player||G.player.dead)return;
   if(N.Input.actionPressed('pause')||N.Input.padActionPressed('pause')){G.pauseGame();return;}
   if(N.Input.actionPressed('inventory')||N.Input.padActionPressed('inventory')){G.openInventory();return;}
+  if(N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards')){G.openRewards();return;}
+  N.Rewards.tick(dt);
   const prevElapsed=G.level.elapsed;
   G.time+=dt;G.level.elapsed=Math.min(DURATION,G.level.elapsed+dt);
   G.updatePlayer(dt);

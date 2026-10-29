@@ -346,3 +346,9 @@ body.playing .gamepad-status{bottom:10px}
   .logo::after,.grain,.holo-ring,.pulse-dot{animation:none!important}
   .screen.active{animation:none}
 }
+
+/* Pending rewards stay available without interrupting combat. */
+.reward-hud{position:absolute;right:18px;top:150px;z-index:21;min-height:36px;padding:9px 14px;font-size:10px;background:rgba(3,4,10,.92)}
+.reward-hud[hidden]{display:none}
+#rewards-list{margin:14px 0;max-height:40vh;overflow:auto}
+@media(max-width:600px){.reward-hud{top:auto;bottom:80px;right:10px;font-size:9px}}

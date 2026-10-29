@@ -475,6 +475,7 @@ G.killEnemy=function(e,opts={}){
   e.dead=true;e.alive=false;
   const p=G.player;
   G.run.kills=(G.run.kills||0)+1;G.level.kills=(G.level.kills||0)+1;
+  N.Rewards.onKill();
   G.addXp(e.xp||1);
   G.addParticles(e.x,e.y,e.color,e.elite?32:12,{speed:e.elite?260:160,life:.7,size:e.elite?2.4:1.7,glow:true});
   G.addRing(e.x,e.y,e.r*2.2,e.color,e.elite?.55:.32,e.elite?3:1.5);
@@ -532,8 +533,8 @@ G.destroyCache=function(c){
   G.triggerGlitch(c.corrupt?.4:.2,color);G.shake(3);N.Audio.kill(c.corrupt);
   if(c.loot){
     const it=G.spawnGroundLoot(c.loot,c.x,c.y,G.getLootName(c.loot));
-    if(c.corrupt){it.color='#ff335c';G.notify('CORRUPT CACHE OPENED // '+(N.MOD_BY_ID[c.loot.id]?.name||G.getLootName(c.loot)),'warn',1900);}
-    else G.notify('CACHE BREACHED // '+G.getLootName(c.loot),'loot',1700);
+    if(c.corrupt&&it)it.color='#ff335c';
+    G.notify((c.corrupt?'CORRUPT CACHE OPENED':'CACHE BREACHED')+(it?' // '+G.getLootName(it):''),c.corrupt?'warn':'loot',1700);
   }
 };
 

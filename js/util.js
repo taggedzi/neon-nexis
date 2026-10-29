@@ -183,9 +183,9 @@ N.SETTINGS_DEFAULT = {
   version:1,
   keyboard:{
     moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
-    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI',fire:'KeyF'
+    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI',rewards:'KeyR',fire:'KeyF'
   },
-  gamepad:{fire:7,dash:0,pause:9,weaponNext:5,weaponPrev:4,inventory:3},
+  gamepad:{fire:7,dash:0,pause:9,weaponNext:5,weaponPrev:4,inventory:3,rewards:2},
   audio:{master:.7,music:.38,sfx:.75,muted:false},
   graphics:{quality:'high',shake:true,scanlines:true,glitch:true,particles:1,showFps:false},
   accessibility:{reducedFlash:false,aimAssist:0},
@@ -195,11 +195,11 @@ N.SETTINGS_DEFAULT = {
 N.KEY_ACTIONS = [
   ['fire','FIRE'],
   ['moveUp','MOVE UP'],['moveDown','MOVE DOWN'],['moveLeft','MOVE LEFT'],['moveRight','MOVE RIGHT'],
-  ['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],['pause','PAUSE'],['inventory','INVENTORY']
+  ['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS']
 ];
 N.PAD_ACTIONS = [
   ['fire','FIRE / AIM'],['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],
-  ['pause','PAUSE'],['inventory','INVENTORY']
+  ['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS']
 ];
 N.KEY_LABELS = {
   Space:'SPACE', Escape:'ESC', Tab:'TAB', ShiftLeft:'L-SHIFT', ShiftRight:'R-SHIFT',
@@ -247,6 +247,15 @@ N.loadSettings = function(){
   if(raw?.keyboard&&raw.keyboard.fire===undefined){
     const used=new Set(Object.entries(s.keyboard).filter(([action])=>action!=='fire').map(([,code])=>code));
     s.keyboard.fire=['KeyF','KeyG','KeyV'].find(code=>!used.has(code))||null;
+  }
+  // New reward controls must not steal an existing player's custom binding.
+  if(raw?.keyboard&&raw.keyboard.rewards===undefined){
+    const used=new Set(Object.entries(s.keyboard).filter(([action])=>action!=='rewards').map(([,code])=>code));
+    s.keyboard.rewards=['KeyR','KeyT','KeyB'].find(code=>!used.has(code))||null;
+  }
+  if(raw?.gamepad&&raw.gamepad.rewards===undefined){
+    const used=new Set(Object.entries(s.gamepad).filter(([action])=>action!=='rewards').map(([,button])=>button));
+    s.gamepad.rewards=[2,8,10,11].find(button=>!used.has(button))??null;
   }
   return s;
 };
