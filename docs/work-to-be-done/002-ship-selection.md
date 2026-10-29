@@ -66,4 +66,4 @@ Selection should persist for the player for the entire durration of the save. Th
   UI inspected at 360×740 and 1920×1080 with no horizontal overflow. No captured
   game errors. Physical controller and owner visual approval remain pending.
 - JavaScript syntax and `git diff --check` passed.
-- Implementation commit: pending.
+- Implementation commit: `2d27ec1`.
