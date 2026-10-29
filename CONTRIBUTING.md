@@ -17,6 +17,10 @@ reports through the [Security Policy](SECURITY.md).
 
 ## Work locally
 
+Follow the [web development style guide](docs/web-development-style-guide.md)
+for practical JavaScript, HTML, CSS, accessibility, and browser API conventions.
+Apply it to the code you change rather than reformatting unrelated files.
+
 Fork the repository, create a branch, and follow the [README](README.md#run-locally)
 to serve the game. No package-manager build is required. If using a coding agent,
 also follow [AGENTS.md](AGENTS.md).

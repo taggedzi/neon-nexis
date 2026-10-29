@@ -50,6 +50,21 @@ reason for the change remains visible.
 
 ## Implementation and validation
 
+### 2026-10-29 — Practical web development conventions
+
+- Approval: Owner requested a practical style guide for developers and AI agents.
+  The detailed conventions are agent implementation choices within that scope.
+- Decision: Add `docs/web-development-style-guide.md` and link it from the README,
+  contributor guidance, and agent instructions. Cover incremental code style,
+  module boundaries, game loops, accessible UI, CSS, data handling, and validation.
+- Rationale: Provide consistent review guidance for the existing browser game
+  without adding a framework, formatter, build dependency, or broad rewrite.
+- Consequences: Apply conventions to new and changed code. Existing code is not
+  certified compliant; browser support and accessibility remain validation goals.
+  No gameplay or runtime behavior changed and no new tooling is implied.
+- Validation: Local Markdown link targets and fragments were checked and
+  `git diff --check` passed. Runtime tests were not needed for documentation edits.
+
 ### 2026-10-29 — Cross-platform whitespace policy
 
 - Owner requested a repository whitespace policy on this branch. Agent choices:

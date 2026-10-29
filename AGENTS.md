@@ -69,6 +69,10 @@ to a large module when a small, clearly bounded extraction is warranted.
 
 ## Implementation constraints
 
+Follow [the web development style guide](docs/web-development-style-guide.md)
+for new and changed code. It applies to developers and AI agents; use it
+incrementally without reformatting unrelated code.
+
 - Follow `.editorconfig`, `.gitattributes`, and the whitespace policy in
   `CONTRIBUTING.md`: UTF-8 without BOM, LF, final newline, two-space indentation,
   and no trailing whitespace except deliberate Markdown hard breaks. Respect

@@ -96,6 +96,9 @@ Bug reports, focused improvements, and documentation fixes are welcome. Read
 - `tools/` — development checks and performance tooling.
 - `docs/work-to-be-done/` — local issue tracker and validation records.
 
+Developers and AI contributors should read the
+[web development style guide](docs/web-development-style-guide.md).
+
 ## License
 
 [MIT](LICENSE). Copyright © 2026 Matthew Craig.
