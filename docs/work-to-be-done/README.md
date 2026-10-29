@@ -16,6 +16,7 @@ tracking IDs; GitHub is not required.
 | 009 | [Preserve auto-fire through item selection and interruptions](009-autofire-persistence.md) | Implemented — needs validation |
 | 011 | [Controller parity and control reference](011-controller-parity.md) | Implemented — needs validation |
 | 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
+| 012 | [Prepare GitHub community and release documentation](012-github-community.md) | Done |
 
 ### 009 implementation and validation update
 
@@ -47,9 +48,10 @@ before implementing the affected behavior; proposed defaults are not approved
 design decisions. Reported symptoms come from the player's experience and have
 not yet been verified through profiling or a code review.
 
-GitHub distribution, licensing, website deployment, and broader code organization
-remain separate planning topics. This backlog records the eight requested gameplay
-changes without choosing a hosting setup or prescribing a rewrite.
+GitHub community documentation and MIT licensing are authorized under
+[issue 012](012-github-community.md). Publishing, website deployment, and broader
+code organization remain separate work. The gameplay issues do not choose a
+hosting setup or prescribe a rewrite.
 
 ## 010 — Reward pacing and deferred choices
 
