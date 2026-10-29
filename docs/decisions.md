@@ -58,3 +58,13 @@ reason for the change remains visible.
   for this documentation-only change. Owner PR review remains pending. The owner
   authorized committing these documentation changes; pushing and merging remain
   owner-managed.
+
+### Follow-up — Repository ignore rules
+
+- Owner requested a project `.gitignore` on the same branch on 2026-10-29.
+- Added focused rules for browser artifacts, designated local profile/save
+  directories, credentials, optional development dependencies, caches, and
+  editor/OS temporary files. This is an agent implementation choice; source
+  images, JSON validation evidence, and shared agent configuration remain trackable.
+- Checks: `git diff --check` and representative `git check-ignore` checks passed.
+  Existing `.playwright-mcp/` artifacts remain on disk and are now ignored.
