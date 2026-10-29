@@ -6,7 +6,7 @@ GitHub Issues. Numbers are local tracking IDs, not GitHub issue numbers.
 
 | ID | Issue |
 | --- | --- |
-| 001 | [Improve performance during large enemy waves](001-performance.md) |
+| 001 | [Improve overall performance, especially during large enemy waves](001-performance.md) |
 | 002 | [Choose ship type and color before a run](002-ship-selection.md) |
 | 003 | [Center the ship and improve camera tracking](003-camera-follow.md) |
 | 004 | [Add ship-relative driving controls](004-control-options.md) |
