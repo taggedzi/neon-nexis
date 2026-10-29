@@ -54,5 +54,5 @@ stationary ship settles at the exact center.
 - Agent visually inspected a 1920×1080 corner scene: ship at (960,540), map edge
   visible through the center with outside space exposed, neon presentation intact.
 - Syntax checks and `git diff --check` passed.
-- Implementation commit: pending.
+- Implementation commit: `5d0ca37`.
 - Pending player review: smoothing and edge presentation feel right.
