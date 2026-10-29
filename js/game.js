@@ -105,6 +105,7 @@ G.resize=function(){
   G.canvas.style.width=w+'px'; G.canvas.style.height=h+'px';
   G.zoom=clamp(Math.min(w/1180,h/760),.56,1.5);
   G.camera.zoom=G.zoom;
+  G.updateCamera(0,true);
 };
 G.applySettings=function(persist=true){
   N.Input.setSettings(G.settings);
@@ -367,6 +368,7 @@ G.newRun=function(){
   G.level=generateLevel(1,null);
   G.player.x=G.level.cx;G.player.y=G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
+  G.camera.shake=0;G.camera.sx=0;G.camera.sy=0;
   G.resetEntityArrays();
   G.mode='playing';
   G.time=0;G.glitch=0;G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;
@@ -498,6 +500,7 @@ G.loadFromSave=function(save,fromDeath=false){
     const p=hydratePlayer(save.player,G.level);
     G.player=p;
     G.camera.x=p.x;G.camera.y=p.y;
+    G.camera.shake=0;G.camera.sx=0;G.camera.sy=0;
     G.camera.zoom=G.zoom;
     G.resetEntityArrays();
     G.groundItems=(save.level&&save.level.groundItems||[]).map(hydrateGroundItem);

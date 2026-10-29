@@ -93,8 +93,7 @@ G.updatePlayer=function(dt){
   const p=G.player;if(!p||p.dead)return;
   const inp=N.Input;
   const mouse=inp.getMouse();
-  const mw={x:G.camera.x+(mouse.x-G.w/2)/G.zoom,y:G.camera.y+(mouse.y-G.h/2)/G.zoom};
-  const aim=inp.getAim(p,mw);
+  let aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
   G.aim=aim;
   G.aimAngle=aim.angle;
   if(!aim.point) aim.point={x:p.x+Math.cos(aim.angle)*280,y:p.y+Math.sin(aim.angle)*280};
@@ -154,6 +153,10 @@ G.updatePlayer=function(dt){
   }
   p.x+=p.vx*dt;p.y+=p.vy*dt;
   p.x=clamp(p.x,20,G.level.width-20);p.y=clamp(p.y,20,G.level.height-20);
+  G.updateCamera(dt);
+  // Aim through the camera used to draw this frame, including its shake offset.
+  aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
+  G.aim=aim;G.aimAngle=aim.angle;G.aimPoint=aim.point;
   const sw=inp.getWeaponSwitch();
   if(sw&&p.weapons.length>1){
     p.activeWeapon=(p.activeWeapon+(sw>0?1:-1)+p.weapons.length)%p.weapons.length;
@@ -162,14 +165,6 @@ G.updatePlayer=function(dt){
   }
   const active=p.weapons[p.activeWeapon];
   if(active&&aim.fire&&active.cooldown<=0)G.fireWeapon(active);
-  // camera
-  const lead=aim.source==='mouse'?55:28;
-  const tx=p.x+Math.cos(p.aim)*lead,ty=p.y+Math.sin(p.aim)*lead;
-  const follow=1-Math.exp(-dt*5.5);
-  G.camera.x+=(tx-G.camera.x)*follow;G.camera.y+=(ty-G.camera.y)*follow;
-  const hw=G.w/(2*G.zoom),hh=G.h/(2*G.zoom);
-  if(G.level.width>hw*2)G.camera.x=clamp(G.camera.x,hw,G.level.width-hw);else G.camera.x=G.level.cx;
-  if(G.level.height>hh*2)G.camera.y=clamp(G.camera.y,hh,G.level.height-hh);else G.camera.y=G.level.cy;
 };
 
 // ——— bullet collisions / abilities ———
@@ -648,6 +643,7 @@ G.completeLevel=function(reason){
   G.level=G.generateLevel(G.run.level,null);
   p.x=G.level.cx;p.y=G.level.cy;p.vx=0;p.vy=0;
   G.camera.x=p.x;G.camera.y=p.y;G.camera.shake=0;
+  G.camera.sx=0;G.camera.sy=0;
   G.resetEntityArrays();
   G.groundItems.length=0;
   G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;

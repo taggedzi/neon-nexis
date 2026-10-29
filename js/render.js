@@ -764,8 +764,7 @@ function drawAim(c){
   const active=p.weapons[p.activeWeapon];
   const color=active?(N.WEAPON_BY_ID[active.id]?.color||'#00f0ff'):'#00f0ff';
   const point=G.aimPoint||{x:p.x+Math.cos(G.aim.angle)*280,y:p.y+Math.sin(G.aim.angle)*280};
-  const sx=(point.x-G.camera.x)*G.zoom+G.w/2+(G.camera.sx||0);
-  const sy=(point.y-G.camera.y)*G.zoom+G.h/2+(G.camera.sy||0);
+  const {x:sx,y:sy}=G.worldToScreen(point.x,point.y);
   if(sx<0||sy<0||sx>G.w||sy>G.h)return;
   const pulse=G.aim.fire?1+Math.sin(G.time*18)*.12:1;
   c.save();c.translate(sx,sy);c.rotate(G.time*.8);c.globalCompositeOperation='lighter';
@@ -780,8 +779,7 @@ function drawAim(c){
   c.beginPath();c.moveTo(-r-6,0);c.lineTo(-r-2,0);c.moveTo(r+2,0);c.lineTo(r+6,0);c.moveTo(0,-r-6);c.lineTo(0,-r-2);c.moveTo(0,r+2);c.lineTo(0,r+6);c.stroke();
   c.restore();
   // aim line
-  const pxs=(p.x-G.camera.x)*G.zoom+G.w/2+(G.camera.sx||0);
-  const pys=(p.y-G.camera.y)*G.zoom+G.h/2+(G.camera.sy||0);
+  const {x:pxs,y:pys}=G.worldToScreen(p.x,p.y);
   c.save();c.globalAlpha=.12;c.strokeStyle=color;c.lineWidth=1;c.setLineDash([2,8]);
   c.beginPath();c.moveTo(pxs,pys);c.lineTo(sx,sy);c.stroke();c.setLineDash([]);c.restore();
 }
@@ -819,10 +817,7 @@ G.render=function(dt){
     return;
   }
   drawBackground(c,theme);
-  const shake=G.camera.shake||0;
-  const sx=shake?(Math.random()-.5)*shake:0;
-  const sy=shake?(Math.random()-.5)*shake:0;
-  G.camera.sx=sx;G.camera.sy=sy;
+  const sx=G.camera.sx||0,sy=G.camera.sy||0;
   c.save();
   c.translate(G.w/2+sx,G.h/2+sy);
   c.scale(G.zoom,G.zoom);
