@@ -4,6 +4,7 @@
 const N = window.NEON = window.NEON || {};
 
 N.VERSION = 1;
+N.RELEASE_VERSION = 'development';
 N.TAU = Math.PI * 2;
 N.clamp = (v,a,b)=>v<a?a:v>b?b:v;
 N.lerp = (a,b,t)=>a+(b-a)*t;

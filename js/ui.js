@@ -5,7 +5,7 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','ship','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm'];
+const screens=['boot','menu','ship','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
@@ -13,6 +13,7 @@ let confirmReturn=null;
 let confirmYes=null;
 let bootReady=false;
 let shipSelection=null;
+let oldSaveRaw=null;
 const focusTimers=[];
 let navDirection='',navRepeatAt=0;
 
@@ -78,6 +79,15 @@ UI.toast=function(text,type='info',duration){
 };
 
 UI.init=function(){
+  $('menu-version').textContent = 'BUILD ' + N.RELEASE_VERSION + ' // CLIENT-SIDE ASSET SYNTHESIS';
+  for (const [id, shouldExport] of [['btn-old-save-export', true], ['btn-old-save-remove', false]]) {
+    $(id).addEventListener('click', () => {
+      if (N.SavePolicy.resolve(oldSaveRaw, shouldExport)) {
+        oldSaveRaw = null;
+      }
+      UI.showMenu();
+    });
+  }
   // persistent control bindings
   $('btn-boot').addEventListener('click',()=>{
     if(!bootReady)return;
@@ -205,6 +215,13 @@ function refreshSaveMeta(){
 UI.refreshSaveMeta=refreshSaveMeta;
 
 UI.showMenu=function(){
+  const checkpoint = N.SavePolicy.inspect();
+  if (checkpoint.incompatible) {
+    oldSaveRaw = checkpoint.raw;
+    G.setMode('menu');
+    showScreen('oldsave');
+    return;
+  }
   refreshSaveMeta();
   showScreen('menu');
   if(G.mode!=='menu'&&G.mode!=='boot')G.setMode('menu');

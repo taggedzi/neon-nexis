@@ -72,8 +72,9 @@ Use checks appropriate to the change and describe what actually ran:
   workload, duration, and frame-time/memory measurements. Keep balance changes
   separate and preserve default visual quality.
 - Add meaningful regression coverage for risky logic where practical. Existing
-  checks live in `tools/`; read a check's setup before running it. There is no
-  single established command that runs every check.
+  checks live in `tools/`; use `npm run check` for the automated CI checks. See
+  [the development guide](docs/development-and-releases.md) for setup and how to
+  register future regression tests. Performance tooling is separate.
 - Run `git diff --check` before submitting. Documentation-only changes need link
   and formatting checks, rather than a gameplay test suite.
 

@@ -158,6 +158,8 @@ Keep player review, physical-controller checks, and measured performance distinc
 from synthetic/headless results. Documentation-only edits need document/link and
 whitespace checks, not gameplay tests.
 
-The guide is a review standard, not a claim that formatter, lint, accessibility,
-or cross-browser automation exists. Propose such tooling separately when there
-is a concrete benefit. Do not introduce a build step just to enforce this guide.
+The guide is a review standard. Syntax/lint and browser automation are now provided
+by `npm run check`; see [the development guide](development-and-releases.md).
+Formatter and accessibility tooling remain unimplemented. Discuss additional
+tooling when there is a concrete benefit; do not introduce a build step just to
+enforce this guide.

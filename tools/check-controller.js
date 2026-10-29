@@ -23,7 +23,12 @@ try{
   const first=document.activeElement;press(13);
   check(document.activeElement!==first,'D-pad moves menu selection');
   check(document.body.classList.contains('controller-nav'),'controller focus styling activated');
-  check(getComputedStyle(document.activeElement).outlineWidth==='3px','selected control has strong outline');
+  const focusStyle = getComputedStyle(document.activeElement);
+  const outlineWidth = parseFloat(focusStyle.outlineWidth);
+  // Firefox quantizes outlines to device pixels under Windows display scaling.
+  const pixelTolerance = 1 / window.devicePixelRatio;
+  check(focusStyle.outlineStyle==='solid'&&outlineWidth>=2&&Math.abs(outlineWidth-3)<=pixelTolerance,
+    'selected control has strong outline within one device pixel (actual: '+outlineWidth+', DPR: '+window.devicePixelRatio+')');
   const before=document.activeElement;release();pad.axes=[0,1,0,0];frame();
   check(document.activeElement!==before,'left stick navigates menus');
   const held=document.activeElement;frame();check(document.activeElement===held,'held stick does not repeat every frame');

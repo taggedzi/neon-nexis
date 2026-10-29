@@ -66,10 +66,23 @@ Saves and settings use the browser's local storage. Continue in the same browser
 profile and at the same address, including port. Clearing site data can remove
 progress; saves do not sync between devices.
 
-The project currently runs only on the owner's local development PC and has no
-public deployment. There is no save-compatibility policy yet: development updates
-may break older saves. Agents must still preserve local data where practical and
-must not clear browser storage without authorization.
+Unsupported or unreadable saves offer **Export and remove** or **Remove without
+export**. Compatible saves continue to work; developers own format compatibility.
+Settings are kept. Export starts a browser download before removing the checkpoint.
+
+## Development and releases
+
+Run `npm ci --ignore-scripts`, install the Playwright browsers, then use
+`npm run check` for syntax, lint, regression and browser smoke tests. These are
+development tools; playing locally still requires no package installation.
+
+GitHub Actions checks pull requests and main. The **Publish game** workflow
+publishes to GitHub Pages only when manually run on main. Versions use
+`YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
+deployment has not yet been validated. See the
+[development and release guide](docs/development-and-releases.md) for setup,
+save policy, limitations and deferred work. There is no rollback procedure during
+this development phase.
 
 ## Project status and contributions
 
@@ -77,11 +90,9 @@ The game is under active hobby development. Some implemented features still
 need player, controller, or performance validation. See the
 [local backlog](docs/work-to-be-done/README.md) for current status and known work.
 
-Release versions will use dates rather than semantic versioning. The exact date
-format and handling of multiple releases on one day remain to be decided when a
-deployment process is designed. No release or version is assigned by this policy.
-A changelog will be introduced after that deployment process exists; both are
-tracked as [planned work](docs/work-to-be-done/013-deployment-and-changelog.md).
+Release versions use the date convention described above. No public deployment
+has been performed. Changelog setup remains pending deployment validation; see
+[issue 013](docs/work-to-be-done/013-deployment-and-changelog.md).
 
 Bug reports, focused improvements, and documentation fixes are welcome. Read
 [Contributing](CONTRIBUTING.md) before opening a pull request and follow the

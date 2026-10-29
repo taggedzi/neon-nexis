@@ -22,7 +22,7 @@ in [the decision log](../decisions.md).
 | 011 | [Controller parity and control reference](011-controller-parity.md) | Implemented — needs validation |
 | 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
 | 012 | [Prepare GitHub community and release documentation](012-github-community.md) | Done |
-| 013 | [Create a deployment process, then introduce a changelog](013-deployment-and-changelog.md) | Planned |
+| 013 | [Establish CI/CD and release policy](013-deployment-and-changelog.md) | Implemented — needs validation |
 
 ### 009 implementation and validation update
 

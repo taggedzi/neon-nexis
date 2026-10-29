@@ -454,7 +454,7 @@ G.completeToMenu=function(){
 
 G.getSaveInfo=function(){
   const save=N.readSave();
-  if(!save||save.version!==SAVE_VERSION||!save.run||!save.player) return null;
+  if(!G.canLoadSave(save)) return null;
   const r=save.run;
   const elapsed=+(save.level&&save.level.elapsed)||0;
   return {
@@ -464,6 +464,7 @@ G.getSaveInfo=function(){
   };
 };
 G.saveCheckpoint=function(silent=false,reason='checkpoint'){
+  if(N.SavePolicy && N.SavePolicy.inspect().incompatible) return false;
   if(!G.run||!G.player||!G.level||G.player.dead) return false;
   const p=G.player;
   const data={
@@ -499,9 +500,14 @@ G.restoreCheckpoint=function(){
   if(!save){G.notify('NO CHECKPOINT SIGNAL FOUND','danger');return false;}
   return G.loadFromSave(save,true);
 };
+G.canLoadSave=function(save){
+  return !!(save && save.version===SAVE_VERSION && save.run &&
+    typeof save.run==='object' && !Array.isArray(save.run) && save.player &&
+    typeof save.player==='object' && !Array.isArray(save.player) &&
+    (save.run.mapVersion==null || save.run.mapVersion===0 || save.run.mapVersion===1));
+};
 G.loadFromSave=function(save,fromDeath=false){
-  if(!save||save.version!==SAVE_VERSION||!save.run||!save.player) return false;
-  if(save.run.mapVersion!=null&&save.run.mapVersion!==0&&save.run.mapVersion!==1)return false;
+  if(!G.canLoadSave(save)) return false;
   try{
     N.Input.resetMovement();
     N.Input.resetFire();

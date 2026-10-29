@@ -1,7 +1,7 @@
 // Deterministic generation and geometry validation; no browser/build dependency.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const box={window:{NEON:{}},location:{search:''}};vm.createContext(box);
-for(const file of ['util','content','game','driving','ships','world','maps'])vm.runInContext(fs.readFileSync(new URL('../js/'+file+'.js',`file://${__filename}`),'utf8'),box);
+for(const file of ['util','content','game','driving','ships','world','maps','enemies'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../js',file+'.js'),'utf8'),box);
 const N=box.window.NEON,G=N.Game,W=N.World;
 function reachable(l){
   const start=Math.floor(l.spawn.y/100)*l.cols+Math.floor(l.spawn.x/100),seen=new Set([start]),queue=[start];

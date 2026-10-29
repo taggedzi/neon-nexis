@@ -34,3 +34,6 @@ Desktop.ini
 
 # Keep source assets, shared editor/agent configuration, and intentional
 # validation evidence (including tools/performance/results-*.json) trackable.
+
+# Public release staging
+/dist/

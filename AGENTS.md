@@ -83,13 +83,15 @@ incrementally without reformatting unrelated code.
   in `README.md`. These are desired support targets, not guarantees. Record actual
   browser versions and environments checked; do not infer cross-browser support
   from a single browser run.
-- Use date-based release versioning, not semantic versioning. The exact format
-  and same-day release convention remain unresolved until deployment planning.
-  Changelog setup follows creation of a deployment process; see issue 013. Do not
+- Use `YYYY.MM.DD.####` release versions: America/New_York date and a four-digit
+  release-workflow run number that does not reset daily. Publication requires a
+  single manual dispatch on main; no rollback procedure exists during development.
+  Changelog setup remains pending deployment validation; see issue 013. Do not
   invent releases or require changelog entries before that process exists.
-- There is no save-compatibility policy yet; the game is in local development
-  with no public deployment. Do not promise backward-compatible saves. This does
-  not authorize clearing local data or remove the preservation guidance below.
+- Developers own save compatibility. Unsupported saves require an explicit offer
+  to export before removal, or removal without export; preserve compatible saves
+  and settings. See `docs/development-and-releases.md`. This does not authorize
+  clearing the owner's browser data as a testing shortcut.
 
 - Preserve the graphics style, visual quality, effects, and overall look and feel.
   Do not remove visible effects or lower default quality to claim optimization.
@@ -153,9 +155,9 @@ Link between records when a decision affects multiple issues.
 
 Serve the repository root using an available static HTTP server, for example
 `python -m http.server 8000`, then open `http://localhost:8000/`. Check interpreter
-availability and avoid interfering with an existing server. No package-manager
-build or test command is currently established; inspect the checkout before
-assuming one exists.
+availability and avoid interfering with an existing server. Automated checks use
+`npm run check`; see [the development guide](docs/development-and-releases.md)
+for setup and future regression registration. Playing from source needs no build.
 
 Use checks proportional to the change:
 
