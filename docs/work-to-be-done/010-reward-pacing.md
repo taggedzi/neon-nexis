@@ -107,4 +107,4 @@ work or owner decision is recorded for issue 010.
 Coverage limitation: the owner did not specify their input device. Recorded
 controller regression checks use synthetic input; physical controller testing is
 not claimed. No new runtime tests were needed for this documentation-only update.
-`git diff --check` passed after recording acceptance. Repository commit authorized by the owner; implementation hash will be recorded after committing.
+`git diff --check` passed after recording acceptance. Implementation commit: `c6dbb82` (009 and 010).

@@ -41,3 +41,5 @@ after interruptions; menu clicks must not toggle auto-fire.
   not claim physical hardware testing or owner approval of this separate issue.
 - Shared-folder access was repaired by the owner on 2026-10-29, allowing this
   document and the index to be synchronized.
+
+Implementation commit: `c6dbb82` (009 and 010).
