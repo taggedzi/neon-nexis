@@ -108,3 +108,11 @@ Coverage limitation: the owner did not specify their input device. Recorded
 controller regression checks use synthetic input; physical controller testing is
 not claimed. No new runtime tests were needed for this documentation-only update.
 `git diff --check` passed after recording acceptance. Implementation commit: `c6dbb82` (009 and 010).
+
+## Later owner-directed behavior change
+
+Issue [011](011-controller-parity.md) updates weapon pickup handling per the owner
+on 2026-10-29: weapons automatically attach/integrate while weapon bays are free.
+Only full weapon bays defer weapon pickups. Modules retain deferred installation.
+The implementation and validation above describe the original accepted behavior;
+011 records verification of the revised behavior. Equipment pacing is unchanged.

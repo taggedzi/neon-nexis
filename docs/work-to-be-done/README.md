@@ -14,6 +14,7 @@ tracking IDs; GitHub is not required.
 | 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Implemented — needs validation |
 | 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Implemented — needs validation |
 | 009 | [Preserve auto-fire through item selection and interruptions](009-autofire-persistence.md) | Implemented — needs validation |
+| 011 | [Controller parity and control reference](011-controller-parity.md) | Implemented — needs validation |
 | 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
 
 ### 009 implementation and validation update
@@ -60,3 +61,9 @@ Paced equipment and player-opened rewards are implemented. Browser checks passed
 Shared-folder access is repaired, unused files are removed, and issue/index status
 is synchronized. The owner confirmed validation passed on 2026-10-29. Physical
 controller testing is not claimed; recorded controller checks use synthetic input.
+
+## 011 — Controller parity and weapon visibility
+
+Status: Implemented — needs validation. The owner approved the delivered changes
+on 2026-10-29 (“I like the changes”). Physical-controller usability and remaining
+menu-action validation are still pending; see [issue 011](011-controller-parity.md).

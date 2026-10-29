@@ -14,6 +14,7 @@ let confirmYes=null;
 let bootReady=false;
 let shipSelection=null;
 const focusTimers=[];
+let navDirection='',navRepeatAt=0;
 
 function screenEl(name){return document.getElementById('screen-'+name);}
 function esc(s){return N.safeName(String(s==null?'':s));}
@@ -22,6 +23,7 @@ function showScreen(name,noFocus){
   N.Input.resetFire();
   for(const n of screens){const el=screenEl(n);if(el)el.classList.toggle('active',n===name);}
   currentScreen=name;
+  navDirection='';navRepeatAt=0;
   clearFocusTimers();
   if(name!=='boot'&&!noFocus)focusTimers.push(setTimeout(()=>focusFirst(),30));
 }
@@ -40,12 +42,17 @@ function focusables(){
   return Array.from(s.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
     .filter(el=>el.offsetParent!==null);
 }
-function focusFirst(){const f=focusables();if(f.length){try{f[0].focus({preventScroll:true});}catch(e){}}}
+function focusControl(el){
+  if(!el)return;
+  el.focus({preventScroll:true});
+  el.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function focusFirst(){focusControl(focusables()[0]);}
 function moveFocus(dir){
   const f=focusables();if(!f.length)return;
   let i=f.indexOf(document.activeElement);
   if(i<0)i=0;else i=(i+dir+f.length)%f.length;
-  try{f[i].focus({preventScroll:true});}catch(e){}
+  focusControl(f[i]);
 }
 function focusedRange(){
   const el=document.activeElement;
@@ -346,6 +353,9 @@ function assignBinding(type,action,value){
   map[action]=value;
 }
 function renderSettings(){
+  const active=document.activeElement;
+  const focusKey=active?.closest('#settings-body')?['setting','toggle','quality','movementMode','firingMode','bindKey','bindPad','action'].find(k=>active.dataset[k]!=null):null;
+  const focusValue=focusKey?active.dataset[focusKey]:null;
   const s=G.settings;
   document.querySelectorAll('#screen-settings .tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===settingsTab));
   const body=$('settings-body');if(!body)return;
@@ -353,6 +363,12 @@ function renderSettings(){
     const driving=s.movementMode==='driving';
     const drivingLabels={moveUp:'FORWARD THRUST',moveDown:'BRAKE / REVERSE',moveLeft:'STEER LEFT',moveRight:'STEER RIGHT'};
     body.innerHTML=`
+      <div class="settings-section"><h3>CONTROLLER QUICK GUIDE</h3>
+        <div class="data-block"><p>Menus: D-pad or left stick selects; left/right adjusts sliders. A / Cross (bottom face button) confirms; B / Circle (right face button) goes back. START / Options also goes back. Hold a direction to repeat. Menu buttons stay fixed when gameplay bindings change.</p>
+        <p>Gameplay: left stick ${driving?'steers and thrusts / brakes / reverses':'moves'}; right stick aims. ${N.PAD_ACTIONS.map(([action,label])=>esc(label)+': '+esc(N.padLabel(s.gamepad[action]))).join(' · ')}. Weapon cycling requires more than one equipped weapon. Pickups attach automatically while weapon bays are available; with full bays, open Rewards to install or replace weapons.</p>
+        <p>Labels use Xbox / standard browser button order (A = Cross, B = Circle, X = Square, Y = Triangle; LB/RB = L1/R1; LT/RT = L2/R2). Other controllers may report different layouts; use the input monitor and remap gameplay buttons below.</p>
+        <p id="controller-monitor"></p></div>
+      </div>
       <div class="settings-section"><h3>MOVEMENT MODE</h3>
         <div class="setting-row"><div class="setting-label"><b>SHIP CONTROLS</b><small>SAVED BETWEEN SESSIONS</small></div>
           <div class="segmented">
@@ -388,7 +404,7 @@ function renderSettings(){
           </div></div>
         </div>
       </div>
-      <div class="data-block"><p>Click a binding, then press the desired key or gamepad button. Duplicate assignments are swapped automatically. Mouse aim/fire is always available in addition to gamepad controls.</p></div>`;
+      <div class="data-block"><p>Select a binding, then press the desired key or gamepad button. Duplicate assignments are swapped automatically. Escape cancels keyboard capture; B / Circle also cancels keyboard capture. Controller capture accepts any button, including menu buttons. Mouse aim/fire is always available in addition to gamepad controls.</p></div>`;
   }else if(settingsTab==='audio'){
     body.innerHTML=`
       <div class="settings-section"><h3>OUTPUT LEVELS</h3>
@@ -434,6 +450,7 @@ function renderSettings(){
       </div>`;
   }
   bindRows(body);
+  if(focusKey)focusControl(Array.from(body.querySelectorAll('button,input')).find(el=>el.dataset[focusKey]===focusValue));
 }
 UI.switchSettingsTab=function(tab){settingsTab=tab;renderSettings();};
 
@@ -541,7 +558,7 @@ UI.showRewards=function(){
     row.querySelector('.item-drop').addEventListener('click',()=>G.discardReward(index));
     list.appendChild(row);
   });
-  $('rewards-capacity').textContent=`EQUIPMENT ${pending.length}/${N.Rewards.CAPACITY} · Full tray leaves new equipment on the ground. Unspent protocols are always retained.`;
+  $('rewards-capacity').textContent=`EQUIPMENT ${pending.length}/${N.Rewards.CAPACITY} · Weapons attach to empty bays. Full bays defer weapons here; modules always wait here. Full tray leaves deferred gear on the ground. Unspent protocols are retained.`;
   showScreen('rewards');
 };
 
@@ -701,16 +718,33 @@ function onKeyDown(e){
   }
 }
 UI.handleGamepad=function(){
-  if(!currentScreen||N.Input.isCapturing())return;
+  if(!currentScreen)return;
+  const monitor=$('controller-monitor');
+  if(currentScreen==='settings'&&monitor){
+    const buttons=N.Input.getDebug().pads.map((down,i)=>down?N.padLabel(i)+' ['+i+']':null).filter(Boolean);
+    const move=N.Input.padMove||{x:0,y:0},aim=N.Input.padAim||{x:0,y:0};
+    const text=N.Input.isPadConnected()?N.Input.getPadName()+' · Buttons: '+(buttons.join(', ')||'none')+' · Left: '+move.x.toFixed(2)+', '+move.y.toFixed(2)+' · Right: '+aim.x.toFixed(2)+', '+aim.y.toFixed(2):'No controller detected. Connect it and press a button.';
+    if(monitor.textContent!==text)monitor.textContent=text;
+  }
+  if(N.Input.isCapturingKey()&&N.Input.consumePad(1)){N.Input.cancelCapture();renderSettings();return;}
+  if(N.Input.isCapturing()||N.Input.padCapturedThisFrame)return;
+  const input=N.Input,stick=input.padMove||{x:0,y:0};
+  const direction=input.padDown(12)?'up':input.padDown(13)?'down':input.padDown(14)?'left':input.padDown(15)?'right':Math.max(Math.abs(stick.x),Math.abs(stick.y))>.55?(Math.abs(stick.y)>=Math.abs(stick.x)?(stick.y<0?'up':'down'):(stick.x<0?'left':'right')):'';
+  const now=performance.now();
+  if(direction||input.anyPadDown()){
+    document.body.classList.add('controller-nav');
+    if(!focusables().includes(document.activeElement))focusFirst();
+  }
   // START / PAUSE acts as a back/confirm action while a menu overlay is open.
   const pauseBtn=G.settings.gamepad&&G.settings.gamepad.pause;
-  if(pauseBtn!=null&&N.Input.consumePad(pauseBtn)){backAction();return;}
-  if(N.Input.consumePad(12))moveFocus(-1);
-  if(N.Input.consumePad(13))moveFocus(1);
-  if(focusedRange()){
-    if(N.Input.consumePad(14))adjustFocusedRange(-1);
-    if(N.Input.consumePad(15))adjustFocusedRange(1);
+  if(N.Input.consumePad(9)||(pauseBtn!=null&&![0,1,12,13,14,15].includes(pauseBtn)&&N.Input.consumePad(pauseBtn))){backAction();return;}
+  if(direction&&(direction!==navDirection||now>=navRepeatAt)){
+    const dir=direction==='up'||direction==='left'?-1:1;
+    if((direction==='left'||direction==='right')&&focusedRange())adjustFocusedRange(dir);
+    else moveFocus(dir);
+    navRepeatAt=now+(direction!==navDirection?350:120);
   }
+  navDirection=direction;
   if(N.Input.consumePad(0))activateFocused();
   if(N.Input.consumePad(1))backAction();
 };

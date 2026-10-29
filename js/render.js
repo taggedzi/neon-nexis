@@ -620,7 +620,9 @@ function drawHUD(c,theme){
   const u=clamp(G.w/1400,.72,1.12);
   const compact=G.w<760;
   // top-left vitals
-  const px=14*u,py=14*u,pw=compact?G.w*.54:300*u,ph=compact?80*u:90*u;
+  const px=14*u,py=14*u,pw=compact?G.w*.54:300*u;
+  const vitalsHeight=compact?80:90;
+  const ph=(vitalsHeight+16+p.weapons.length*20+26)*u;
   panel(c,px,py,pw,ph,'rgba(2,8,14,.72)',N.withAlpha(theme.a,.3),8*u);
   txt(c,'BIOMETRIC LINK',px+12*u,py+14*u,8*u,N.withAlpha(theme.a,.65),'left',FONT_M);
   txt(c,'LV '+p.level,px+pw-12*u,py+14*u,10*u,'#fff','right',FONT_D,800);
@@ -644,6 +646,24 @@ function drawHUD(c,theme){
   const xpy=shy+10*u;
   c.fillStyle='rgba(255,255,255,.04)';c.fillRect(hx,xpy,hw,3*u);
   c.fillStyle=N.withAlpha(theme.b,.8);c.fillRect(hx,xpy,hw*clamp(p.xp/p.xpNext,0,1),3*u);
+  // Equipped weapons stay beside vitals; pending rewards are not equipped yet.
+  const weaponY=py+vitalsHeight*u;
+  txt(c,'EQUIPPED WEAPONS '+p.weapons.length+' / '+p.weaponSlots,hx,weaponY,8*u,N.withAlpha(theme.a,.85),'left',FONT_M);
+  for(let i=0;i<p.weapons.length;i++){
+    const weapon=p.weapons[i],def=N.WEAPON_BY_ID[weapon.id],selected=i===p.activeWeapon;
+    const y=weaponY+(18+i*20)*u;
+    if(selected){
+      c.fillStyle=N.withAlpha(def.color,.15);c.fillRect(hx-3*u,y-9*u,hw+6*u,18*u);
+      c.fillStyle=def.color;c.fillRect(hx-3*u,y-9*u,2*u,18*u);
+    }
+    c.drawImage(N.Assets.weaponIcon(weapon.id,def.color),hx,y-7*u,14*u,14*u);
+    txt(c,(i+1)+'. '+def.name,hx+19*u,y,10*u,selected?'#fff':'#91adbf','left',FONT_D,selected?800:500);
+    if(selected)txt(c,'ACTIVE',hx+hw,y,7*u,def.color,'right',FONT_M,700);
+  }
+  const switchY=weaponY+(18+p.weapons.length*20)*u;
+  const bindings=N.Input.isPadConnected()?G.settings.gamepad:G.settings.keyboard;
+  const label=N.Input.isPadConnected()?N.padLabel:N.keyLabel;
+  txt(c,p.weapons.length===1?'ONLY WEAPON EQUIPPED':label(bindings.weaponPrev)+' / '+label(bindings.weaponNext)+'  PREV / NEXT',hx,switchY,7.5*u,N.withAlpha(theme.a,.9),'left',FONT_M);
   // top-center timer
   const tw=compact?G.w*.36:190*u;
   const tx=compact?G.w-px-tw: G.w/2-tw/2;
@@ -681,7 +701,7 @@ function drawHUD(c,theme){
   // boss bar
   const boss=G.level.activeBoss&&!G.level.activeBoss.dead?G.level.activeBoss:null;
   if(boss){
-    const bw=Math.min(520,G.w-40),bx=G.w/2-bw/2,by=compact?110*u:118*u,bh=11*u;
+    const bw=Math.min(520,G.w-40),bx=G.w/2-bw/2,by=py+ph+26*u,bh=11*u;
     panel(c,bx-8*u,by-18*u,bw+16*u,bh+26*u,'rgba(16,2,7,.76)',N.withAlpha('#ff335c',.55),7*u);
     txt(c,boss.name+' // '+(boss.boss?'OVERSEER':boss.elite?'ELITE':'HOSTILE'),bx,by-7*u,8*u,'#ff8da4','left',FONT_M);
     c.fillStyle='rgba(255,255,255,.06)';c.fillRect(bx,by,bw,bh);

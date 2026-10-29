@@ -759,7 +759,8 @@ G.dropItem=function(type,index){
 G.collectGroundItem=function(it,quiet=false,reviewed=false){
   if(!it||it.collected)return;
   const p=G.player;
-  if(N.Rewards.isEquipment(it)&&!reviewed){N.Rewards.bank(it);return;}
+  const autoAttach=it.kind==='weapon'&&p.weapons.length<p.weaponSlots;
+  if(N.Rewards.isEquipment(it)&&!reviewed&&!autoAttach){N.Rewards.bank(it);return;}
   if(it.kind==='consumable'){
     it.collected=true;
     const c=N.CONSUMABLES[it.itemId];

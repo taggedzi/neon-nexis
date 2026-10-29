@@ -101,6 +101,7 @@ function onKeyDown(e){
 }
 function onKeyUp(e){keys[e.code]=false;if(e.code===settings.keyboard.fire)N.Firing.set('keyboard',false,false);}
 function onPointerMove(e){
+  if(e.movementX||e.movementY){aimSource='mouse';document.body.classList.remove('controller-nav');}
   mouse.x=e.clientX; mouse.y=e.clientY;
   mouse.in = e.clientX>=0 && e.clientY>=0 && e.clientX<=innerWidth && e.clientY<=innerHeight;
   // Track physical state; the firing helper keeps interrupted holds blocked
@@ -109,6 +110,7 @@ function onPointerMove(e){
   else if(!e.buttons){mouse.down=false;N.Firing.set('mouse',false,false);}
 }
 function onPointerDown(e){
+  aimSource='mouse';document.body.classList.remove('controller-nav');
   N.Audio && N.Audio.unlock && N.Audio.unlock();
   const t=e.target;
   if(t && t.id==='game' && (e.button===0||e.pointerType==='touch')){
@@ -132,6 +134,7 @@ function pollPads(){
   try{pads=navigator.getGamepads();}catch(e){pads=[];}
 }
 I.update=function(){
+  I.padCapturedThisFrame=false;
   if(unfocused){N.Firing.reset();clearPad();return;}
   pollPads();
   padEdges=[]; padConsumed.clear();
@@ -156,6 +159,7 @@ I.update=function(){
     padHeld[b]=held;
     padEdges[b]=held&&!prev[b];
     if(padEdges[b] && capturePad){
+      I.padCapturedThisFrame=true;
       const cb=capturePad;capturePad=null;cb(b);padConsumed.add(b);
     }
   }
@@ -242,6 +246,10 @@ I.getAim=function(player,mouseWorld){
     const la=I.lastPadAim||{x:0,y:-1};
     angle=Math.atan2(la.y,la.x);
     source='pad';
+    point={x:player.x+Math.cos(angle)*280,y:player.y+Math.sin(angle)*280};
+  }else if(aimSource==='pad'){
+    const la=I.lastPadAim||{x:0,y:-1};
+    angle=Math.atan2(la.y,la.x);source='pad';
     point={x:player.x+Math.cos(angle)*280,y:player.y+Math.sin(angle)*280};
   }else if(mouse.in){
     angle=Math.atan2(mouseWorld.y-player.y,mouseWorld.x-player.x);
