@@ -4,7 +4,8 @@ Status: Implemented — needs validation
 
 ## Problem
 
-Enemies spawn too frequently. The player wants a modest reduction in spawn frequency.
+Enemies spawn too frequently. The initial modest reduction was insufficient in
+owner playtesting; the owner now wants gentle progression toward dense later sectors.
 
 ## Work requested
 
@@ -34,6 +35,86 @@ Owner decisions (2026-10-29): 20% fewer routine spawn events throughout the run
 keep their existing schedules. Batch sizes, caps, rewards and objectives do not change.
 
 ## Implementation and validation
+
+### Gentle progression follow-up (2026-10-29)
+
+- Owner playtest: starting population feels good, but ongoing spawning overwhelms
+  too quickly. Owner selected gentle progression: sector 1 cap 15, routine groups
+  about every 5 seconds, building toward previous intensity around sector 10.
+  This supersedes the earlier instruction to leave batch sizes/caps unchanged.
+- Implemented: sector-based population cap across routine waves, surges, guards,
+  splits and summons. Scheduled wardens and bosses bypass the cap to preserve
+  required encounters (up to two extra enemies). No existing enemies are removed.
+- Starting population, rewards and encounter schedules remain; routine group
+  growth slows as well as cadence. Owner pacing/reward review remains pending.
+- Files: `js/content.js` exposes gentle tuning; `js/enemies.js` interpolates
+  cadence, batch sizes and cap by sector, with central admission in `spawnEnemy`
+  so multi-enemy sources cannot overshoot. `js/game.js` uses the sector's routine
+  interval for the first group rather than the previous fixed 1.75-second delay.
+  `tools/check-spawning.js` covers the new progression and population bounds.
+- Progress fraction: clamp((sector − 1)/9, 0, 1). Interpolate interval from 5 s
+  to the previous interval at the current sector/elapsed; interpolate group size
+  from 2 to the previous group size, rounded down. Population cap interpolates
+  from 15 to 120, rounded down, then respects quality ceilings (120/82/55).
+  Cap does not grow with elapsed time within a sector. Sector 1 stays at 2 per
+  group every 5 s; sector 10 onward resumes previous routine progression.
+
+| Sector | High-quality cap | Routine interval, entry → 380 s | Group size, entry → 380 s | Events/min at 0 / 210 / 380 s, before → after |
+| --- | --- | --- | --- | --- |
+| 1 | 15 | 5 → 5 s | 2 → 2 | 39/50/65 → 12/12/12 |
+| 5 | 61 | 3.44 → 3.16 s | 2 → 3 | 41/53/70 → 18/19/19 |
+| 10 | 120 | 1.41 → 0.79 s | 5 → 7 | 43/57/76 → 43/57/76 |
+
+- Automated isolated Chromium: all 98 spawn assertions passed, including all
+  quality settings, monotonic pressure from sectors 1–10, batch/surge/summon cap
+  enforcement, required encounters at cap, no routine backlog at cap, initial
+  delay, native sector transitions, save/continue, and scheduled encounters.
+  Event measurements use the actual director with intercepted wave calls, fixed
+  sector/elapsed and 1/600 s steps over 60 s, no population pressure; first event
+  immediate in both measurement fixtures. These measure cadence, not kill rate.
+- Additional native simulation: 240 s at 1/60 s, invulnerable stationary pilot,
+  no rendering. Maximum population 17; counts at 60/120/180/240 s were
+  15/15/16/17. Warden and boss flags true; no page/console errors. This verifies
+  integrated bounds, not subjective pacing or performance.
+- Normal animation-loop browser smoke: starts with 5; at 5.3 s had 12 enemies
+  including non-routine sources. Pause held elapsed time; save/load succeeded;
+  sector 2 entered with 6 and a 4.615 s initial interval. Resize and resumed play
+  produced no page/console errors. All browser checks used isolated contexts.
+- Changed JavaScript syntax checks and `git diff --check` passed. Owner review
+  remains necessary for early/middle/late pacing and viable XP/upgrade rewards;
+  fewer enemies means fewer opportunities for rewards, whose per-enemy values
+  are unchanged. No performance benefit or player balance acceptance is claimed.
+
+### Starting population follow-up (2026-10-29)
+
+- Owner requested half as many initial enemies and increasing counts as levels
+  increase. Sector-entry population was fixed at 9 (high/medium) or 6 (low).
+- Implemented: halve the first-sector population (round up to whole enemies),
+  then add one enemy per subsequent sector, within the existing quality cap.
+  High/medium sectors 1–5 now start with 5, 6, 7, 8, 9 enemies (previously 9
+  throughout); low starts with 3, 4, 5, 6, 7 (previously 6 throughout).
+  Halving 9 rounds 4.5 up to 5, a 44.4% integer reduction; low's 6 → 3 is exactly
+  50%. Growth is capped at 120/82/55 for high/medium/low. These are sector
+  numbers, independent of pilot XP level.
+- `N.SPAWN_TUNING` exposes the .5 starting multiplier and +1 per-sector growth.
+  Routine wave progression and the previous cadence tuning remain. The explicit
+  four-enemy save/continue population also remains.
+- Files: `js/content.js`, `js/enemies.js`, `tools/check-spawning.js`.
+- Automated isolated Chromium browser: all 42 assertions in
+  `tools/check-spawning.js` passed. Added checks cover all quality settings,
+  new-run counts, pause/resume, native sector 2 transition, sector 5 growth,
+  late-sector caps, explicit counts, and save/continue. Previous cadence and
+  scheduled encounter assertions also passed.
+- Agent browser smoke check with the normal animation loop: sector 1 ran for
+  2.2 seconds (7 enemies after the first routine group), pause/resume and native
+  completion/advance entered sector 2 with 6 enemies, then viewport resize ran
+  without console errors or page exceptions. Owner storage was not accessed;
+  both checks used fresh isolated browser contexts.
+- Syntax checks for changed JavaScript and `git diff --check` passed.
+- Remaining: owner pacing/reward review, including later sectors. No performance
+  improvement or subjective balance acceptance is claimed.
+
+### Previous routine cadence change
 
 - Work started: expose routine cadence multiplier in `js/content.js`; apply it
   after existing progression/clamping and to initial routine delay.

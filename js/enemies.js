@@ -12,6 +12,11 @@ const panOf=G.panOf;
 
 function dmgScale(){return 1+(G.run.level-1)*.18+G.level.elapsed/DURATION*.28;}
 function qualityCap(){const q=G.settings.graphics.quality||'high';return q==='low'?55:q==='medium'?82:120;}
+function spawnProgress(sector){return clamp((sector-1)/(N.SPAWN_TUNING.fullIntensitySector-1),0,1);}
+G.enemyPopulationCap=function(sector=G.run.level){
+  const start=N.SPAWN_TUNING.gentlePopulationCap;
+  return Math.min(qualityCap(),Math.floor(start+(120-start)*spawnProgress(sector)));
+};
 function activeRegularStyles(){return G.level.styles.filter(s=>s.role!=='boss'&&s.role!=='warden');}
 function styleForRole(role){
   const set=G.level.styles.filter(s=>s.role===role);
@@ -48,6 +53,8 @@ G.safeSpawnPos=function(minD=480,maxD=860){
 
 G.spawnEnemy=function(style,x,y,opts={}){
   if(!style||!G.level)return null;
+  // Central gate also covers multi-enemy summons, splitters and anchor guards.
+  if(!opts.requiredEncounter&&G.enemies.length>=G.enemyPopulationCap())return null;
   const role=N.ROLES[style.role]||N.ROLES.rusher;
   const p=G.player;
   const hpScale=dmgScale();
@@ -89,7 +96,10 @@ G.spawnEnemy=function(style,x,y,opts={}){
 };
 G.spawnInitialEnemies=function(count){
   if(!G.level||!G.player)return;
-  const n=count||(G.settings.graphics.quality==='low'?6:9);
+  const base=G.settings.graphics.quality==='low'?6:9;
+  // Whole enemies: 9 halves to 5; 6 halves to 3. Grow at each sector entry.
+  const n=count||Math.min(G.enemyPopulationCap(),Math.ceil(base*N.SPAWN_TUNING.initialPopulationMultiplier)
+    +Math.max(0,G.run.level-1)*N.SPAWN_TUNING.initialPopulationPerSector);
   for(let i=0;i<n;i++){
     const pos=G.safeSpawnPos(500,800);
     G.spawnEnemy(G.pickStyle(),pos.x,pos.y);
@@ -97,9 +107,9 @@ G.spawnInitialEnemies=function(count){
 };
 G.spawnWaveGroup=function(size,eliteChance){
   if(!G.level)return;
-  size=size||Math.max(2,Math.floor(2+G.run.level*.35+G.level.elapsed/DURATION*3));
+  size=size||G.routineSpawnGroup(G.level.elapsed,G.run.level);
   for(let i=0;i<size;i++){
-    if(G.enemies.length>=qualityCap())break;
+    if(G.enemies.length>=G.enemyPopulationCap())break;
     const pos=G.safeSpawnPos(520,900);
     let style=G.pickStyle();
     const elite=Math.random()<(eliteChance==null?(.022+G.run.level*.003):eliteChance);
@@ -113,7 +123,7 @@ G.spawnWaveGroup=function(size,eliteChance){
 G.spawnSurge=function(){
   const size=Math.min(18,9+Math.floor(G.run.level*.8));
   for(let i=0;i<size;i++){
-    if(G.enemies.length>=qualityCap())break;
+    if(G.enemies.length>=G.enemyPopulationCap())break;
     const p=G.player;
     const a=i/size*TAU+Math.random()*.2,d=420+Math.random()*220;
     const pos={x:clamp(p.x+Math.cos(a)*d,70,G.level.width-70),y:clamp(p.y+Math.sin(a)*d,70,G.level.height-70)};
@@ -125,28 +135,34 @@ G.spawnSurge=function(){
 G.spawnEliteWarden=function(){
   const p=G.player,pos=G.safeSpawnPos(600,780);
   const style=G.level.styles.find(s=>s.role==='warden')||N.ENEMY_BY_ID.trinity;
-  G.spawnEnemy(style,pos.x,pos.y,{elite:true});
+  G.spawnEnemy(style,pos.x,pos.y,{elite:true,requiredEncounter:true});
   G.notify('ELITE SIGNATURE // '+style.name,'danger',2400);
   N.Audio.boss();
 };
 G.spawnBoss=function(){
   const p=G.player,pos=G.level.layout?.boss||G.safeSpawnPos(650,820);
   const style=G.level.styles.find(s=>s.role==='boss')||N.ENEMY_BY_ID.boss;
-  G.spawnEnemy(style,pos.x,pos.y,{elite:true,boss:true});
+  G.spawnEnemy(style,pos.x,pos.y,{elite:true,boss:true,requiredEncounter:true});
   G.triggerGlitch(.9,'#ff335c');
   N.Audio.boss();
 };
 G.routineSpawnInterval=function(elapsed,sector){
-  return clamp(1.25-elapsed/DURATION*.55-sector*.012,.48,1.25)*N.SPAWN_TUNING.routineIntervalMultiplier;
+  const late=clamp(1.25-elapsed/DURATION*.55-sector*.012,.48,1.25)*N.SPAWN_TUNING.routineIntervalMultiplier;
+  return N.SPAWN_TUNING.gentleInterval+(late-N.SPAWN_TUNING.gentleInterval)*spawnProgress(sector);
+};
+G.routineSpawnGroup=function(elapsed,sector){
+  const late=Math.min(9,2+Math.floor(sector*.35)+Math.floor(elapsed/DURATION*3));
+  const start=N.SPAWN_TUNING.gentleGroupSize;
+  return Math.floor(start+(late-start)*spawnProgress(sector));
 };
 G.updateSpawning=function(dt){
   if(!G.level||G.mode!=='playing')return;
   if(G.level.elapsed>=DURATION-5)return;
-  const cap=qualityCap();
+  const cap=G.enemyPopulationCap();
   if(G.enemies.length<cap){
     G.level.spawnTimer-=dt;
     if(G.level.spawnTimer<=0){
-      const group=Math.min(9,2+Math.floor(G.run.level*.35)+Math.floor(G.level.elapsed/DURATION*3));
+      const group=G.routineSpawnGroup(G.level.elapsed,G.run.level);
       G.spawnWaveGroup(group);
       G.level.spawnTimer=G.routineSpawnInterval(G.level.elapsed,G.run.level);
     }
@@ -294,7 +310,7 @@ G.updateEnemies=function(dt){
       e.spawnChildTimer-=dt;
       if(e.spawnChildTimer<=0){
         e.spawnChildTimer=4.8;
-        if(G.enemies.length<qualityCap()){
+        if(G.enemies.length<G.enemyPopulationCap()){
           const st=styleForRole('rusher');
           const a=Math.random()*TAU;
           G.spawnEnemy(st,e.x+Math.cos(a)*e.r*1.2,e.y+Math.sin(a)*e.r*1.2,{minion:true});
@@ -399,7 +415,7 @@ G.updateEnemies=function(dt){
       }
       if(e.addTimer<=0){
         e.addTimer=6.5;
-        if(G.enemies.length<qualityCap()){
+        if(G.enemies.length<G.enemyPopulationCap()){
           const st=styleForRole(Math.random()<.5?'rusher':'shooter');
           for(let i=0;i<2;i++){const a=Math.random()*TAU;G.spawnEnemy(st,e.x+Math.cos(a)*e.r*1.5,e.y+Math.sin(a)*e.r*1.5,{minion:true});}
         }
@@ -468,7 +484,7 @@ G.killEnemy=function(e,opts={}){
   if(e.role==='detonator'&&!opts.exploded){
     G.explode(e.x,e.y,e.r*2.2,18*dmgScale(),e.color,'enemy',{particles:16,shake:4,big:false,glitch:.2});
   }
-  if(e.role==='splitter'&&(e.splitGen||0)<1&&G.enemies.length<qualityCap()){
+  if(e.role==='splitter'&&(e.splitGen||0)<1&&G.enemies.length<G.enemyPopulationCap()){
     const st=e.styleDef;
     for(let i=0;i<2;i++){
       const a=Math.random()*TAU;
@@ -546,7 +562,7 @@ G.updateAnchors=function(dt){
       N.Audio.noiseBurst(.06,.04,650);
     }
     a.guardTimer-=dt;
-    if(a.guardTimer<=0&&dist<900&&G.enemies.length<qualityCap()-4){
+    if(a.guardTimer<=0&&dist<900&&G.enemies.length<G.enemyPopulationCap()-4){
       a.guardTimer=8+Math.random()*3;
       for(let i=0;i<2;i++){
         const role=Math.random()<.65?'rusher':'shooter';

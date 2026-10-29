@@ -324,7 +324,7 @@ function generateLevel(levelNum,saved){
     number:levelNum,seed,width,height,cx,cy,layout,theme,themeIndex:(levelNum-1)%N.THEMES.length,hueShift,
     styles,bossStyle,wardenStyle,platforms,dust,anchors,caches,
     elapsed:0,duration:DURATION,kills:0,damage:0,
-    spawnTimer:N.SPAWN_TUNING.initialRoutineDelay*N.SPAWN_TUNING.routineIntervalMultiplier,surgeTimer:60,anchorGuardTimer:6,
+    spawnTimer:G.routineSpawnInterval(0,levelNum),surgeTimer:60,anchorGuardTimer:6,
     wardenSpawned:false,bossSpawned:false,
     destroyedAnchors:[],destroyedCaches:[],groundItems:[],
     activeBoss:null,started:false,styleIndex:0

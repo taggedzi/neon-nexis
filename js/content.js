@@ -4,9 +4,11 @@
 const N=window.NEON;
 const TAU=N.TAU;
 const clamp=N.clamp;
-// Balance only: 1.25× intervals means 20% fewer routine spawn events.
-// Scripted encounters, anchor guards and summons have independent schedules.
-N.SPAWN_TUNING={routineIntervalMultiplier:1.25,initialRoutineDelay:1.4};
+// Balance: gently ramp from sector 1 to the previous routine intensity at 10.
+// Scripted encounters retain their schedules; required wardens/bosses bypass cap.
+N.SPAWN_TUNING={routineIntervalMultiplier:1.25,
+  initialPopulationMultiplier:.5,initialPopulationPerSector:1,
+  gentleInterval:5,gentleGroupSize:2,gentlePopulationCap:15,fullIntensitySector:10};
 
 function wDamage(g,w,base,extra=1){
   return base*g.stats.damageMul*(1+(w.level-1)*.17)*(1+(w.tier-1)*.12)*extra;
