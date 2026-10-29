@@ -28,5 +28,11 @@ screen. Keep preview and in-game appearance consistent.
 
 ## Open questions
 
-Which ship types and color palette should be available? Are ship differences
-cosmetic or mechanical? Should the last selection persist across page reloads?
+Which ship types and color palette should be available?
+There should be 4 different ship types, and the color pallet should follow the game style, but be slightly brighter than the game colors so it stands out.
+
+Are ship differences cosmetic or mechanical?
+Start of cosmetic, eventually (much later) there may be mechanical/stat differences, but for now the change should just be cosmetic. the only mechanical difference is the hitbox should reflect the shape/size fo the ship.
+
+Should the last selection persist across page reloads?
+Selection should persist for the player for the entire durration of the save. They would need to start a new game to chose a new ship.
