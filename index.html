@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#03040a">
+  <meta name="description" content="NEON NEXUS — a procedural twin-stick bullet-hell survival game.">
+  <title>NEON NEXUS // WIREFRAME SURVIVAL PROTOCOL</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" aria-label="Neon Nexus game canvas"></canvas>
+
+    <div class="fx scanlines" id="scanlines" aria-hidden="true"></div>
+    <div class="fx grain" id="grain" aria-hidden="true"></div>
+    <div class="fx vignette" id="vignette" aria-hidden="true"></div>
+    <div class="fx screenflash" id="screenflash" aria-hidden="true"></div>
+
+    <div id="ui">
+      <section class="screen boot-screen" id="screen-boot">
+        <div class="boot-inner">
+          <div class="boot-mark">NN</div>
+          <div class="boot-title">NEON NEXUS</div>
+          <div class="boot-sub">WIREFRAME SURVIVAL PROTOCOL</div>
+          <div class="boot-bar"><span id="boot-progress"></span></div>
+          <div class="boot-log" id="boot-log">INITIALIZING RENDER CORE...</div>
+          <button class="neon-btn primary" id="btn-boot" type="button">ENGAGE</button>
+          <div class="micro">AUDIO AND INPUT SYSTEMS REQUIRE USER INITIALIZATION</div>
+        </div>
+      </section>
+
+      <section class="screen menu-screen" id="screen-menu">
+        <div class="menu-grid">
+          <div class="menu-main">
+            <div class="eyebrow"><span class="pulse-dot"></span> NEXUS NETWORK // LINK STABLE</div>
+            <h1 class="logo glitch-title" data-text="NEON NEXUS">NEON NEXUS</h1>
+            <div class="logo-rule"></div>
+            <div class="subtitle">WIREFRAME SURVIVAL PROTOCOL</div>
+            <div class="menu-buttons">
+              <button class="neon-btn primary" id="btn-continue" type="button">
+                <span>CONTINUE RUN</span><small class="save-meta" id="save-meta"></small>
+              </button>
+              <button class="neon-btn" id="btn-new-run" type="button">NEW RUN</button>
+              <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
+              <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
+              <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
+            </div>
+          </div>
+          <div class="menu-side">
+            <div class="holo-panel">
+              <div class="holo-head">LIVE SECTOR FEED <span>ENCRYPTED</span></div>
+              <div class="holo-diagram" aria-hidden="true">
+                <div class="holo-ring r1"></div><div class="holo-ring r2"></div><div class="holo-ring r3"></div>
+                <div class="holo-core"></div>
+                <div class="holo-tick t1"></div><div class="holo-tick t2"></div><div class="holo-tick t3"></div>
+              </div>
+              <div class="holo-stats">
+                <div><b>PROTOCOL</b><span>ENDLESS</span></div>
+                <div><b>WEAPONS</b><span>16 CLASSES</span></div>
+                <div><b>HOSTILES</b><span>32 MORPHS</span></div>
+                <div><b>UPLINK</b><span>LOCAL SAVE</span></div>
+              </div>
+            </div>
+            <div class="control-strip">
+              <span><kbd>WASD</kbd> MOVE</span>
+              <span><kbd>MOUSE</kbd> AIM / FIRE</span>
+              <span><kbd>SPACE</kbd> DASH</span>
+              <span><kbd>ESC</kbd> PAUSE</span>
+            </div>
+            <div class="micro" id="menu-version">BUILD 1.0 // CLIENT-SIDE ASSET SYNTHESIS</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-settings">
+        <div class="panel wide settings-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">SYSTEM CONFIG</span><h2>SETTINGS</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-settings-close" type="button" title="Back">✕</button></div>
+          </div>
+          <div class="settings-tabs" role="tablist">
+            <button class="tab active" data-tab="controls" type="button">CONTROLS</button>
+            <button class="tab" data-tab="audio" type="button">AUDIO</button>
+            <button class="tab" data-tab="visual" type="button">VISUAL</button>
+            <button class="tab" data-tab="data" type="button">DATA</button>
+          </div>
+          <div class="settings-body" id="settings-body"></div>
+          <div class="panel-footer">
+            <button class="neon-btn subtle" id="btn-settings-reset" type="button">RESET DEFAULTS</button>
+            <button class="neon-btn primary" id="btn-settings-done" type="button">APPLY &amp; BACK</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-pause">
+        <div class="panel pause-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">SIMULATION SUSPENDED</span><h2>PAUSED</h2></div>
+            <div class="sector-chip" id="pause-sector">SECTOR 01</div>
+          </div>
+          <div class="pause-stats" id="pause-stats"></div>
+          <div class="menu-buttons compact">
+            <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
+            <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
+            <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
+            <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
+          </div>
+          <div class="micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-inventory">
+        <div class="panel wide inventory-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">LOADOUT MANIFEST</span><h2>INVENTORY</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-inventory-close" type="button" title="Close">✕</button></div>
+          </div>
+          <div class="inv-summary" id="inv-summary"></div>
+          <div class="inv-columns">
+            <div class="inv-column"><div class="inv-head"><span>WEAPON BAYS</span><b id="inv-weapon-count"></b></div><div id="inv-weapons" class="item-list"></div></div>
+            <div class="inv-column"><div class="inv-head"><span>MODULE BANKS</span><b id="inv-passive-count"></b></div><div id="inv-passives" class="item-list"></div></div>
+          </div>
+          <div class="panel-footer">
+            <div class="micro">DROPPED ITEMS REMAIN ON THIS SECTOR UNTIL RECOVERED.</div>
+            <button class="neon-btn primary" id="btn-inventory-done" type="button">RETURN</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-levelup">
+        <div class="levelup-wrap">
+          <div class="eyebrow center">NEURAL SYNC COMPLETE</div>
+          <h2 class="levelup-title">LEVEL <span id="levelup-level">2</span></h2>
+          <div class="levelup-sub" id="levelup-milestone"></div>
+          <div class="protocol-grid" id="protocol-grid"></div>
+          <div class="micro center">SELECT A PROTOCOL // 1 — 3</div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-overflow">
+        <div class="panel wide overflow-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow warning">CAPACITY ALERT</span><h2>INVENTORY SATURATED</h2></div>
+            <div class="sector-chip danger">PAUSED</div>
+          </div>
+          <p class="overflow-copy">A new signal has been recovered. Your bay is full. Choose an item to eject, or leave the new item on the ground.</p>
+          <div class="incoming-item" id="overflow-incoming"></div>
+          <div class="overflow-list" id="overflow-list"></div>
+          <div class="panel-footer">
+            <div class="micro">EJECTED ITEMS BECOME PERSISTENT PICKUPS ON THIS SECTOR.</div>
+            <button class="neon-btn subtle" id="btn-overflow-leave" type="button">LEAVE IT BEHIND</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-gameover">
+        <div class="gameover-wrap">
+          <div class="fatal-glitch" data-text="SIGNAL LOST">SIGNAL LOST</div>
+          <div class="eyebrow danger center">BIOMETRIC LINK TERMINATED</div>
+          <div class="gameover-stats" id="gameover-stats"></div>
+          <div class="menu-buttons compact center-buttons">
+            <button class="neon-btn primary" id="btn-restore" type="button">RESTORE CHECKPOINT</button>
+            <button class="neon-btn" id="btn-gameover-menu" type="button">RETURN TO MAIN MENU</button>
+          </div>
+          <div class="micro center" id="gameover-save-note">LAST CHECKPOINT AVAILABLE</div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-complete">
+        <div class="panel complete-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">SECTOR PURGED</span><h2 id="complete-title">SECTOR CLEARED</h2></div>
+            <div class="sector-chip">ARCHIVED</div>
+          </div>
+          <div class="complete-badge" id="complete-badge">CLEAR</div>
+          <div class="summary-grid" id="complete-stats"></div>
+          <div class="menu-buttons compact">
+            <button class="neon-btn primary" id="btn-advance" type="button">DESCEND TO NEXT SECTOR</button>
+            <button class="neon-btn subtle" id="btn-complete-menu" type="button">SAVE &amp; RETURN TO MENU</button>
+          </div>
+          <div class="micro">NEXT SECTOR CHECKPOINT HAS BEEN WRITTEN TO LOCAL STORAGE.</div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-howto">
+        <div class="panel wide howto-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">FIELD MANUAL</span><h2>HOW TO PLAY</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-howto-close" type="button" title="Back">✕</button></div>
+          </div>
+          <div class="howto-grid">
+            <div class="howto-card">
+              <h3>01 // MOVE</h3>
+              <p>Use <kbd>WASD</kbd> or the left gamepad stick. Momentum is instant but smooth. Stay mobile — hostile patterns are designed to surround.</p>
+            </div>
+            <div class="howto-card">
+              <h3>02 // AIM &amp; FIRE</h3>
+              <p>Hold <kbd>LMB</kbd> to aim and auto-fire with the mouse. On a gamepad, deflect the right stick or hold the fire trigger. Weapons fire for as long as you aim.</p>
+            </div>
+            <div class="howto-card">
+              <h3>03 // DASH</h3>
+              <p>Tap <kbd>SPACE</kbd> or the dash button. Dashes grant brief invulnerability. Charges recharge automatically.</p>
+            </div>
+            <div class="howto-card">
+              <h3>04 // LOOT</h3>
+              <p>Destroy data caches and hostile morphs for weapons, passive modules, repairs and corrupt caches. Bays are limited. When full, pause and choose what to eject.</p>
+            </div>
+            <div class="howto-card">
+              <h3>05 // SECTORS</h3>
+              <p>Destroy every Null Anchor to clear a sector instantly, or survive the seven-minute timer. Sectors are endless. Difficulty escalates each jump.</p>
+            </div>
+            <div class="howto-card">
+              <h3>06 // SYNC</h3>
+              <p>Eliminating hostiles grants data XP. Every level-up offers a permanent protocol choice. Slot milestones expand your loadout. Progress auto-saves at checkpoints.</p>
+            </div>
+          </div>
+          <div class="keymap-strip">
+            <span><kbd>W A S D</kbd> MOVE</span><span><kbd>MOUSE</kbd> AIM</span><span><kbd>LMB</kbd> FIRE</span><span><kbd>SPACE</kbd> DASH</span><span><kbd>Q / E</kbd> WEAPON</span><span><kbd>ESC</kbd> PAUSE</span>
+          </div>
+          <div class="panel-footer"><div class="micro">GAMEPAD: LEFT STICK MOVE · RIGHT STICK AIM/FIRE · BUMPERS SWAP WEAPON · START PAUSE</div><button class="neon-btn primary" id="btn-howto-done" type="button">UNDERSTOOD</button></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-credits">
+        <div class="panel credits-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">TRANSMISSION END</span><h2>CREDITS</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-credits-close" type="button" title="Back">✕</button></div>
+          </div>
+          <div class="credit-content">
+            <div class="credit-logo">NEON NEXUS</div>
+            <p>Designed, generated and rendered entirely client-side.</p>
+            <div class="credit-row"><b>ENGINE</b><span>Vanilla HTML5 Canvas + Web Audio</span></div>
+            <div class="credit-row"><b>GEOMETRY</b><span>Procedural low-poly wireframes</span></div>
+            <div class="credit-row"><b>AUDIO</b><span>Synthesized in real time</span></div>
+            <div class="credit-row"><b>NETWORK</b><span>Offline. Local saves only. No tracking.</span></div>
+            <div class="credit-quote">“THE NETWORK IS DARK. YOUR SIGNAL IS NOT.”</div>
+          </div>
+          <div class="panel-footer"><button class="neon-btn primary" id="btn-credits-done" type="button">BACK TO NEXUS</button></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-confirm">
+        <div class="panel confirm-panel">
+          <span class="eyebrow danger">CONFIRM ACTION</span>
+          <h2 id="confirm-title">OVERWRITE SAVE?</h2>
+          <p id="confirm-copy"></p>
+          <div class="menu-buttons compact">
+            <button class="neon-btn danger" id="btn-confirm-yes" type="button">CONFIRM</button>
+            <button class="neon-btn subtle" id="btn-confirm-no" type="button">CANCEL</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="toasts" aria-live="polite"></div>
+    <div id="gamepad-status" class="gamepad-status" aria-hidden="true"></div>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/content.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
