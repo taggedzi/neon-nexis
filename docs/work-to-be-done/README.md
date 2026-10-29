@@ -17,6 +17,7 @@ tracking IDs; GitHub is not required.
 | 011 | [Controller parity and control reference](011-controller-parity.md) | Implemented — needs validation |
 | 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
 | 012 | [Prepare GitHub community and release documentation](012-github-community.md) | Done |
+| 013 | [Establish CI/CD and release policy](013-deployment-and-changelog.md) | Implemented — needs validation |
 
 ### 009 implementation and validation update
 

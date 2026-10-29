@@ -68,7 +68,7 @@
               <span><kbd>SPACE</kbd> DASH</span>
               <span><kbd>ESC</kbd> PAUSE</span>
             </div>
-            <div class="micro" id="menu-version">BUILD 1.0 // CLIENT-SIDE ASSET SYNTHESIS</div>
+            <div class="micro" id="menu-version">BUILD DEVELOPMENT // CLIENT-SIDE ASSET SYNTHESIS</div>
           </div>
         </div>
       </section>
@@ -265,6 +265,17 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-oldsave">
+        <div class="panel confirm-panel">
+          <h2>INCOMPATIBLE SAVE</h2>
+          <p>This checkpoint uses an unsupported format or cannot be read. Export a copy before removing it?</p>
+          <p>Export starts a download, then removes this browser's checkpoint. Check that your browser allows the download. Settings are kept.</p>
+          <div class="menu-buttons compact">
+            <button class="neon-btn" id="btn-old-save-export" type="button">EXPORT AND REMOVE</button>
+            <button class="neon-btn danger" id="btn-old-save-remove" type="button">REMOVE WITHOUT EXPORT</button>
+          </div>
+        </div>
+      </section>
       <section class="screen" id="screen-confirm">
         <div class="panel confirm-panel">
           <span class="eyebrow danger">CONFIRM ACTION</span>
@@ -290,6 +301,7 @@
   <script src="js/firing.js"></script>
   <script src="js/input.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/save-policy.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/driving.js"></script>
   <script src="js/ships.js"></script>

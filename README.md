@@ -52,6 +52,24 @@ Saves and settings use the browser's local storage. Continue in the same browser
 profile and at the same address, including port. Clearing site data can remove
 progress; saves do not sync between devices.
 
+Unsupported or unreadable saves offer **Export and remove** or **Remove without
+export**. Compatible saves continue to work; developers own format compatibility.
+Settings are kept. Export starts a browser download before removing the checkpoint.
+
+## Development and releases
+
+Run `npm ci --ignore-scripts`, install the Playwright browsers, then use
+`npm run check` for syntax, lint, regression and browser smoke tests. These are
+development tools; playing locally still requires no package installation.
+
+GitHub Actions checks pull requests and main. The **Publish game** workflow
+publishes to GitHub Pages only when manually run on main. Versions use
+`YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
+deployment has not yet been validated. See the
+[development and release guide](docs/development-and-releases.md) for setup,
+save policy, limitations and deferred work. There is no rollback procedure during
+this development phase.
+
 ## Project status and contributions
 
 The game is under active hobby development. Some implemented features still

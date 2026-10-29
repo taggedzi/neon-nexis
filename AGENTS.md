@@ -120,9 +120,9 @@ code and evidence, not merely repeating the current labels.
 
 Serve the repository root using an available static HTTP server, for example
 `python -m http.server 8000`, then open `http://localhost:8000/`. Check interpreter
-availability and avoid interfering with an existing server. No package-manager
-build or test command is currently established; inspect the checkout before
-assuming one exists.
+availability and avoid interfering with an existing server. Automated checks use
+`npm run check`; see [the development guide](docs/development-and-releases.md)
+for setup and future regression registration. Playing from source needs no build.
 
 Use checks proportional to the change:
 
