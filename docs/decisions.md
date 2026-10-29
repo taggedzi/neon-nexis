@@ -1,0 +1,60 @@
+# Project decisions
+
+Record accepted project-wide decisions here. Task-specific design decisions belong
+in their issue documents under `work-to-be-done/`. Proposals remain explicitly
+unresolved until approved. Add a new entry when superseding a decision so the
+reason for the change remains visible.
+
+## 2026-10-29 — Task branches and owner-managed review
+
+- Decision: All changes use a task branch. Follow-up work on the same unmerged
+  task may reuse its branch. The owner pushes to GitHub, creates the PR, arranges
+  review by themselves or another AI, and merges unless explicitly delegated.
+- Rationale: Make changes independently reviewable as the project grows toward
+  distribution.
+- Approval: Explicit owner instruction on 2026-10-29.
+- Consequences: `AGENTS.md` governs this workflow. Local issue documents retain
+  scope, status, and validation evidence; they do not substitute for PR review.
+  Small maintenance tasks need no separate backlog issue.
+- Supersedes: The previous workflow did not require task branches.
+
+## 2026-10-29 — Durable decision records
+
+- Decision: Record material decisions during development, including rationale,
+  approval source, consequences, and superseded decisions. Keep project-wide
+  decisions here and task-specific decisions in their issue documents.
+- Rationale: Preserve context beyond chat history for future contributors and
+  reviewers.
+- Approval: Owner requested ongoing decision documentation on 2026-10-29;
+  record location and format are agent implementation choices.
+- Consequences: Unresolved proposals remain labeled as such. Decision records
+  ship with the related change and link to affected issues where relevant.
+- Supersedes: No previous project-wide decision log; issue decision records remain
+  in place.
+
+## 2026-10-29 — Browser targets and release policy
+
+- Decision: Target current stable desktop Firefox, Google Chrome, and Chromium
+  as development goals, not guarantees. Use date-based application versions rather
+  than semantic versioning. Introduce a changelog after a deployment process exists.
+  No save-compatibility policy exists during local development; no public deployment
+  exists yet.
+- Rationale: Establish distribution goals without claiming unverified support or
+  imposing library versioning and compatibility promises on the development game.
+- Approval: Explicit owner instruction on 2026-10-29. Current stable desktop scope
+  is an agent documentation choice; it does not establish OS or device guarantees.
+- Consequences: The README contains the target matrix. Deployment and changelog
+  work is Planned in issue 013. Exact version format and release procedures remain
+  unresolved. Local storage must still be preserved where practical.
+- Supersedes: No prior accepted release-version or save-compatibility policy.
+
+## Implementation and validation
+
+- Changed files: `AGENTS.md`, `CONTRIBUTING.md`,
+  `README.md`, `docs/work-to-be-done/README.md`, issue 013, and this log.
+- Documentation-only workflow update; no gameplay or runtime behavior changed.
+- Validation: `git diff --check` passed. Referenced local document paths and
+  heading anchors were checked against the checkout. No runtime tests are needed
+  for this documentation-only change. Owner PR review remains pending. The owner
+  authorized committing these documentation changes; pushing and merging remain
+  owner-managed.

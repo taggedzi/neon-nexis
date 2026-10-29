@@ -30,6 +30,13 @@ dependencies first.
 For work covered by a local issue, keep its status, acceptance evidence, and
 **Implementation and validation** section synchronized with the backlog index.
 GitHub issues can link to these documents; they do not replace their records.
+Record material decisions and their rationale as work proceeds. Project-wide
+decisions belong in [the decision log](docs/decisions.md); task-specific decisions
+belong in the relevant issue. Small maintenance tasks need no new local issue.
+
+For agent-assisted owner work, every task uses a branch. The owner pushes it,
+creates the PR, arranges review, and merges unless explicitly delegated. See
+[AGENTS.md](AGENTS.md#git-and-delivery) for the full handoff rules.
 
 ## Validate your change
 

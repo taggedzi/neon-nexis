@@ -26,6 +26,20 @@ required. Graphics and audio are generated locally; there is no game backend.
 Use a current desktop browser with Canvas and Web Audio support. Gamepad support
 depends on the browser and device; physical-controller validation is still pending.
 
+## Browser support targets
+
+These are development goals, not compatibility or performance guarantees. Browser
+checks must record the actual version and environment tested.
+
+| Browser | Desired target | Validation status |
+| --- | --- | --- |
+| Firefox | Current stable desktop release | Cross-browser acceptance pending |
+| Google Chrome | Current stable desktop release | Cross-browser acceptance pending |
+| Chromium | Current stable desktop release | Cross-browser acceptance pending |
+
+This matrix does not promise support for every operating system, controller,
+mobile device, or older browser version.
+
 ## Play
 
 Choose a ship and color, stay mobile, and build your loadout from weapons,
@@ -52,11 +66,22 @@ Saves and settings use the browser's local storage. Continue in the same browser
 profile and at the same address, including port. Clearing site data can remove
 progress; saves do not sync between devices.
 
+The project currently runs only on the owner's local development PC and has no
+public deployment. There is no save-compatibility policy yet: development updates
+may break older saves. Agents must still preserve local data where practical and
+must not clear browser storage without authorization.
+
 ## Project status and contributions
 
 The game is under active hobby development. Some implemented features still
 need player, controller, or performance validation. See the
 [local backlog](docs/work-to-be-done/README.md) for current status and known work.
+
+Release versions will use dates rather than semantic versioning. The exact date
+format and handling of multiple releases on one day remain to be decided when a
+deployment process is designed. No release or version is assigned by this policy.
+A changelog will be introduced after that deployment process exists; both are
+tracked as [planned work](docs/work-to-be-done/013-deployment-and-changelog.md).
 
 Bug reports, focused improvements, and documentation fixes are welcome. Read
 [Contributing](CONTRIBUTING.md) before opening a pull request and follow the
