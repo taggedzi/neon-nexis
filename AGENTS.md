@@ -69,6 +69,28 @@ to a large module when a small, clearly bounded extraction is warranted.
 
 ## Implementation constraints
 
+Follow [the web development style guide](docs/web-development-style-guide.md)
+for new and changed code. It applies to developers and AI agents; use it
+incrementally without reformatting unrelated code.
+
+- Follow `.editorconfig`, `.gitattributes`, and the whitespace policy in
+  `CONTRIBUTING.md`: UTF-8 without BOM, LF, final newline, two-space indentation,
+  and no trailing whitespace except deliberate Markdown hard breaks. Respect
+  Makefile tabs, Windows command-script CRLF, and meaningful literal whitespace.
+  Avoid unrelated reformatting or bulk line-ending normalization.
+
+- Target current stable desktop Firefox, Google Chrome, and Chromium as described
+  in `README.md`. These are desired support targets, not guarantees. Record actual
+  browser versions and environments checked; do not infer cross-browser support
+  from a single browser run.
+- Use date-based release versioning, not semantic versioning. The exact format
+  and same-day release convention remain unresolved until deployment planning.
+  Changelog setup follows creation of a deployment process; see issue 013. Do not
+  invent releases or require changelog entries before that process exists.
+- There is no save-compatibility policy yet; the game is in local development
+  with no public deployment. Do not promise backward-compatible saves. This does
+  not authorize clearing local data or remove the preservation guidance below.
+
 - Preserve the graphics style, visual quality, effects, and overall look and feel.
   Do not remove visible effects or lower default quality to claim optimization.
 - Keep the game client-side with procedural/local assets. Do not add a backend,
@@ -89,7 +111,9 @@ to a large module when a small, clearly bounded extraction is warranted.
 
 ## Local issue tracking
 
-Use the issue Markdown files as the local tracker; GitHub is not required. When
+Use task branches and owner-managed pull requests for delivery; documents preserve
+scope, decisions, and validation evidence, and do not replace branch review.
+Use the issue Markdown files as the local tracker; GitHub issues are optional. When
 implementation starts, add a Status column to the backlog index if absent. Keep
 each issue's status and the index synchronized using these states:
 
@@ -115,6 +139,15 @@ Work on one issue at a time unless the requested scope or a shared prerequisite
 requires otherwise. If blocked, record the specific reason and continue independent
 authorized work when practical. A status-review request means checking the actual
 code and evidence, not merely repeating the current labels.
+
+Small maintenance and documentation tasks do not require a new backlog issue.
+Record project-wide decisions in `docs/decisions.md` and task-specific decisions
+in the relevant issue. Update these records as decisions are made, alongside the
+implementation, rather than relying on chat history or a final summary. Record
+the date, decision, rationale, approval source (owner instruction or agent
+implementation choice), consequences, and any superseded decision. Clearly label
+proposals and unresolved questions; never record them as accepted decisions.
+Link between records when a decision affects multiple issues.
 
 ## Running and validation
 
@@ -151,11 +184,27 @@ Inspect `git status` before editing. Preserve unrelated changes and untracked
 files. Do not stage the entire working tree blindly or commit browser artifacts,
 profiles, temporary captures, credentials, or local saves.
 
+Before making any tracked changes, create a new branch for the task, including
+features, bug fixes, refactors, tests, and documentation. Use descriptive names
+such as `feat/ship-selection`, `fix/controller-release`, or `docs/release-guide`.
+Never implement directly on `main` or another default/release branch. Continue
+an existing task branch for follow-up work on that same unmerged task; create a
+new branch for unrelated work. Start from the local default branch for a new
+independent task, and report if its remote freshness is unknown. Do not silently
+base unrelated work on an unmerged task branch. If existing changes prevent safe
+branch isolation, ask the owner; do not discard, stash, or move their work without
+authorization.
+
 When commits are requested or authorized, use focused commits with clear messages
 and include the associated issue updates. Record implementation hashes in a later
 documentation update when needed; do not attempt a self-referential commit hash.
-Do not push, publish, or deploy unless authorized. GitHub distribution, licensing,
-and personal-site deployment remain separate planning work until scoped.
+The owner pushes branches to GitHub, creates pull requests, arranges review by
+themselves or another AI, and merges. Do not push, create a pull request, merge,
+publish, or deploy unless the owner explicitly delegates that action. Completing
+implementation or validation does not authorize merging. Website deployment and
+release automation remain separate work until scoped.
 
 Conclude with a short report: what changed, what was verified, the issue status,
-and any remaining decision or validation. Never claim a test passed unless it ran.
+the branch name, commit state, and any remaining decision or validation. Provide
+a concise suggested PR title and description when handing off completed work.
+Never claim a test passed unless it ran.

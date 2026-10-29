@@ -1,0 +1,7 @@
+# Normalize text in the repository and use LF on every platform.
+# Automatic detection leaves binary assets unchanged.
+* text=auto eol=lf
+
+# Future Windows command scripts require CRLF in the working tree.
+*.bat text eol=crlf
+*.cmd text eol=crlf
