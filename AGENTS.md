@@ -69,6 +69,12 @@ to a large module when a small, clearly bounded extraction is warranted.
 
 ## Implementation constraints
 
+- Follow `.editorconfig`, `.gitattributes`, and the whitespace policy in
+  `CONTRIBUTING.md`: UTF-8 without BOM, LF, final newline, two-space indentation,
+  and no trailing whitespace except deliberate Markdown hard breaks. Respect
+  Makefile tabs, Windows command-script CRLF, and meaningful literal whitespace.
+  Avoid unrelated reformatting or bulk line-ending normalization.
+
 - Target current stable desktop Firefox, Google Chrome, and Chromium as described
   in `README.md`. These are desired support targets, not guarantees. Record actual
   browser versions and environments checked; do not infer cross-browser support

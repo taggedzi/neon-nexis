@@ -40,6 +40,23 @@ creates the PR, arranges review, and merges unless explicitly delegated. See
 
 ## Validate your change
 
+### Whitespace and line endings
+
+Use UTF-8 without a byte-order mark, LF line endings, a final newline, and two
+spaces per indentation level. Remove trailing whitespace, except intentional
+Markdown hard breaks (two trailing spaces). Makefiles use tabs; Windows `.bat`
+and `.cmd` scripts use CRLF when checked out. Preserve meaningful whitespace
+inside strings, templates, and fixtures.
+
+The repository's `.gitattributes` controls Git line endings across platforms;
+`.editorconfig` supplies matching defaults in compatible editors. Enable your
+editor's EditorConfig support if needed. Binary assets are not normalized.
+Keep formatting changes limited to the task: do not reindent existing files or
+run repository-wide normalization as part of an unrelated change. Whitespace
+checks remain required even when editor support is enabled.
+
+### Checks
+
 Use checks appropriate to the change and describe what actually ran:
 
 - For gameplay, exercise the affected behavior in a browser, inspect console

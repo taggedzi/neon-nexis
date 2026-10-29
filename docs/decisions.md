@@ -50,6 +50,22 @@ reason for the change remains visible.
 
 ## Implementation and validation
 
+### 2026-10-29 — Cross-platform whitespace policy
+
+- Owner requested a repository whitespace policy on this branch. Agent choices:
+  `.gitattributes` uses automatic text detection with LF checkout on all platforms;
+  `.editorconfig` defaults to UTF-8 without BOM, final newline, two spaces, and
+  trimmed trailing whitespace. Markdown hard breaks, Makefile tabs, and Windows
+  command-script CRLF have explicit exceptions.
+- Rationale: Keep diffs consistent across platforms without transforming binary
+  assets or adding a formatter/build dependency.
+- Consequences: Contributor and agent instructions reference the policy. No
+  existing source files are reformatted or bulk-renormalized. EditorConfig needs
+  editor support; it is not an automated enforcement check.
+- Validation: All existing tracked files were reported as LF by `git ls-files
+  --eol` before the change. Attribute checks and `git diff --check` passed after
+  the change. No runtime behavior changed.
+
 - Changed files: `AGENTS.md`, `CONTRIBUTING.md`,
   `README.md`, `docs/work-to-be-done/README.md`, issue 013, and this log.
 - Documentation-only workflow update; no gameplay or runtime behavior changed.
