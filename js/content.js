@@ -4,6 +4,9 @@
 const N=window.NEON;
 const TAU=N.TAU;
 const clamp=N.clamp;
+// Balance only: 1.25× intervals means 20% fewer routine spawn events.
+// Scripted encounters, anchor guards and summons have independent schedules.
+N.SPAWN_TUNING={routineIntervalMultiplier:1.25,initialRoutineDelay:1.4};
 
 function wDamage(g,w,base,extra=1){
   return base*g.stats.damageMul*(1+(w.level-1)*.17)*(1+(w.tier-1)*.12)*extra;

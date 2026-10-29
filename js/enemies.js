@@ -127,6 +127,9 @@ G.spawnBoss=function(){
   G.triggerGlitch(.9,'#ff335c');
   N.Audio.boss();
 };
+G.routineSpawnInterval=function(elapsed,sector){
+  return clamp(1.25-elapsed/DURATION*.55-sector*.012,.48,1.25)*N.SPAWN_TUNING.routineIntervalMultiplier;
+};
 G.updateSpawning=function(dt){
   if(!G.level||G.mode!=='playing')return;
   if(G.level.elapsed>=DURATION-5)return;
@@ -136,7 +139,7 @@ G.updateSpawning=function(dt){
     if(G.level.spawnTimer<=0){
       const group=Math.min(9,2+Math.floor(G.run.level*.35)+Math.floor(G.level.elapsed/DURATION*3));
       G.spawnWaveGroup(group);
-      G.level.spawnTimer=clamp(1.25-G.level.elapsed/DURATION*.55-G.run.level*.012,.48,1.25);
+      G.level.spawnTimer=G.routineSpawnInterval(G.level.elapsed,G.run.level);
     }
   }else G.level.spawnTimer=Math.max(G.level.spawnTimer,.4);
 };
