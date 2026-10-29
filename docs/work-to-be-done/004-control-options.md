@@ -71,5 +71,5 @@ existing mapped fire/dash buttons remain. Persist the selected mode between sess
   One initial test compared +π and −π directly; corrected it to compare angular
   equivalence, then reran successfully.
 - Changed-JavaScript syntax and `git diff --check` passed.
-- Implementation commit: pending.
+- Implementation commit: `4b1645f`.
 - Physical controller/player handling review remains required.
