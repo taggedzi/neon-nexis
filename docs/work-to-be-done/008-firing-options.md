@@ -66,4 +66,4 @@ Fire inputs: LMB, remappable keyboard Fire (default F), mapped controller Fire
   regressions passed: driving 31, camera 33, discarded items 35. No captured errors.
 - Changed-JavaScript syntax and `git diff --check` passed.
 - Pending: physical controller check and owner firing/aiming review.
-- Implementation commit: pending.
+- Implementation commit: `0142e40`.
