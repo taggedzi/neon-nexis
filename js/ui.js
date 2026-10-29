@@ -264,6 +264,12 @@ function bindRows(root){
       renderSettings();
     });
   });
+  root.querySelectorAll('[data-movement-mode]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      G.settings.movementMode=btn.dataset.movementMode;
+      G.applySettings(true);renderSettings();
+    });
+  });
   root.querySelectorAll('[data-bind-key]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       N.Input.cancelCapture();
@@ -315,10 +321,21 @@ function renderSettings(){
   document.querySelectorAll('#screen-settings .tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===settingsTab));
   const body=$('settings-body');if(!body)return;
   if(settingsTab==='controls'){
+    const driving=s.movementMode==='driving';
+    const drivingLabels={moveUp:'FORWARD THRUST',moveDown:'BRAKE / REVERSE',moveLeft:'STEER LEFT',moveRight:'STEER RIGHT'};
     body.innerHTML=`
+      <div class="settings-section"><h3>MOVEMENT MODE</h3>
+        <div class="setting-row"><div class="setting-label"><b>SHIP CONTROLS</b><small>SAVED BETWEEN SESSIONS</small></div>
+          <div class="segmented">
+            <button data-movement-mode="directional" aria-pressed="${!driving}" class="${!driving?'active':''}" type="button">DIRECTIONAL</button>
+            <button data-movement-mode="driving" aria-pressed="${driving}" class="${driving?'active':''}" type="button">DRIVING</button>
+          </div>
+        </div>
+        <div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves; right stick aims and fires. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div>
+      </div>
       <div class="settings-section"><h3>KEYBOARD BINDINGS</h3>
         ${N.KEY_ACTIONS.map(([action,label])=>`
-          <div class="setting-row"><div class="setting-label"><b>${label}</b><small>KEYBOARD / MOUSE SETUP</small></div>
+          <div class="setting-row"><div class="setting-label"><b>${driving?(drivingLabels[action]||label):label}</b><small>KEYBOARD / MOUSE SETUP</small></div>
           <button class="keybind" data-bind-key="${action}" type="button">${esc(N.keyLabel(s.keyboard[action]))}</button></div>`).join('')}
       </div>
       <div class="settings-section"><h3>GAMEPAD BINDINGS</h3>

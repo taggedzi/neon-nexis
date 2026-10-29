@@ -178,6 +178,7 @@ N.Storage = {
 };
 
 N.SETTINGS_DEFAULT = {
+  movementMode:'directional',
   version:1,
   keyboard:{
     moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
@@ -238,6 +239,7 @@ N.loadSettings = function(){
   s.audio.sfx=N.clamp(+s.audio.sfx||0,0,1);
   s.graphics.particles=N.clamp(+s.graphics.particles||1,.25,2);
   s.deadzone=N.clamp(+s.deadzone||.22,.05,.6);
+  s.movementMode=s.movementMode==='driving'?'driving':'directional';
   return s;
 };
 N.saveSettings = s=>N.Storage.write(N.Storage.settingsKey,s);

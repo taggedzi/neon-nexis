@@ -120,10 +120,11 @@ G.updatePlayer=function(dt){
       p.dashTimer=p.dashCharges>=p.maxDashCharges?0:p.stats.dashRecharge;
     }
   }
-  const move=inp.getMove();
+  const driving=G.settings.movementMode==='driving';
+  const move=driving?N.Driving.move(p,inp.getDrivingInput(),dt):inp.getMove();
   const dashPressed=inp.actionPressed('dash')||inp.padActionPressed('dash');
   if(dashPressed && p.dashCharges>0 && p.dashTime<=0){
-    const dir=move.len>.12?Math.atan2(move.y,move.x):aim.angle;
+    const dir=driving?(move.len>.12&&!move.braking?Math.atan2(move.y,move.x):p.heading):(move.len>.12?Math.atan2(move.y,move.x):aim.angle);
     p.dashCharges--;
     if(p.dashCharges===p.maxDashCharges-1)p.dashTimer=p.stats.dashRecharge;
     p.dashTime=.17;p.dashDir=dir;
@@ -139,16 +140,16 @@ G.updatePlayer=function(dt){
     p.trailTimer-=dt;
     if(p.trailTimer<=0){
       p.trailTimer=.035;
-      G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:p.aim,color:'#00f0ff',life:.28,maxLife:.28,size:p.radius});
+      G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),color:'#00f0ff',life:.28,maxLife:.28,size:p.radius});
     }
   }else{
     const targetSpeed=p.stats.moveSpeed*(p.buffs.speed>0?1.42:1);
     const tx=move.x*targetSpeed,ty=move.y*targetSpeed;
-    const accel=Math.min(1,dt*12);
+    const accel=driving?1-Math.exp(-dt*(move.braking?18:12)):Math.min(1,dt*12);
     p.vx+=(tx-p.vx)*accel;p.vy+=(ty-p.vy)*accel;
     if(move.len>.05){
       p.trailTimer-=dt;
-      if(p.trailTimer<=0){p.trailTimer=.06;G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:p.aim,color:'#087f91',life:.22,maxLife:.22,size:p.radius*.9});}
+      if(p.trailTimer<=0){p.trailTimer=.06;G.effects.push({type:'afterimage',x:p.x,y:p.y,angle:N.Driving.angle(p),color:'#087f91',life:.22,maxLife:.22,size:p.radius*.9});}
     }
   }
   p.x+=p.vx*dt;p.y+=p.vy*dt;

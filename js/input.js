@@ -20,13 +20,26 @@ let padConnected=false;
 let padName='';
 let onPadChange=null;
 let initialized=false;
+let movementBlocked=false;
+let unfocused=false;
+
+I.resetMovement=function(){
+  keys=Object.create(null);pressed.clear();
+  I.padMove={x:0,y:0};movementBlocked=true;
+};
+function clearPad(){
+  padPrev=[];padHeld=[];padEdges=[];padConsumed.clear();
+  I.padMove={x:0,y:0};I.padAim={x:0,y:0};I.padAimMag=0;I.padAimActive=false;I.padId='';
+}
 
 I.init=function(s){
   settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});
   if(initialized) return; initialized=true;
   window.addEventListener('keydown',onKeyDown,{passive:false});
   window.addEventListener('keyup',onKeyUp,{passive:false});
-  window.addEventListener('blur',()=>{keys=Object.create(null);mouse.down=false;});
+  window.addEventListener('blur',()=>{unfocused=true;I.resetMovement();clearPad();mouse.down=false;});
+  window.addEventListener('focus',()=>{unfocused=false;});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){I.resetMovement();clearPad();mouse.down=false;}});
   window.addEventListener('pointermove',onPointerMove,{passive:true});
   window.addEventListener('pointerdown',onPointerDown,{passive:true});
   window.addEventListener('pointerup',onPointerUp,{passive:true});
@@ -37,13 +50,22 @@ I.init=function(s){
     if(onPadChange) onPadChange(true,padName);
   });
   window.addEventListener('gamepaddisconnected',()=>{
+    clearPad();movementBlocked=true;
     padConnected=false;
     if(onPadChange) onPadChange(false,'');
   });
   // Some browsers only expose pads after a button press; poll will catch it.
   pollPads();
 };
-I.setSettings=function(s){settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});};
+I.setSettings=function(s){
+  const previous=settings.movementMode;
+  settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});
+  if(previous!==settings.movementMode){
+    I.resetMovement();
+    const p=N.Game?.player;
+    if(p){p.heading=p.aim;p.vx=0;p.vy=0;}
+  }
+};
 I.getSettings=()=>settings;
 I.onPadChange=function(cb){onPadChange=cb;};
 I.isCapturing=()=>!!(captureKey||capturePad);
@@ -60,6 +82,7 @@ function onKeyDown(e){
     cb(e.code); return;
   }
   if(isTypingTarget(e.target)) return;
+  if(e.repeat)return;
   keys[e.code]=true;
   pressed.add(e.code);
   N.Audio && N.Audio.unlock && N.Audio.unlock();
@@ -98,6 +121,7 @@ function pollPads(){
   try{pads=navigator.getGamepads();}catch(e){pads=[];}
 }
 I.update=function(){
+  if(unfocused){clearPad();return;}
   pollPads();
   padEdges=[]; padConsumed.clear();
   let anyPad=null;
@@ -108,8 +132,9 @@ I.update=function(){
     padConnected=true; padName=anyPad.id||'GAMEPAD';
     if(onPadChange)onPadChange(true,padName);
   }
-  if(!anyPad){ padHeld=[];
-    if(padConnected && !navigator.getGamepads){padConnected=false;}
+  if(!anyPad){
+    clearPad();
+    if(padConnected){padConnected=false;movementBlocked=true;if(onPadChange)onPadChange(false,'');}
     return;
   }
   const buttons=anyPad.buttons||[];
@@ -128,7 +153,9 @@ I.update=function(){
   const dz=settings.deadzone||.22;
   let rx=ax[2]||0, ry=ax[3]||0;
   if(rx*rx+ry*ry<dz*dz){rx=0;ry=0;}
-  I.padMove={x:ax[0]||0,y:ax[1]||0};
+  let mx=ax[0]||0,my=ax[1]||0;
+  if(mx*mx+my*my<=dz*dz){mx=0;my=0;movementBlocked=false;}
+  I.padMove=movementBlocked?{x:0,y:0}:{x:mx,y:my};
   I.padAim={x:rx,y:ry};
   I.padAimMag=Math.hypot(rx,ry);
   I.padAimActive=I.padAimMag>dz;
@@ -169,6 +196,12 @@ I.getMove=function(){
   return {x,y,len:Math.min(1,l)};
 };
 I.getMouse=()=>mouse;
+I.getDrivingInput=function(){
+  const pad=I.padMove||{x:0,y:0},dz=settings.deadzone||.22;
+  const px=Math.abs(pad.x)>dz?pad.x:0,py=Math.abs(pad.y)>dz?pad.y:0;
+  return {steer:N.clamp((I.actionDown('moveRight')?1:0)-(I.actionDown('moveLeft')?1:0)+px,-1,1),
+    throttle:N.clamp((I.actionDown('moveUp')?1:0)-(I.actionDown('moveDown')?1:0)-py,-1,1)};
+};
 I.mouseDown=()=>mouse.down;
 I.resetFire=function(){mouse.down=false;};
 I.getWheel=function(){const v=wheelDelta; wheelDelta=0; return v;};
@@ -185,7 +218,7 @@ I.getAim=function(player,mouseWorld){
   let angle=player.aim||0;
   let source='mouse';
   let point=null;
-  const firingPad = I.padActionDown('fire') || I.padAimActive;
+  const firingPad = I.padActionDown('fire') || (settings.movementMode!=='driving'&&I.padAimActive);
   if(I.padAimActive){
     angle=Math.atan2((I.padAim&&I.padAim.y)||0,(I.padAim&&I.padAim.x)||1);
     source='pad';

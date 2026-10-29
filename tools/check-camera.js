@@ -5,6 +5,7 @@ if(new URLSearchParams(location.search).get('test')!=='camera')throw Error('Use 
 const N=window.NEON,G=N.Game,I=N.Input,passed=[];
 function check(ok,message){if(!ok)throw Error(message);passed.push(message);}
 const near=(a,b)=>Math.abs(a-b)<1e-6;
+G.settings=N.deepMerge(N.SETTINGS_DEFAULT,{});G.applySettings(false);
 G.newRun();G.glitch=0;G.camera.shake=0;
 const p=G.player,L=G.level;
 check(near(G.camera.x,p.x)&&near(G.camera.y,p.y),'new run targets player');

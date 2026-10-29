@@ -118,6 +118,7 @@ G.applySettings=function(persist=true){
   if(persist) N.saveSettings(G.settings);
 };
 G.setMode=function(m){
+  if(m!=='playing')N.Input.resetMovement();
   G.mode=m;
   document.body.classList.toggle('playing',m==='playing');
   if(m==='playing') N.Audio.setScene('game');
@@ -224,7 +225,7 @@ function makeWeapon(id,tier=1,level=1){
 }
 function makePlayer(){
   const p={
-    x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,
+    x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:-Math.PI/2,
     hp:null,shield:null,level:1,xp:0,xpNext:G.xpForLevel(1),
     weapons:[makeWeapon(N.STARTING_WEAPON,1,1)],
     passives:[{id:'vector',stacks:1}],
@@ -362,6 +363,7 @@ G.getLootName=getLootName;
 
 // ——— run lifecycle ———
 G.newRun=function(){
+  N.Input.resetMovement();
   const seed=(Math.random()*0xFFFFFFFF)>>>0;
   G.run={seed,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
@@ -462,7 +464,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
     version:SAVE_VERSION,savedAt:Date.now(),
     run:{seed:G.run.seed,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
-      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,
+      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
       core:(p.core||[]).slice(),activeWeapon:p.activeWeapon,weaponSlots:p.weaponSlots,passiveSlots:p.passiveSlots,
       dashCharges:p.dashCharges,dashTimer:p.dashTimer,buffs:Object.assign({},p.buffs),invuln:0
@@ -493,6 +495,7 @@ G.restoreCheckpoint=function(){
 G.loadFromSave=function(save,fromDeath=false){
   if(!save||save.version!==SAVE_VERSION||!save.run||!save.player) return false;
   try{
+    N.Input.resetMovement();
     G.run=Object.assign({
       seed:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now()
     },save.run);
@@ -538,7 +541,7 @@ G.loadFromSave=function(save,fromDeath=false){
 function hydratePlayer(sp,lvl){
   const p={
     x:clamp(+sp.x||lvl.cx,30,lvl.width-30),y:clamp(+sp.y||lvl.cy,30,lvl.height-30),
-    vx:0,vy:0,radius:13,aim:-Math.PI/2,hp:+sp.hp||1,shield:+sp.shield||0,
+    vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:Number.isFinite(sp.heading)?N.angleDelta(0,sp.heading):-Math.PI/2,hp:+sp.hp||1,shield:+sp.shield||0,
     level:Math.max(1,+sp.level||1),xp:Math.max(0,+sp.xp||0),xpNext:Math.max(1,+sp.xpNext||G.xpForLevel(1)),
     weapons:(sp.weapons||[]).filter(w=>w&&N.WEAPON_BY_ID[w.id]).map(w=>makeWeapon(w.id,w.tier||1,w.level||1)),
     passives:(sp.passives||[]).filter(m=>m&&N.MOD_BY_ID[m.id]).map(m=>({id:m.id,stacks:clamp(m.stacks|0,1,N.MOD_BY_ID[m.id].maxStacks||3)})),
