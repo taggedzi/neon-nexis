@@ -12,7 +12,7 @@ tracking IDs; GitHub is not required.
 | 005 | [Reduce enemy spawn frequency](005-enemy-spawning.md) | Planned |
 | 006 | [Remove discarded items](006-discarded-items.md) | Implemented — needs validation |
 | 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Planned |
-| 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Planned |
+| 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Blocked |
 
 ## Suggested implementation order
 

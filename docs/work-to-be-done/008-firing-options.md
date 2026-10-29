@@ -1,6 +1,6 @@
 # 008 — Add toggle and held-button firing modes
 
-Status: Planned
+Status: Blocked
 
 ## Problem
 
@@ -35,3 +35,11 @@ when pausing, changing modes, losing window focus, or starting a new run.
 
 Which mode should be the default, and should the preference persist? Should pausing
 or losing focus reset continuous fire to off? Which buttons should control firing?
+
+## Implementation and validation
+
+- Blocked on owner answers requested 2026-10-29: default mode/persistence; whether
+  toggle resets OFF on menus/pause/focus loss/mode changes/new runs; LMB/remappable
+  F/mapped controller fire and optional directional right-stick firing.
+- No firing-mode implementation started. Existing firing behavior remains.
+- Independent work continues on 002 while these behavior decisions are pending.
