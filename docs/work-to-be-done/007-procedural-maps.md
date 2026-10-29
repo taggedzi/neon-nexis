@@ -101,7 +101,7 @@ sector-completion rules.
 - Changed JavaScript syntax, glow-cache regression and `git diff --check` passed.
 - Pending: owner map/cover/boss encounter review, reference-renderer performance
   target and full-duration retained-memory validation.
-- Implementation commit: pending.
+- Implementation commit: `3af35c2`.
 - Performance acceptance remains dependent on issue 001's reference-renderer check.
 
 ### Performance smoke check and reproduction
