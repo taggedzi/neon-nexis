@@ -57,4 +57,4 @@ its origin was not recorded and it cannot safely be classified as discarded gear
 - Syntax checks (`node --check` for changed JavaScript) and `git diff --check`
   passed. No graphics or fresh-loot expiry changes.
 - Pending owner check: long-run travel without repeated discarded-item prompts.
-- Implementation commit: pending.
+- Implementation commit: `b92e9a6`.
