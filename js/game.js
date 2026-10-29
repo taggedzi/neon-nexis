@@ -693,32 +693,22 @@ G.openOverflow=function(){
 G.leaveOverflow=function(){
   if(!G.overflow) return;
   const o=G.overflow;
-  const it=lootItemToGround({kind:o.kind,id:o.item.itemId||o.item.id,color:o.item.color,tier:o.item.tier},G.player.x+Math.cos(G.player.aim)*18,G.player.y+Math.sin(G.player.aim)*18,o.def?.name);
-  it.pickupDelay=2.2;G.groundItems.push(it);
-  G.notify('ITEM LEFT ON SECTOR // '+getLootName(it),'warn');
+  G.notify('ITEM DISCARDED // '+getLootName(o.item),'warn');
   G.overflow=null;G.setMode('playing');
   if(N.UI)N.UI.hideAll();
   N.Input.resetFire();N.Audio.setScene('game');
+  G.saveCheckpoint(true,'discard');
 };
 G.swapOverflow=function(type,index){
   const o=G.overflow;if(!o||!G.player)return;
   const p=G.player;
-  let dropped=null;
   if(type==='weapon'){
     index=clamp(index|0,0,p.weapons.length-1);
-    const old=p.weapons[index];
-    dropped={kind:'weapon',id:old.id,color:N.WEAPON_BY_ID[old.id]?.color||'#00f0ff',tier:old.tier};
     p.weapons[index]=makeWeapon(o.item.itemId,o.item.tier||1,1);
     p.activeWeapon=index;
   }else{
     index=clamp(index|0,0,p.passives.length-1);
-    const old=p.passives[index];
-    dropped={kind:'mod',id:old.id,color:N.MOD_BY_ID[old.id]?.color||'#b6ff2b'};
     p.passives[index]={id:o.item.itemId,stacks:1};
-  }
-  if(dropped){
-    const it=lootItemToGround(dropped,p.x+Math.cos(p.aim+Math.PI)*22,p.y+Math.sin(p.aim+Math.PI)*22,getLootName(dropped));
-    it.pickupDelay=2.2;G.groundItems.push(it);
   }
   G.rebuildStats(p);
   N.Audio.pickup(true);
@@ -732,26 +722,22 @@ G.swapOverflow=function(type,index){
 G.dropItem=function(type,index){
   const p=G.player;if(!p)return false;
   if(type==='weapon'){
-    if(p.weapons.length<=1){G.notify('CANNOT EJECT LAST WEAPON','danger');N.Audio.ui('error');return false;}
+    if(p.weapons.length<=1){G.notify('CANNOT DISCARD LAST WEAPON','danger');N.Audio.ui('error');return false;}
     const w=p.weapons[index];if(!w)return false;
     p.weapons.splice(index,1);
-    const dropped={kind:'weapon',id:w.id,color:N.WEAPON_BY_ID[w.id]?.color||'#00f0ff',tier:w.tier};
-    const it=lootItemToGround(dropped,p.x+Math.cos(p.aim+Math.PI)*22,p.y+Math.sin(p.aim+Math.PI)*22,N.WEAPON_BY_ID[w.id]?.name);
-    it.pickupDelay=1.8;G.groundItems.push(it);
     if(p.activeWeapon>=p.weapons.length)p.activeWeapon=Math.max(0,p.weapons.length-1);
     else if(p.activeWeapon>index)p.activeWeapon--;
     N.Audio.ui('back');
-    G.notify('WEAPON EJECTED // '+getLootName(it),'warn');
+    G.notify('WEAPON DISCARDED // '+getLootName({kind:'weapon',itemId:w.id}),'warn');
+    G.saveCheckpoint(true,'discard');
     return true;
   }else{
     const m=p.passives[index];if(!m)return false;
     p.passives.splice(index,1);
-    const dropped={kind:'mod',id:m.id,color:N.MOD_BY_ID[m.id]?.color||'#b6ff2b'};
-    const it=lootItemToGround(dropped,p.x+Math.cos(p.aim+Math.PI)*22,p.y+Math.sin(p.aim+Math.PI)*22,N.MOD_BY_ID[m.id]?.name);
-    it.pickupDelay=1.8;G.groundItems.push(it);
     G.rebuildStats(p);
     N.Audio.ui('back');
-    G.notify('MODULE EJECTED // '+getLootName(it),'warn');
+    G.notify('MODULE DISCARDED // '+getLootName({kind:'mod',itemId:m.id}),'warn');
+    G.saveCheckpoint(true,'discard');
     return true;
   }
 };

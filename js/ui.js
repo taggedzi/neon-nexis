@@ -460,7 +460,7 @@ function itemCard(kind,it,index,active,disableDrop){
   card.innerHTML=`<div class="item-icon"><img src="${url}" alt="" style="width:32px;height:32px"></div>
     <div class="item-copy"><b>${esc(name)}${active?' · ACTIVE':''}</b><small>${esc(desc)}</small></div>
     <div class="item-level">${esc(level)}</div>
-    <button class="item-drop" data-index="${index}" ${disableDrop?'disabled':''} type="button">DROP</button>`;
+    <button class="item-drop" data-index="${index}" ${disableDrop?'disabled':''} type="button">DISCARD</button>`;
   if(active)card.style.background='rgba(0,240,255,.055)';
   return card;
 }
@@ -481,7 +481,7 @@ UI.showOverflow=function(data){
       const row=document.createElement('div');row.className='overflow-item';
       row.innerHTML=`<div class="item-icon"><img src="${N.Assets.weaponIconURL(d.id,d.color)}" alt="" style="width:32px;height:32px"></div>
         <div class="item-copy"><b>${esc(d.name)}${i===data.activeWeapon?' · ACTIVE':''}</b><small>${esc(d.tag)} · TIER ${['I','II','III'][w.tier-1]||'I'} · LV ${w.level}</small></div>
-        <button class="swap-btn" data-index="${i}" type="button">KEEP NEW / EJECT</button>`;
+        <button class="swap-btn" data-index="${i}" type="button">KEEP NEW / DISCARD OLD</button>`;
       row.querySelector('.swap-btn').addEventListener('click',()=>G.swapOverflow('weapon',i));
       list.appendChild(row);
     });
@@ -491,7 +491,7 @@ UI.showOverflow=function(data){
       const row=document.createElement('div');row.className='overflow-item';
       row.innerHTML=`<div class="item-icon"><img src="${N.Assets.modIconURL(d.id,d.color,d.glyph)}" alt="" style="width:32px;height:32px"></div>
         <div class="item-copy"><b>${esc(d.name)}${d.type==='curse'?' · CURSED':''}</b><small>${esc(d.tag)} · STACK ${m.stacks}/${d.maxStacks}</small></div>
-        <button class="swap-btn" data-index="${i}" type="button">KEEP NEW / EJECT</button>`;
+        <button class="swap-btn" data-index="${i}" type="button">KEEP NEW / DISCARD OLD</button>`;
       row.querySelector('.swap-btn').addEventListener('click',()=>G.swapOverflow('mod',i));
       list.appendChild(row);
     });
