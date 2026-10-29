@@ -118,7 +118,7 @@ G.applySettings=function(persist=true){
   if(persist) N.saveSettings(G.settings);
 };
 G.setMode=function(m){
-  if(m!=='playing')N.Input.resetMovement();
+  if(m!=='playing'){N.Input.resetMovement();N.Input.resetFire();}
   G.mode=m;
   document.body.classList.toggle('playing',m==='playing');
   if(m==='playing') N.Audio.setScene('game');
@@ -365,6 +365,7 @@ G.getLootName=getLootName;
 // ——— run lifecycle ———
 G.newRun=function(selection){
   N.Input.resetMovement();
+  N.Input.resetFire();
   const seed=(Math.random()*0xFFFFFFFF)>>>0;
   G.run={seed,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
@@ -498,6 +499,7 @@ G.loadFromSave=function(save,fromDeath=false){
   if(!save||save.version!==SAVE_VERSION||!save.run||!save.player) return false;
   try{
     N.Input.resetMovement();
+    N.Input.resetFire();
     G.run=Object.assign({
       seed:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now()
     },save.run);

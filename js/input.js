@@ -22,12 +22,15 @@ let onPadChange=null;
 let initialized=false;
 let movementBlocked=false;
 let unfocused=false;
+let padFireReady=true;
+const fireActive=()=>!unfocused&&N.Game?.mode==='playing'&&!N.UI?.overlayOpen?.();
 
 I.resetMovement=function(){
   keys=Object.create(null);pressed.clear();
   I.padMove={x:0,y:0};movementBlocked=true;
 };
 function clearPad(){
+  N.Firing.set('pad',false,false);N.Firing.set('stick',false,false);
   padPrev=[];padHeld=[];padEdges=[];padConsumed.clear();
   I.padMove={x:0,y:0};I.padAim={x:0,y:0};I.padAimMag=0;I.padAimActive=false;I.padId='';
 }
@@ -37,9 +40,9 @@ I.init=function(s){
   if(initialized) return; initialized=true;
   window.addEventListener('keydown',onKeyDown,{passive:false});
   window.addEventListener('keyup',onKeyUp,{passive:false});
-  window.addEventListener('blur',()=>{unfocused=true;I.resetMovement();clearPad();mouse.down=false;});
+  window.addEventListener('blur',()=>{unfocused=true;I.resetMovement();clearPad();I.resetFire();});
   window.addEventListener('focus',()=>{unfocused=false;});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){I.resetMovement();clearPad();mouse.down=false;}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){I.resetMovement();clearPad();I.resetFire();}});
   window.addEventListener('pointermove',onPointerMove,{passive:true});
   window.addEventListener('pointerdown',onPointerDown,{passive:true});
   window.addEventListener('pointerup',onPointerUp,{passive:true});
@@ -50,7 +53,7 @@ I.init=function(s){
     if(onPadChange) onPadChange(true,padName);
   });
   window.addEventListener('gamepaddisconnected',()=>{
-    clearPad();movementBlocked=true;
+    I.resetFire();clearPad();movementBlocked=true;
     padConnected=false;
     if(onPadChange) onPadChange(false,'');
   });
@@ -58,8 +61,11 @@ I.init=function(s){
   pollPads();
 };
 I.setSettings=function(s){
-  const previous=settings.movementMode;
+  const previous=settings.movementMode,old=settings;
   settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});
+  N.Firing.configure(settings.firingMode);
+  if(previous!==settings.movementMode||old.rightStickFire!==settings.rightStickFire||old.keyboard.fire!==settings.keyboard.fire||old.gamepad.fire!==settings.gamepad.fire)I.resetFire();
+  if(old.keyboard.fire!==settings.keyboard.fire)N.Firing.set('keyboard',false,false);
   if(previous!==settings.movementMode){
     I.resetMovement();
     const p=N.Game?.player;
@@ -85,6 +91,7 @@ function onKeyDown(e){
   if(e.repeat)return;
   keys[e.code]=true;
   pressed.add(e.code);
+  if(e.code===settings.keyboard.fire){N.Firing.set('keyboard',false,false);N.Firing.set('keyboard',true,fireActive());}
   N.Audio && N.Audio.unlock && N.Audio.unlock();
   // avoid browser scroll/space behavior while the game is active
   if(document.body.classList.contains('playing')){
@@ -92,24 +99,28 @@ function onKeyDown(e){
   }
   if(e.code==='Space' && document.body.classList.contains('playing')) e.preventDefault();
 }
-function onKeyUp(e){ keys[e.code]=false; }
+function onKeyUp(e){keys[e.code]=false;if(e.code===settings.keyboard.fire)N.Firing.set('keyboard',false,false);}
 function onPointerMove(e){
   mouse.x=e.clientX; mouse.y=e.clientY;
   mouse.in = e.clientX>=0 && e.clientY>=0 && e.clientX<=innerWidth && e.clientY<=innerHeight;
-  // Re-arm fire when the physical button is still held after an overlay closed
-  // (resetFire clears the flag and the browser will not resend pointerdown).
-  if(e.buttons && (e.buttons & 1)) mouse.down = true;
+  // Track physical state; the firing helper keeps interrupted holds blocked
+  // until release rather than treating pointer movement as another press.
+  if(e.buttons && (e.buttons & 1)){mouse.down=true;N.Firing.set('mouse',true,fireActive());}
+  else if(!e.buttons){mouse.down=false;N.Firing.set('mouse',false,false);}
 }
 function onPointerDown(e){
   N.Audio && N.Audio.unlock && N.Audio.unlock();
   const t=e.target;
-  if(t && t.id==='game'){
+  if(t && t.id==='game' && (e.button===0||e.pointerType==='touch')){
     mouse.down=true; aimSource='mouse'; mouse.x=e.clientX;mouse.y=e.clientY;
+    N.Firing.set('mouse',false,false);N.Firing.set('mouse',true,fireActive());
   }
 }
 function onPointerUp(e){
   if(e.target && e.target.id==='game' || e.pointerType==='touch') mouse.down=false;
   else if(mouse.down && e.buttons===0) mouse.down=false;
+  if(e.type==='pointercancel'||e.buttons===0||e.button===0)N.Firing.set('mouse',false,false);
+  if(e.type==='pointercancel')I.resetFire();
 }
 function onWheel(e){
   if(document.body.classList.contains('playing') && !N.UI?.overlayOpen?.()){
@@ -121,7 +132,7 @@ function pollPads(){
   try{pads=navigator.getGamepads();}catch(e){pads=[];}
 }
 I.update=function(){
-  if(unfocused){clearPad();return;}
+  if(unfocused){N.Firing.reset();clearPad();return;}
   pollPads();
   padEdges=[]; padConsumed.clear();
   let anyPad=null;
@@ -134,7 +145,7 @@ I.update=function(){
   }
   if(!anyPad){
     clearPad();
-    if(padConnected){padConnected=false;movementBlocked=true;if(onPadChange)onPadChange(false,'');}
+    if(padConnected){I.resetFire();padConnected=false;movementBlocked=true;if(onPadChange)onPadChange(false,'');}
     return;
   }
   const buttons=anyPad.buttons||[];
@@ -165,6 +176,10 @@ I.update=function(){
   }
   I.lastPadAim=lastPadAim;
   I.padId=anyPad.id;
+  const padFire=I.padActionDown('fire'),stickFire=settings.rightStickFire&&settings.movementMode!=='driving'&&I.padAimActive;
+  if(!padFire&&!stickFire)padFireReady=true;
+  N.Firing.set('pad',padFire,fireActive()&&padFireReady);
+  N.Firing.set('stick',stickFire,fireActive()&&padFireReady);
 };
 I.endFrame=function(){
   pressed.clear();
@@ -203,7 +218,7 @@ I.getDrivingInput=function(){
     throttle:N.clamp((I.actionDown('moveUp')?1:0)-(I.actionDown('moveDown')?1:0)-py,-1,1)};
 };
 I.mouseDown=()=>mouse.down;
-I.resetFire=function(){mouse.down=false;};
+I.resetFire=function(){mouse.down=false;padFireReady=false;N.Firing.reset();};
 I.getWheel=function(){const v=wheelDelta; wheelDelta=0; return v;};
 I.getWeaponSwitch=function(){
   if(I.actionPressed('weaponNext')) return 1;
@@ -218,7 +233,7 @@ I.getAim=function(player,mouseWorld){
   let angle=player.aim||0;
   let source='mouse';
   let point=null;
-  const firingPad = I.padActionDown('fire') || (settings.movementMode!=='driving'&&I.padAimActive);
+  const firingPad = I.padActionDown('fire') || (settings.rightStickFire&&settings.movementMode!=='driving'&&I.padAimActive);
   if(I.padAimActive){
     angle=Math.atan2((I.padAim&&I.padAim.y)||0,(I.padAim&&I.padAim.x)||1);
     source='pad';
@@ -233,7 +248,7 @@ I.getAim=function(player,mouseWorld){
     source='mouse';
     point={x:mouseWorld.x,y:mouseWorld.y};
   }
-  const fire = mouse.down || firingPad;
+  const fire = N.Firing.active(fireActive());
   return {angle,source,point,fire,firingPad};
 };
 I.consumeAction=function(action){

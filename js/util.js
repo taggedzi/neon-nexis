@@ -179,10 +179,11 @@ N.Storage = {
 
 N.SETTINGS_DEFAULT = {
   movementMode:'directional',
+  firingMode:'hold',rightStickFire:true,
   version:1,
   keyboard:{
     moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
-    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI'
+    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI',fire:'KeyF'
   },
   gamepad:{fire:7,dash:0,pause:9,weaponNext:5,weaponPrev:4,inventory:3},
   audio:{master:.7,music:.38,sfx:.75,muted:false},
@@ -192,6 +193,7 @@ N.SETTINGS_DEFAULT = {
   sensitivity:1
 };
 N.KEY_ACTIONS = [
+  ['fire','FIRE'],
   ['moveUp','MOVE UP'],['moveDown','MOVE DOWN'],['moveLeft','MOVE LEFT'],['moveRight','MOVE RIGHT'],
   ['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],['pause','PAUSE'],['inventory','INVENTORY']
 ];
@@ -240,6 +242,12 @@ N.loadSettings = function(){
   s.graphics.particles=N.clamp(+s.graphics.particles||1,.25,2);
   s.deadzone=N.clamp(+s.deadzone||.22,.05,.6);
   s.movementMode=s.movementMode==='driving'?'driving':'directional';
+  s.firingMode=s.firingMode==='toggle'?'toggle':'hold';
+  s.rightStickFire=s.rightStickFire!==false;
+  if(raw?.keyboard&&raw.keyboard.fire===undefined){
+    const used=new Set(Object.entries(s.keyboard).filter(([action])=>action!=='fire').map(([,code])=>code));
+    s.keyboard.fire=['KeyF','KeyG','KeyV'].find(code=>!used.has(code))||null;
+  }
   return s;
 };
 N.saveSettings = s=>N.Storage.write(N.Storage.settingsKey,s);

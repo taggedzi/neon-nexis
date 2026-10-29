@@ -1,6 +1,6 @@
 # 008 — Add toggle and held-button firing modes
 
-Status: Blocked
+Status: Implemented — needs validation
 
 ## Problem
 
@@ -22,24 +22,48 @@ when pausing, changing modes, losing window focus, or starting a new run.
 
 ## Acceptance criteria
 
-- [ ] Both firing modes are selectable and explained in the controls UI.
-- [ ] In toggle mode, one press enables continuous fire and the next disables it.
-- [ ] Holding the toggle button does not repeatedly switch the state.
-- [ ] In held-button mode, firing occurs only while the fire input is held during active gameplay.
-- [ ] Both modes respect weapon fire rates, cooldowns, and any resource limits.
-- [ ] The active continuous-fire state is visible to the player.
+- [x] Both firing modes are selectable and explained in the controls UI.
+- [x] In toggle mode, one press enables continuous fire and the next disables it.
+- [x] Holding the toggle button does not repeatedly switch the state.
+- [x] In held-button mode, firing occurs only while the fire input is held during active gameplay.
+- [x] Both modes respect weapon fire rates, cooldowns, and any resource limits.
+- [x] The active continuous-fire state is visible to the player.
 - [ ] Supported keyboard/mouse and controller fire inputs behave consistently.
-- [ ] Menus and paused gameplay do not fire weapons; resume, focus-loss, mode-switch, and new-run behavior follow documented state rules without stuck firing.
+- [x] Menus and paused gameplay do not fire weapons; resume, focus-loss, mode-switch, and new-run behavior follow documented state rules without stuck firing.
 
 ## Open questions
 
-Which mode should be the default, and should the preference persist? Should pausing
-or losing focus reset continuous fire to off? Which buttons should control firing?
+Owner decisions (2026-10-29): hold-to-fire is the default; persist the preference.
+Reset toggle fire OFF on menus, pause, focus loss, mode changes and new runs.
+Fire inputs: LMB, remappable keyboard Fire (default F), mapped controller Fire
+(default RT). Keep right-stick firing as an optional directional-mode setting.
 
 ## Implementation and validation
 
-- Blocked on owner answers requested 2026-10-29: default mode/persistence; whether
-  toggle resets OFF on menus/pause/focus loss/mode changes/new runs; LMB/remappable
-  F/mapped controller fire and optional directional right-stick firing.
-- No firing-mode implementation started. Existing firing behavior remains.
-- Independent work continues on 002 while these behavior decisions are pending.
+- Earlier decision blocker is resolved. Implementation started after completing 002.
+- `js/firing.js`: shared held/toggle state and release blocking after interruptions.
+  `js/input.js`: mouse/key/controller edge/release integration; repeats and repeated
+  aim reads never toggle. Menus, pause, blur/hidden, disconnect/reconnect, mode
+  changes, restore and new runs reset continuous fire; held inputs require release
+  before rearming. Fresh physical mouse/key presses can recover a release missed
+  while the window was unfocused. Right-stick firing remains optional in directional
+  mode, with neutral-to-aim counting as one press; driving aim stays independent.
+- `js/util.js`: hold default and persistent validated mode, optional right-stick
+  setting, remappable Fire key. Legacy settings retain existing bindings; if F is
+  occupied, use G or V, otherwise leave Fire unbound until remapped. No storage reset.
+- `js/ui.js`, `js/render.js`: selectors, descriptions, Fire binding and AUTO FIRE
+  ON/OFF HUD label; help reflects mode/remapping. `js/game.js` handles lifecycle
+  resets. `index.html` loads firing state before input. Weapon cooldown/resource
+  code remains unchanged.
+- Automated browser: all 38 assertions in `tools/check-firing.js` passed in an
+  isolated `/?test=firing` page. Covers held and toggle input, repeat/movement/aim
+  reads, actual weapon firing and cooldown, resets, remapping, legacy conflicts,
+  persistence, synthetic controller edges/holds/pause/reconnect and optional stick
+  firing. Actual mouse/keyboard and synthetic controller inputs were exercised;
+  physical controller confirmation remains pending.
+- Agent UI: mode buttons and persistence passed at 640×720; a real keyboard F
+  press produced the rendered `AUTO FIRE: ON` label at 1920×1080. Adjacent browser
+  regressions passed: driving 31, camera 33, discarded items 35. No captured errors.
+- Changed-JavaScript syntax and `git diff --check` passed.
+- Pending: physical controller check and owner firing/aiming review.
+- Implementation commit: pending.

@@ -19,6 +19,7 @@ function screenEl(name){return document.getElementById('screen-'+name);}
 function esc(s){return N.safeName(String(s==null?'':s));}
 function clearFocusTimers(){while(focusTimers.length)clearTimeout(focusTimers.pop());}
 function showScreen(name,noFocus){
+  N.Input.resetFire();
   for(const n of screens){const el=screenEl(n);if(el)el.classList.toggle('active',n===name);}
   currentScreen=name;
   clearFocusTimers();
@@ -289,6 +290,12 @@ function bindRows(root){
       G.applySettings(true);renderSettings();
     });
   });
+  root.querySelectorAll('[data-firing-mode]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      G.settings.firingMode=btn.dataset.firingMode;
+      G.applySettings(true);renderSettings();
+    });
+  });
   root.querySelectorAll('[data-bind-key]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       N.Input.cancelCapture();
@@ -350,7 +357,17 @@ function renderSettings(){
             <button data-movement-mode="driving" aria-pressed="${driving}" class="${driving?'active':''}" type="button">DRIVING</button>
           </div>
         </div>
-        <div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves; right stick aims and fires. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div>
+        <div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves and right stick aims; optional right-stick firing is controlled below. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div>
+      </div>
+      <div class="settings-section"><h3>FIRING MODE</h3>
+        <div class="setting-row"><div class="setting-label"><b>WEAPON TRIGGER</b><small>SAVED BETWEEN SESSIONS</small></div>
+          <div class="segmented">
+            <button data-firing-mode="hold" aria-pressed="${s.firingMode==='hold'}" class="${s.firingMode==='hold'?'active':''}" type="button">HOLD TO FIRE</button>
+            <button data-firing-mode="toggle" aria-pressed="${s.firingMode==='toggle'}" class="${s.firingMode==='toggle'?'active':''}" type="button">TOGGLE FIRE</button>
+          </div>
+        </div>
+        ${toggleHTML('rightStickFire','RIGHT STICK FIRES')}
+        <div class="data-block"><p>Use LMB, the remapped Fire key, or the mapped controller Fire button. Hold mode fires while pressed. Toggle mode changes ON/OFF once per press. Optional right-stick firing uses each neutral-to-aim movement as a press in directional mode. Menus, pause, focus loss, mode changes and new runs reset continuous fire OFF. Release held fire inputs before rearming after an interruption. Aiming and weapon cooldowns are unchanged.</p></div>
       </div>
       <div class="settings-section"><h3>KEYBOARD BINDINGS</h3>
         ${N.KEY_ACTIONS.map(([action,label])=>`

@@ -738,12 +738,13 @@ function drawHUD(c,theme){
   }
   if(!compact){
     txt(c,'Q / E  WEAPON     SPACE  DASH     ESC  PAUSE',G.w-14*u,by-8*u,7*u,N.withAlpha('#7394a8',.72),'right',FONT_M);
-    txt(c,'LMB  AIM / FIRE',G.w-14*u,by-20*u,7*u,N.withAlpha('#7394a8',.55),'right',FONT_M);
+    txt(c,'LMB / '+N.keyLabel(G.settings.keyboard.fire)+'  '+(G.settings.firingMode==='toggle'?'TOGGLE FIRE':'HOLD TO FIRE'),G.w-14*u,by-20*u,7*u,N.withAlpha('#7394a8',.55),'right',FONT_M);
   }
+  if(G.settings.firingMode==='toggle')txt(c,'AUTO FIRE: '+(N.Firing.toggled()?'ON':'OFF'),G.w/2,G.h-84*u,10*u,N.Firing.toggled()?'#b6ff2b':'#7394a8','center',FONT_D,700);
   // early help
   if(G.level.elapsed<12){
     const a=clamp(1-G.level.elapsed/12,0,1);
-    txt(c,'HOLD LMB TO AIM & FIRE  ·  DESTROY ANCHORS OR SURVIVE',G.w/2,G.h-112*u,8*u,N.withAlpha(theme.a,.8*a),'center',FONT_M);
+    txt(c,(G.settings.firingMode==='toggle'?'PRESS LMB TO TOGGLE FIRE':'HOLD LMB TO FIRE')+'  ·  DESTROY ANCHORS OR SURVIVE',G.w/2,G.h-112*u,8*u,N.withAlpha(theme.a,.8*a),'center',FONT_M);
   }
   if(G.settings.graphics.showFps){
     txt(c,Math.round(G.fps)+' FPS  //  '+G.enemies.length+' HOSTILES  //  '+G.playerBullets.length+' SHOTS',G.w-14*u,22*u,7*u,N.withAlpha('#7394a8',.75),'right',FONT_M);
