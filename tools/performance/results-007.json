@@ -1,0 +1,2610 @@
+{
+  "conditions": {
+    "date": "2026-10-29",
+    "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "cpu": "KVM: 8 exposed i7-12700KF cores",
+    "reportedVRAMMiB": 256,
+    "renderer": "ANGLE Vulkan SwiftShader (software)",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "dpr": 1,
+    "runSeed": 270114450,
+    "mapVersion": 1,
+    "initialSectorSeed": 1646057677,
+    "notes": [
+      "Final map smoke tests after issues 002-008; not an equivalent-workload comparison to issue 001.",
+      "Normal/large: 600 measured rendered frames plus 120 warmup frames; high quality, effects unchanged.",
+      "Retention: 72000 simulation frames, render every 60 steps; not a full wall-clock/rendering endurance test.",
+      "Other rendering pages stopped. Audio locked; seeded invulnerable autopilot; saves suppressed.",
+      "Raw JS heap is not retained memory and excludes canvas/GPU backing stores.",
+      "Save-only pose restoration was corrected after these measurements; benchmark suppresses saves and does not restore."
+    ]
+  },
+  "results": {
+    "normal": {
+      "scenario": "normal",
+      "frames": 600,
+      "renderEvery": 1,
+      "warmup": 120,
+      "frame": 600,
+      "startedAt": "2026-10-29T08:49:25.680Z",
+      "wallSeconds": 20.894300000000744,
+      "simulatedSeconds": 10,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "settings": {
+        "movementMode": "directional",
+        "firingMode": "hold",
+        "rightStickFire": true,
+        "version": 1,
+        "keyboard": {
+          "moveUp": "KeyW",
+          "moveDown": "KeyS",
+          "moveLeft": "KeyA",
+          "moveRight": "KeyD",
+          "dash": "Space",
+          "pause": "Escape",
+          "weaponNext": "KeyE",
+          "weaponPrev": "KeyQ",
+          "inventory": "KeyI",
+          "fire": "KeyF"
+        },
+        "gamepad": {
+          "fire": 7,
+          "dash": 0,
+          "pause": 9,
+          "weaponNext": 5,
+          "weaponPrev": 4,
+          "inventory": 3
+        },
+        "audio": {
+          "master": 0.7,
+          "music": 0.38,
+          "sfx": 0.75,
+          "muted": false
+        },
+        "graphics": {
+          "quality": "high",
+          "shake": true,
+          "scanlines": true,
+          "glitch": true,
+          "particles": 1,
+          "showFps": false
+        },
+        "accessibility": {
+          "reducedFlash": false,
+          "aimAssist": 0
+        },
+        "deadzone": 0.22,
+        "sensitivity": 1
+      },
+      "timing": {
+        "update": {
+          "samples": 600,
+          "meanMs": 0.27599999999937913,
+          "p50Ms": 0.2000000011175871,
+          "p95Ms": 0.7999999988824129,
+          "p99Ms": 1.5,
+          "maxMs": 2.5
+        },
+        "render": {
+          "samples": 600,
+          "meanMs": 1.9591666666480403,
+          "p50Ms": 0.900000000372529,
+          "p95Ms": 8.900000000372529,
+          "p99Ms": 23.59999999962747,
+          "maxMs": 38.40000000037253
+        },
+        "raf": {
+          "samples": 600,
+          "meanMs": 28.5545,
+          "p50Ms": 33.29999999999927,
+          "p95Ms": 33.400000000001455,
+          "p99Ms": 50,
+          "maxMs": 66.59999999999854
+        },
+        "glow": {
+          "samples": 12884,
+          "meanMs": 0.00131170443949937,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "p99Ms": 0.09999999962747097,
+          "maxMs": 1.1000000014901161
+        }
+      },
+      "profileTotalMs": {
+        "updatePlayer": 40.599999997764826,
+        "updateEnemies": 59.50000000745058,
+        "updateAnchors": 5.200000004842877,
+        "updateCaches": 1.2999999951571226,
+        "updatePlayerBullets": 19.00000000372529,
+        "updateEnemyBullets": 13.399999994784594,
+        "updateMines": 1.699999999254942,
+        "updateOrbitals": 0.5,
+        "updateStrikes": 0.2999999988824129,
+        "updateGroundItems": 1.4000000059604645,
+        "updateEffects": 4.700000002980232,
+        "updateSpawning": 2.899999998509884
+      },
+      "glowCalls": 12884,
+      "canvasCreates": 7,
+      "samples": [
+        {
+          "frame": 0,
+          "simulatedSeconds": 0,
+          "heapBytes": 5770138,
+          "sector": 1,
+          "counts": {
+            "enemies": 8,
+            "playerBullets": 4,
+            "enemyBullets": 12,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 57,
+            "texts": 18,
+            "groundItems": 1
+          }
+        }
+      ],
+      "final": {
+        "mode": "playing",
+        "sector": 1,
+        "counts": {
+          "enemies": 15,
+          "playerBullets": 14,
+          "enemyBullets": 38,
+          "mines": 0,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 5,
+          "particles": 18,
+          "texts": 3,
+          "groundItems": 3
+        }
+      }
+    },
+    "large": {
+      "scenario": "large-wave",
+      "frames": 600,
+      "renderEvery": 1,
+      "warmup": 120,
+      "frame": 600,
+      "startedAt": "2026-10-29T08:50:48.194Z",
+      "wallSeconds": 22.86339999999851,
+      "simulatedSeconds": 10,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "settings": {
+        "movementMode": "directional",
+        "firingMode": "hold",
+        "rightStickFire": true,
+        "version": 1,
+        "keyboard": {
+          "moveUp": "KeyW",
+          "moveDown": "KeyS",
+          "moveLeft": "KeyA",
+          "moveRight": "KeyD",
+          "dash": "Space",
+          "pause": "Escape",
+          "weaponNext": "KeyE",
+          "weaponPrev": "KeyQ",
+          "inventory": "KeyI",
+          "fire": "KeyF"
+        },
+        "gamepad": {
+          "fire": 7,
+          "dash": 0,
+          "pause": 9,
+          "weaponNext": 5,
+          "weaponPrev": 4,
+          "inventory": 3
+        },
+        "audio": {
+          "master": 0.7,
+          "music": 0.38,
+          "sfx": 0.75,
+          "muted": false
+        },
+        "graphics": {
+          "quality": "high",
+          "shake": true,
+          "scanlines": true,
+          "glitch": true,
+          "particles": 1,
+          "showFps": false
+        },
+        "accessibility": {
+          "reducedFlash": false,
+          "aimAssist": 0
+        },
+        "deadzone": 0.22,
+        "sensitivity": 1
+      },
+      "timing": {
+        "update": {
+          "samples": 600,
+          "meanMs": 0.6226666666381061,
+          "p50Ms": 0.5,
+          "p95Ms": 1.300000000745058,
+          "p99Ms": 3.5,
+          "maxMs": 6.100000001490116
+        },
+        "render": {
+          "samples": 600,
+          "meanMs": 4.8779999999950325,
+          "p50Ms": 1.099999999627471,
+          "p95Ms": 28.799999998882413,
+          "p99Ms": 35.59999999962747,
+          "maxMs": 45.90000000037253
+        },
+        "raf": {
+          "samples": 600,
+          "meanMs": 29.77649999999999,
+          "p50Ms": 33.30000000000291,
+          "p95Ms": 50,
+          "p99Ms": 50.10000000000582,
+          "maxMs": 66.79999999998836
+        },
+        "glow": {
+          "samples": 31447,
+          "meanMs": 0.0007663688105296629,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "p99Ms": 0,
+          "maxMs": 0.30000000074505806
+        }
+      },
+      "profileTotalMs": {
+        "updatePlayer": 44.400000017136335,
+        "updateEnemies": 248.89999998360872,
+        "updateAnchors": 3.300000002607703,
+        "updateCaches": 1.0999999977648258,
+        "updatePlayerBullets": 16.100000005215406,
+        "updateEnemyBullets": 36.29999998770654,
+        "updateMines": 3.099999997764826,
+        "updateOrbitals": 0.40000000037252903,
+        "updateStrikes": 0.2000000011175871,
+        "updateGroundItems": 1.0999999977648258,
+        "updateEffects": 3.3000000044703484,
+        "updateSpawning": 3.299999998882413
+      },
+      "glowCalls": 31447,
+      "canvasCreates": 3,
+      "samples": [
+        {
+          "frame": 0,
+          "simulatedSeconds": 0,
+          "heapBytes": 6246672,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 2,
+            "enemyBullets": 189,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 13,
+            "particles": 29,
+            "texts": 16,
+            "groundItems": 0
+          }
+        }
+      ],
+      "final": {
+        "mode": "playing",
+        "sector": 1,
+        "counts": {
+          "enemies": 120,
+          "playerBullets": 11,
+          "enemyBullets": 128,
+          "mines": 33,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 8,
+          "particles": 18,
+          "texts": 5,
+          "groundItems": 3
+        }
+      }
+    },
+    "retention": {
+      "scenario": "normal",
+      "frames": 72000,
+      "renderEvery": 60,
+      "warmup": 120,
+      "frame": 72000,
+      "startedAt": "2026-10-29T08:52:21.308Z",
+      "wallSeconds": 51.5425,
+      "simulatedSeconds": 1200,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "settings": {
+        "movementMode": "directional",
+        "firingMode": "hold",
+        "rightStickFire": true,
+        "version": 1,
+        "keyboard": {
+          "moveUp": "KeyW",
+          "moveDown": "KeyS",
+          "moveLeft": "KeyA",
+          "moveRight": "KeyD",
+          "dash": "Space",
+          "pause": "Escape",
+          "weaponNext": "KeyE",
+          "weaponPrev": "KeyQ",
+          "inventory": "KeyI",
+          "fire": "KeyF"
+        },
+        "gamepad": {
+          "fire": 7,
+          "dash": 0,
+          "pause": 9,
+          "weaponNext": 5,
+          "weaponPrev": 4,
+          "inventory": 3
+        },
+        "audio": {
+          "master": 0.7,
+          "music": 0.38,
+          "sfx": 0.75,
+          "muted": false
+        },
+        "graphics": {
+          "quality": "high",
+          "shake": true,
+          "scanlines": true,
+          "glitch": true,
+          "particles": 1,
+          "showFps": false
+        },
+        "accessibility": {
+          "reducedFlash": false,
+          "aimAssist": 0
+        },
+        "deadzone": 0.22,
+        "sensitivity": 1
+      },
+      "timing": {
+        "update": {
+          "samples": 72000,
+          "meanMs": 0.23268055555371878,
+          "p50Ms": 0.19999999925494194,
+          "p95Ms": 0.599999999627471,
+          "p99Ms": 1.400000000372529,
+          "maxMs": 20.700000001117587
+        },
+        "render": {
+          "samples": 1200,
+          "meanMs": 5.756500000016143,
+          "p50Ms": 1.599999999627471,
+          "p95Ms": 21.600000001490116,
+          "p99Ms": 33.79999999888241,
+          "maxMs": 54.29999999888241
+        },
+        "raf": {
+          "samples": 72000,
+          "meanMs": 0.7151722222222274,
+          "p50Ms": 0.19999999925494194,
+          "p95Ms": 1,
+          "p99Ms": 19.000000001105946,
+          "maxMs": 127.69999999849824
+        },
+        "glow": {
+          "samples": 69047,
+          "meanMs": 0.0010413196803169568,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "p99Ms": 0,
+          "maxMs": 2.5
+        }
+      },
+      "profileTotalMs": {
+        "updatePlayer": 731.6000000741333,
+        "updateEnemies": 10464.0999997966,
+        "updateAnchors": 54.79999997653067,
+        "updateCaches": 32.39999998919666,
+        "updatePlayerBullets": 3034.799999985844,
+        "updateEnemyBullets": 719.9000000823289,
+        "updateMines": 47.59999999590218,
+        "updateOrbitals": 17.89999999292195,
+        "updateStrikes": 15.200000014156103,
+        "updateGroundItems": 586.9000000320375,
+        "updateEffects": 493.59999991208315,
+        "updateSpawning": 204.7999999895692
+      },
+      "glowCalls": 69047,
+      "canvasCreates": 346,
+      "samples": [
+        {
+          "frame": 0,
+          "simulatedSeconds": 0,
+          "heapBytes": 7030484,
+          "sector": 1,
+          "counts": {
+            "enemies": 8,
+            "playerBullets": 4,
+            "enemyBullets": 12,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 57,
+            "texts": 18,
+            "groundItems": 1
+          }
+        },
+        {
+          "frame": 600,
+          "simulatedSeconds": 10,
+          "heapBytes": 6500432,
+          "sector": 1,
+          "counts": {
+            "enemies": 15,
+            "playerBullets": 16,
+            "enemyBullets": 38,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 24,
+            "texts": 3,
+            "groundItems": 3
+          }
+        },
+        {
+          "frame": 1200,
+          "simulatedSeconds": 20,
+          "heapBytes": 7313332,
+          "sector": 1,
+          "counts": {
+            "enemies": 18,
+            "playerBullets": 4,
+            "enemyBullets": 31,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 34,
+            "texts": 16,
+            "groundItems": 8
+          }
+        },
+        {
+          "frame": 1800,
+          "simulatedSeconds": 30,
+          "heapBytes": 10309191,
+          "sector": 1,
+          "counts": {
+            "enemies": 14,
+            "playerBullets": 10,
+            "enemyBullets": 17,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 95,
+            "texts": 24,
+            "groundItems": 13
+          }
+        },
+        {
+          "frame": 2400,
+          "simulatedSeconds": 40,
+          "heapBytes": 8747228,
+          "sector": 1,
+          "counts": {
+            "enemies": 25,
+            "playerBullets": 7,
+            "enemyBullets": 84,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 82,
+            "texts": 16,
+            "groundItems": 19
+          }
+        },
+        {
+          "frame": 3000,
+          "simulatedSeconds": 50,
+          "heapBytes": 11051718,
+          "sector": 1,
+          "counts": {
+            "enemies": 30,
+            "playerBullets": 13,
+            "enemyBullets": 108,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 55,
+            "texts": 14,
+            "groundItems": 26
+          }
+        },
+        {
+          "frame": 3600,
+          "simulatedSeconds": 60,
+          "heapBytes": 11631321,
+          "sector": 1,
+          "counts": {
+            "enemies": 42,
+            "playerBullets": 7,
+            "enemyBullets": 94,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 54,
+            "texts": 23,
+            "groundItems": 30
+          }
+        },
+        {
+          "frame": 4200,
+          "simulatedSeconds": 70,
+          "heapBytes": 8067474,
+          "sector": 1,
+          "counts": {
+            "enemies": 41,
+            "playerBullets": 17,
+            "enemyBullets": 76,
+            "mines": 7,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 50,
+            "texts": 10,
+            "groundItems": 36
+          }
+        },
+        {
+          "frame": 4800,
+          "simulatedSeconds": 80,
+          "heapBytes": 6961660,
+          "sector": 1,
+          "counts": {
+            "enemies": 54,
+            "playerBullets": 14,
+            "enemyBullets": 161,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 55,
+            "texts": 21,
+            "groundItems": 42
+          }
+        },
+        {
+          "frame": 5400,
+          "simulatedSeconds": 90,
+          "heapBytes": 5185572,
+          "sector": 1,
+          "counts": {
+            "enemies": 65,
+            "playerBullets": 15,
+            "enemyBullets": 109,
+            "mines": 7,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 59,
+            "texts": 13,
+            "groundItems": 44
+          }
+        },
+        {
+          "frame": 6000,
+          "simulatedSeconds": 100,
+          "heapBytes": 5462084,
+          "sector": 1,
+          "counts": {
+            "enemies": 74,
+            "playerBullets": 13,
+            "enemyBullets": 110,
+            "mines": 7,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 15,
+            "particles": 112,
+            "texts": 18,
+            "groundItems": 46
+          }
+        },
+        {
+          "frame": 6600,
+          "simulatedSeconds": 110,
+          "heapBytes": 5820906,
+          "sector": 1,
+          "counts": {
+            "enemies": 78,
+            "playerBullets": 18,
+            "enemyBullets": 125,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 77,
+            "texts": 10,
+            "groundItems": 54
+          }
+        },
+        {
+          "frame": 7200,
+          "simulatedSeconds": 120,
+          "heapBytes": 9619294,
+          "sector": 1,
+          "counts": {
+            "enemies": 101,
+            "playerBullets": 7,
+            "enemyBullets": 223,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 99,
+            "texts": 24,
+            "groundItems": 56
+          }
+        },
+        {
+          "frame": 7800,
+          "simulatedSeconds": 130,
+          "heapBytes": 6890572,
+          "sector": 1,
+          "counts": {
+            "enemies": 110,
+            "playerBullets": 4,
+            "enemyBullets": 202,
+            "mines": 9,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 48,
+            "texts": 3,
+            "groundItems": 62
+          }
+        },
+        {
+          "frame": 8400,
+          "simulatedSeconds": 140,
+          "heapBytes": 14202123,
+          "sector": 1,
+          "counts": {
+            "enemies": 107,
+            "playerBullets": 10,
+            "enemyBullets": 185,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 70,
+            "texts": 16,
+            "groundItems": 71
+          }
+        },
+        {
+          "frame": 9000,
+          "simulatedSeconds": 150,
+          "heapBytes": 10078279,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 18,
+            "enemyBullets": 216,
+            "mines": 15,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 56,
+            "texts": 36,
+            "groundItems": 77
+          }
+        },
+        {
+          "frame": 9600,
+          "simulatedSeconds": 160,
+          "heapBytes": 6202942,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 28,
+            "enemyBullets": 193,
+            "mines": 18,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 91,
+            "texts": 34,
+            "groundItems": 86
+          }
+        },
+        {
+          "frame": 10200,
+          "simulatedSeconds": 170,
+          "heapBytes": 9552961,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 33,
+            "enemyBullets": 182,
+            "mines": 19,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 51,
+            "texts": 9,
+            "groundItems": 90
+          }
+        },
+        {
+          "frame": 10800,
+          "simulatedSeconds": 180,
+          "heapBytes": 5758120,
+          "sector": 1,
+          "counts": {
+            "enemies": 112,
+            "playerBullets": 10,
+            "enemyBullets": 125,
+            "mines": 21,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 102,
+            "texts": 10,
+            "groundItems": 102
+          }
+        },
+        {
+          "frame": 11400,
+          "simulatedSeconds": 190,
+          "heapBytes": 7626933,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 30,
+            "enemyBullets": 180,
+            "mines": 24,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 76,
+            "texts": 16,
+            "groundItems": 104
+          }
+        },
+        {
+          "frame": 12000,
+          "simulatedSeconds": 200,
+          "heapBytes": 18542581,
+          "sector": 1,
+          "counts": {
+            "enemies": 115,
+            "playerBullets": 28,
+            "enemyBullets": 180,
+            "mines": 24,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 15,
+            "particles": 111,
+            "texts": 6,
+            "groundItems": 111
+          }
+        },
+        {
+          "frame": 12600,
+          "simulatedSeconds": 210,
+          "heapBytes": 11108833,
+          "sector": 1,
+          "counts": {
+            "enemies": 115,
+            "playerBullets": 29,
+            "enemyBullets": 241,
+            "mines": 13,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 15,
+            "particles": 194,
+            "texts": 33,
+            "groundItems": 101
+          }
+        },
+        {
+          "frame": 13200,
+          "simulatedSeconds": 220,
+          "heapBytes": 23491809,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 33,
+            "enemyBullets": 214,
+            "mines": 6,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 26,
+            "texts": 7,
+            "groundItems": 98
+          }
+        },
+        {
+          "frame": 13800,
+          "simulatedSeconds": 230,
+          "heapBytes": 16861575,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 33,
+            "enemyBullets": 248,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 84,
+            "texts": 19,
+            "groundItems": 71
+          }
+        },
+        {
+          "frame": 14400,
+          "simulatedSeconds": 240,
+          "heapBytes": 6915202,
+          "sector": 1,
+          "counts": {
+            "enemies": 112,
+            "playerBullets": 17,
+            "enemyBullets": 216,
+            "mines": 14,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 127,
+            "texts": 20,
+            "groundItems": 67
+          }
+        },
+        {
+          "frame": 15000,
+          "simulatedSeconds": 250,
+          "heapBytes": 18672462,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 45,
+            "enemyBullets": 221,
+            "mines": 29,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 211,
+            "texts": 29,
+            "groundItems": 67
+          }
+        },
+        {
+          "frame": 15600,
+          "simulatedSeconds": 260,
+          "heapBytes": 17418220,
+          "sector": 1,
+          "counts": {
+            "enemies": 116,
+            "playerBullets": 36,
+            "enemyBullets": 202,
+            "mines": 27,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 96,
+            "texts": 17,
+            "groundItems": 77
+          }
+        },
+        {
+          "frame": 16200,
+          "simulatedSeconds": 270,
+          "heapBytes": 15744010,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 35,
+            "enemyBullets": 235,
+            "mines": 26,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 96,
+            "texts": 13,
+            "groundItems": 84
+          }
+        },
+        {
+          "frame": 16800,
+          "simulatedSeconds": 280,
+          "heapBytes": 9262598,
+          "sector": 1,
+          "counts": {
+            "enemies": 111,
+            "playerBullets": 0,
+            "enemyBullets": 226,
+            "mines": 14,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 64,
+            "texts": 13,
+            "groundItems": 94
+          }
+        },
+        {
+          "frame": 17400,
+          "simulatedSeconds": 290,
+          "heapBytes": 20143938,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 10,
+            "enemyBullets": 248,
+            "mines": 18,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 41,
+            "texts": 2,
+            "groundItems": 89
+          }
+        },
+        {
+          "frame": 18000,
+          "simulatedSeconds": 300,
+          "heapBytes": 7014155,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 42,
+            "enemyBullets": 232,
+            "mines": 18,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 71,
+            "texts": 8,
+            "groundItems": 97
+          }
+        },
+        {
+          "frame": 18600,
+          "simulatedSeconds": 310,
+          "heapBytes": 7421196,
+          "sector": 1,
+          "counts": {
+            "enemies": 116,
+            "playerBullets": 33,
+            "enemyBullets": 272,
+            "mines": 15,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 14,
+            "particles": 101,
+            "texts": 27,
+            "groundItems": 102
+          }
+        },
+        {
+          "frame": 19200,
+          "simulatedSeconds": 320,
+          "heapBytes": 6224329,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 42,
+            "enemyBullets": 229,
+            "mines": 19,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 79,
+            "texts": 7,
+            "groundItems": 113
+          }
+        },
+        {
+          "frame": 19800,
+          "simulatedSeconds": 330,
+          "heapBytes": 6920736,
+          "sector": 1,
+          "counts": {
+            "enemies": 113,
+            "playerBullets": 41,
+            "enemyBullets": 220,
+            "mines": 22,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 16,
+            "particles": 126,
+            "texts": 18,
+            "groundItems": 130
+          }
+        },
+        {
+          "frame": 20400,
+          "simulatedSeconds": 340,
+          "heapBytes": 6813208,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 42,
+            "enemyBullets": 221,
+            "mines": 23,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 46,
+            "texts": 6,
+            "groundItems": 14
+          }
+        },
+        {
+          "frame": 21000,
+          "simulatedSeconds": 350,
+          "heapBytes": 6241058,
+          "sector": 1,
+          "counts": {
+            "enemies": 104,
+            "playerBullets": 29,
+            "enemyBullets": 235,
+            "mines": 17,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 13,
+            "particles": 149,
+            "texts": 17,
+            "groundItems": 29
+          }
+        },
+        {
+          "frame": 21600,
+          "simulatedSeconds": 360,
+          "heapBytes": 7020402,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 4,
+            "enemyBullets": 243,
+            "mines": 32,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 70,
+            "texts": 2,
+            "groundItems": 35
+          }
+        },
+        {
+          "frame": 22200,
+          "simulatedSeconds": 370,
+          "heapBytes": 11312738,
+          "sector": 1,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 41,
+            "enemyBullets": 233,
+            "mines": 35,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 96,
+            "texts": 19,
+            "groundItems": 43
+          }
+        },
+        {
+          "frame": 22800,
+          "simulatedSeconds": 380,
+          "heapBytes": 16158364,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 42,
+            "enemyBullets": 249,
+            "mines": 30,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 106,
+            "texts": 10,
+            "groundItems": 46
+          }
+        },
+        {
+          "frame": 23400,
+          "simulatedSeconds": 390,
+          "heapBytes": 20942839,
+          "sector": 1,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 20,
+            "enemyBullets": 300,
+            "mines": 18,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 76,
+            "texts": 5,
+            "groundItems": 56
+          }
+        },
+        {
+          "frame": 24000,
+          "simulatedSeconds": 400,
+          "heapBytes": 30077754,
+          "sector": 1,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 32,
+            "enemyBullets": 259,
+            "mines": 19,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 14,
+            "particles": 277,
+            "texts": 52,
+            "groundItems": 67
+          }
+        },
+        {
+          "frame": 24600,
+          "simulatedSeconds": 410,
+          "heapBytes": 24244370,
+          "sector": 1,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 51,
+            "enemyBullets": 267,
+            "mines": 26,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 39,
+            "texts": 1,
+            "groundItems": 81
+          }
+        },
+        {
+          "frame": 25200,
+          "simulatedSeconds": 420,
+          "heapBytes": 19462060,
+          "sector": 2,
+          "counts": {
+            "enemies": 9,
+            "playerBullets": 21,
+            "enemyBullets": 1,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 72,
+            "texts": 4,
+            "groundItems": 1
+          }
+        },
+        {
+          "frame": 25800,
+          "simulatedSeconds": 430,
+          "heapBytes": 22667890,
+          "sector": 2,
+          "counts": {
+            "enemies": 6,
+            "playerBullets": 12,
+            "enemyBullets": 5,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 69,
+            "texts": 0,
+            "groundItems": 6
+          }
+        },
+        {
+          "frame": 26400,
+          "simulatedSeconds": 440,
+          "heapBytes": 25879016,
+          "sector": 2,
+          "counts": {
+            "enemies": 9,
+            "playerBullets": 31,
+            "enemyBullets": 43,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 14,
+            "particles": 191,
+            "texts": 35,
+            "groundItems": 13
+          }
+        },
+        {
+          "frame": 27000,
+          "simulatedSeconds": 450,
+          "heapBytes": 25971907,
+          "sector": 2,
+          "counts": {
+            "enemies": 5,
+            "playerBullets": 48,
+            "enemyBullets": 18,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 81,
+            "texts": 10,
+            "groundItems": 21
+          }
+        },
+        {
+          "frame": 27600,
+          "simulatedSeconds": 460,
+          "heapBytes": 20282075,
+          "sector": 2,
+          "counts": {
+            "enemies": 6,
+            "playerBullets": 41,
+            "enemyBullets": 19,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 14,
+            "particles": 171,
+            "texts": 29,
+            "groundItems": 28
+          }
+        },
+        {
+          "frame": 28200,
+          "simulatedSeconds": 470,
+          "heapBytes": 17642964,
+          "sector": 2,
+          "counts": {
+            "enemies": 17,
+            "playerBullets": 3,
+            "enemyBullets": 86,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 119,
+            "texts": 16,
+            "groundItems": 27
+          }
+        },
+        {
+          "frame": 28800,
+          "simulatedSeconds": 480,
+          "heapBytes": 6840669,
+          "sector": 2,
+          "counts": {
+            "enemies": 24,
+            "playerBullets": 40,
+            "enemyBullets": 12,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 61,
+            "texts": 0,
+            "groundItems": 28
+          }
+        },
+        {
+          "frame": 29400,
+          "simulatedSeconds": 490,
+          "heapBytes": 20300766,
+          "sector": 2,
+          "counts": {
+            "enemies": 9,
+            "playerBullets": 51,
+            "enemyBullets": 4,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 74,
+            "texts": 11,
+            "groundItems": 39
+          }
+        },
+        {
+          "frame": 30000,
+          "simulatedSeconds": 500,
+          "heapBytes": 11460375,
+          "sector": 2,
+          "counts": {
+            "enemies": 12,
+            "playerBullets": 12,
+            "enemyBullets": 0,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 89,
+            "texts": 2,
+            "groundItems": 40
+          }
+        },
+        {
+          "frame": 30600,
+          "simulatedSeconds": 510,
+          "heapBytes": 23690944,
+          "sector": 2,
+          "counts": {
+            "enemies": 15,
+            "playerBullets": 39,
+            "enemyBullets": 24,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 20,
+            "particles": 241,
+            "texts": 34,
+            "groundItems": 39
+          }
+        },
+        {
+          "frame": 31200,
+          "simulatedSeconds": 520,
+          "heapBytes": 8642645,
+          "sector": 2,
+          "counts": {
+            "enemies": 16,
+            "playerBullets": 49,
+            "enemyBullets": 23,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 92,
+            "texts": 23,
+            "groundItems": 35
+          }
+        },
+        {
+          "frame": 31800,
+          "simulatedSeconds": 530,
+          "heapBytes": 11333721,
+          "sector": 2,
+          "counts": {
+            "enemies": 6,
+            "playerBullets": 3,
+            "enemyBullets": 0,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 171,
+            "texts": 19,
+            "groundItems": 38
+          }
+        },
+        {
+          "frame": 32400,
+          "simulatedSeconds": 540,
+          "heapBytes": 26347002,
+          "sector": 2,
+          "counts": {
+            "enemies": 18,
+            "playerBullets": 16,
+            "enemyBullets": 12,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 91,
+            "texts": 8,
+            "groundItems": 37
+          }
+        },
+        {
+          "frame": 33000,
+          "simulatedSeconds": 550,
+          "heapBytes": 8159431,
+          "sector": 3,
+          "counts": {
+            "enemies": 5,
+            "playerBullets": 37,
+            "enemyBullets": 12,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 117,
+            "texts": 42,
+            "groundItems": 2
+          }
+        },
+        {
+          "frame": 33600,
+          "simulatedSeconds": 560,
+          "heapBytes": 32134187,
+          "sector": 3,
+          "counts": {
+            "enemies": 14,
+            "playerBullets": 1,
+            "enemyBullets": 32,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 64,
+            "texts": 4,
+            "groundItems": 10
+          }
+        },
+        {
+          "frame": 34200,
+          "simulatedSeconds": 570,
+          "heapBytes": 16406802,
+          "sector": 3,
+          "counts": {
+            "enemies": 28,
+            "playerBullets": 12,
+            "enemyBullets": 63,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 90,
+            "texts": 2,
+            "groundItems": 16
+          }
+        },
+        {
+          "frame": 34800,
+          "simulatedSeconds": 580,
+          "heapBytes": 16325542,
+          "sector": 3,
+          "counts": {
+            "enemies": 25,
+            "playerBullets": 39,
+            "enemyBullets": 95,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 183,
+            "texts": 36,
+            "groundItems": 29
+          }
+        },
+        {
+          "frame": 35400,
+          "simulatedSeconds": 590,
+          "heapBytes": 6833341,
+          "sector": 3,
+          "counts": {
+            "enemies": 31,
+            "playerBullets": 38,
+            "enemyBullets": 76,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 100,
+            "texts": 21,
+            "groundItems": 32
+          }
+        },
+        {
+          "frame": 36000,
+          "simulatedSeconds": 600,
+          "heapBytes": 11930641,
+          "sector": 3,
+          "counts": {
+            "enemies": 31,
+            "playerBullets": 25,
+            "enemyBullets": 99,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 16,
+            "particles": 172,
+            "texts": 22,
+            "groundItems": 35
+          }
+        },
+        {
+          "frame": 36600,
+          "simulatedSeconds": 610,
+          "heapBytes": 21652121,
+          "sector": 3,
+          "counts": {
+            "enemies": 43,
+            "playerBullets": 14,
+            "enemyBullets": 81,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 15,
+            "particles": 234,
+            "texts": 50,
+            "groundItems": 41
+          }
+        },
+        {
+          "frame": 37200,
+          "simulatedSeconds": 620,
+          "heapBytes": 16823339,
+          "sector": 3,
+          "counts": {
+            "enemies": 37,
+            "playerBullets": 40,
+            "enemyBullets": 49,
+            "mines": 11,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 225,
+            "texts": 37,
+            "groundItems": 50
+          }
+        },
+        {
+          "frame": 37800,
+          "simulatedSeconds": 630,
+          "heapBytes": 26315423,
+          "sector": 3,
+          "counts": {
+            "enemies": 36,
+            "playerBullets": 67,
+            "enemyBullets": 54,
+            "mines": 9,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 64,
+            "texts": 27,
+            "groundItems": 61
+          }
+        },
+        {
+          "frame": 38400,
+          "simulatedSeconds": 640,
+          "heapBytes": 7429807,
+          "sector": 3,
+          "counts": {
+            "enemies": 34,
+            "playerBullets": 50,
+            "enemyBullets": 63,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 18,
+            "particles": 257,
+            "texts": 41,
+            "groundItems": 70
+          }
+        },
+        {
+          "frame": 39000,
+          "simulatedSeconds": 650,
+          "heapBytes": 28311234,
+          "sector": 4,
+          "counts": {
+            "enemies": 7,
+            "playerBullets": 27,
+            "enemyBullets": 0,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 200,
+            "texts": 40,
+            "groundItems": 1
+          }
+        },
+        {
+          "frame": 39600,
+          "simulatedSeconds": 660,
+          "heapBytes": 7194108,
+          "sector": 4,
+          "counts": {
+            "enemies": 12,
+            "playerBullets": 69,
+            "enemyBullets": 21,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 214,
+            "texts": 51,
+            "groundItems": 15
+          }
+        },
+        {
+          "frame": 40200,
+          "simulatedSeconds": 670,
+          "heapBytes": 18565784,
+          "sector": 4,
+          "counts": {
+            "enemies": 18,
+            "playerBullets": 92,
+            "enemyBullets": 32,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 150,
+            "texts": 52,
+            "groundItems": 26
+          }
+        },
+        {
+          "frame": 40800,
+          "simulatedSeconds": 680,
+          "heapBytes": 21659041,
+          "sector": 4,
+          "counts": {
+            "enemies": 12,
+            "playerBullets": 68,
+            "enemyBullets": 7,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 255,
+            "texts": 65,
+            "groundItems": 44
+          }
+        },
+        {
+          "frame": 41400,
+          "simulatedSeconds": 690,
+          "heapBytes": 31067590,
+          "sector": 4,
+          "counts": {
+            "enemies": 10,
+            "playerBullets": 92,
+            "enemyBullets": 4,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 41,
+            "texts": 8,
+            "groundItems": 49
+          }
+        },
+        {
+          "frame": 42000,
+          "simulatedSeconds": 700,
+          "heapBytes": 13490529,
+          "sector": 4,
+          "counts": {
+            "enemies": 13,
+            "playerBullets": 17,
+            "enemyBullets": 3,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 109,
+            "texts": 0,
+            "groundItems": 58
+          }
+        },
+        {
+          "frame": 42600,
+          "simulatedSeconds": 710,
+          "heapBytes": 13145548,
+          "sector": 4,
+          "counts": {
+            "enemies": 19,
+            "playerBullets": 18,
+            "enemyBullets": 8,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 272,
+            "texts": 74,
+            "groundItems": 67
+          }
+        },
+        {
+          "frame": 43200,
+          "simulatedSeconds": 720,
+          "heapBytes": 17579974,
+          "sector": 5,
+          "counts": {
+            "enemies": 5,
+            "playerBullets": 91,
+            "enemyBullets": 1,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 24,
+            "particles": 277,
+            "texts": 64,
+            "groundItems": 7
+          }
+        },
+        {
+          "frame": 43800,
+          "simulatedSeconds": 730,
+          "heapBytes": 16999175,
+          "sector": 5,
+          "counts": {
+            "enemies": 6,
+            "playerBullets": 76,
+            "enemyBullets": 3,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 177,
+            "texts": 13,
+            "groundItems": 12
+          }
+        },
+        {
+          "frame": 44400,
+          "simulatedSeconds": 740,
+          "heapBytes": 24056879,
+          "sector": 5,
+          "counts": {
+            "enemies": 17,
+            "playerBullets": 16,
+            "enemyBullets": 23,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 107,
+            "texts": 7,
+            "groundItems": 11
+          }
+        },
+        {
+          "frame": 45000,
+          "simulatedSeconds": 750,
+          "heapBytes": 20087411,
+          "sector": 5,
+          "counts": {
+            "enemies": 20,
+            "playerBullets": 65,
+            "enemyBullets": 3,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 210,
+            "texts": 26,
+            "groundItems": 17
+          }
+        },
+        {
+          "frame": 45600,
+          "simulatedSeconds": 760,
+          "heapBytes": 7591609,
+          "sector": 5,
+          "counts": {
+            "enemies": 11,
+            "playerBullets": 13,
+            "enemyBullets": 9,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 219,
+            "texts": 5,
+            "groundItems": 28
+          }
+        },
+        {
+          "frame": 46200,
+          "simulatedSeconds": 770,
+          "heapBytes": 26654029,
+          "sector": 5,
+          "counts": {
+            "enemies": 16,
+            "playerBullets": 20,
+            "enemyBullets": 39,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 160,
+            "texts": 36,
+            "groundItems": 20
+          }
+        },
+        {
+          "frame": 46800,
+          "simulatedSeconds": 780,
+          "heapBytes": 15952000,
+          "sector": 5,
+          "counts": {
+            "enemies": 9,
+            "playerBullets": 108,
+            "enemyBullets": 18,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 168,
+            "texts": 21,
+            "groundItems": 32
+          }
+        },
+        {
+          "frame": 47400,
+          "simulatedSeconds": 790,
+          "heapBytes": 31635280,
+          "sector": 5,
+          "counts": {
+            "enemies": 9,
+            "playerBullets": 0,
+            "enemyBullets": 4,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 132,
+            "texts": 0,
+            "groundItems": 19
+          }
+        },
+        {
+          "frame": 48000,
+          "simulatedSeconds": 800,
+          "heapBytes": 21824471,
+          "sector": 5,
+          "counts": {
+            "enemies": 12,
+            "playerBullets": 21,
+            "enemyBullets": 17,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 96,
+            "texts": 5,
+            "groundItems": 2
+          }
+        },
+        {
+          "frame": 48600,
+          "simulatedSeconds": 810,
+          "heapBytes": 29547783,
+          "sector": 5,
+          "counts": {
+            "enemies": 12,
+            "playerBullets": 92,
+            "enemyBullets": 26,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 265,
+            "texts": 23,
+            "groundItems": 17
+          }
+        },
+        {
+          "frame": 49200,
+          "simulatedSeconds": 820,
+          "heapBytes": 13213449,
+          "sector": 6,
+          "counts": {
+            "enemies": 13,
+            "playerBullets": 89,
+            "enemyBullets": 10,
+            "mines": 3,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 46,
+            "texts": 19,
+            "groundItems": 8
+          }
+        },
+        {
+          "frame": 49800,
+          "simulatedSeconds": 830,
+          "heapBytes": 8104457,
+          "sector": 6,
+          "counts": {
+            "enemies": 17,
+            "playerBullets": 78,
+            "enemyBullets": 72,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 5,
+            "particles": 191,
+            "texts": 26,
+            "groundItems": 17
+          }
+        },
+        {
+          "frame": 50400,
+          "simulatedSeconds": 840,
+          "heapBytes": 30655103,
+          "sector": 6,
+          "counts": {
+            "enemies": 18,
+            "playerBullets": 54,
+            "enemyBullets": 44,
+            "mines": 1,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 265,
+            "texts": 36,
+            "groundItems": 33
+          }
+        },
+        {
+          "frame": 51000,
+          "simulatedSeconds": 850,
+          "heapBytes": 25937612,
+          "sector": 6,
+          "counts": {
+            "enemies": 17,
+            "playerBullets": 111,
+            "enemyBullets": 35,
+            "mines": 7,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 19,
+            "particles": 279,
+            "texts": 74,
+            "groundItems": 41
+          }
+        },
+        {
+          "frame": 51600,
+          "simulatedSeconds": 860,
+          "heapBytes": 15740419,
+          "sector": 6,
+          "counts": {
+            "enemies": 24,
+            "playerBullets": 86,
+            "enemyBullets": 43,
+            "mines": 12,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 240,
+            "texts": 46,
+            "groundItems": 54
+          }
+        },
+        {
+          "frame": 52200,
+          "simulatedSeconds": 870,
+          "heapBytes": 24304032,
+          "sector": 7,
+          "counts": {
+            "enemies": 8,
+            "playerBullets": 57,
+            "enemyBullets": 0,
+            "mines": 0,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 4,
+            "particles": 142,
+            "texts": 5,
+            "groundItems": 0
+          }
+        },
+        {
+          "frame": 52800,
+          "simulatedSeconds": 880,
+          "heapBytes": 13631620,
+          "sector": 7,
+          "counts": {
+            "enemies": 24,
+            "playerBullets": 89,
+            "enemyBullets": 23,
+            "mines": 2,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 106,
+            "texts": 22,
+            "groundItems": 5
+          }
+        },
+        {
+          "frame": 53400,
+          "simulatedSeconds": 890,
+          "heapBytes": 16610680,
+          "sector": 7,
+          "counts": {
+            "enemies": 36,
+            "playerBullets": 114,
+            "enemyBullets": 25,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 14,
+            "particles": 217,
+            "texts": 81,
+            "groundItems": 18
+          }
+        },
+        {
+          "frame": 54000,
+          "simulatedSeconds": 900,
+          "heapBytes": 21519611,
+          "sector": 7,
+          "counts": {
+            "enemies": 49,
+            "playerBullets": 72,
+            "enemyBullets": 18,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 233,
+            "texts": 36,
+            "groundItems": 28
+          }
+        },
+        {
+          "frame": 54600,
+          "simulatedSeconds": 910,
+          "heapBytes": 32808730,
+          "sector": 7,
+          "counts": {
+            "enemies": 54,
+            "playerBullets": 89,
+            "enemyBullets": 47,
+            "mines": 4,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 11,
+            "particles": 223,
+            "texts": 7,
+            "groundItems": 49
+          }
+        },
+        {
+          "frame": 55200,
+          "simulatedSeconds": 920,
+          "heapBytes": 7750483,
+          "sector": 7,
+          "counts": {
+            "enemies": 53,
+            "playerBullets": 80,
+            "enemyBullets": 62,
+            "mines": 7,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 267,
+            "texts": 49,
+            "groundItems": 57
+          }
+        },
+        {
+          "frame": 55800,
+          "simulatedSeconds": 930,
+          "heapBytes": 27033787,
+          "sector": 7,
+          "counts": {
+            "enemies": 76,
+            "playerBullets": 33,
+            "enemyBullets": 67,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 312,
+            "texts": 56,
+            "groundItems": 56
+          }
+        },
+        {
+          "frame": 56400,
+          "simulatedSeconds": 940,
+          "heapBytes": 17474472,
+          "sector": 7,
+          "counts": {
+            "enemies": 70,
+            "playerBullets": 115,
+            "enemyBullets": 96,
+            "mines": 9,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 271,
+            "texts": 81,
+            "groundItems": 68
+          }
+        },
+        {
+          "frame": 57000,
+          "simulatedSeconds": 950,
+          "heapBytes": 40375312,
+          "sector": 7,
+          "counts": {
+            "enemies": 85,
+            "playerBullets": 101,
+            "enemyBullets": 93,
+            "mines": 10,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 15,
+            "particles": 142,
+            "texts": 31,
+            "groundItems": 74
+          }
+        },
+        {
+          "frame": 57600,
+          "simulatedSeconds": 960,
+          "heapBytes": 8967829,
+          "sector": 7,
+          "counts": {
+            "enemies": 90,
+            "playerBullets": 105,
+            "enemyBullets": 107,
+            "mines": 13,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 9,
+            "particles": 154,
+            "texts": 21,
+            "groundItems": 81
+          }
+        },
+        {
+          "frame": 58200,
+          "simulatedSeconds": 970,
+          "heapBytes": 23056414,
+          "sector": 7,
+          "counts": {
+            "enemies": 102,
+            "playerBullets": 113,
+            "enemyBullets": 85,
+            "mines": 19,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 271,
+            "texts": 36,
+            "groundItems": 87
+          }
+        },
+        {
+          "frame": 58800,
+          "simulatedSeconds": 980,
+          "heapBytes": 22836801,
+          "sector": 7,
+          "counts": {
+            "enemies": 104,
+            "playerBullets": 113,
+            "enemyBullets": 100,
+            "mines": 24,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 16,
+            "particles": 136,
+            "texts": 26,
+            "groundItems": 105
+          }
+        },
+        {
+          "frame": 59400,
+          "simulatedSeconds": 990,
+          "heapBytes": 17999588,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 21,
+            "enemyBullets": 127,
+            "mines": 23,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 257,
+            "texts": 20,
+            "groundItems": 106
+          }
+        },
+        {
+          "frame": 60000,
+          "simulatedSeconds": 1000,
+          "heapBytes": 14424335,
+          "sector": 7,
+          "counts": {
+            "enemies": 115,
+            "playerBullets": 102,
+            "enemyBullets": 150,
+            "mines": 20,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 13,
+            "particles": 209,
+            "texts": 18,
+            "groundItems": 122
+          }
+        },
+        {
+          "frame": 60600,
+          "simulatedSeconds": 1010,
+          "heapBytes": 30450357,
+          "sector": 7,
+          "counts": {
+            "enemies": 116,
+            "playerBullets": 115,
+            "enemyBullets": 152,
+            "mines": 22,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 193,
+            "texts": 29,
+            "groundItems": 126
+          }
+        },
+        {
+          "frame": 61200,
+          "simulatedSeconds": 1020,
+          "heapBytes": 31455500,
+          "sector": 7,
+          "counts": {
+            "enemies": 115,
+            "playerBullets": 113,
+            "enemyBullets": 127,
+            "mines": 24,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 22,
+            "particles": 314,
+            "texts": 65,
+            "groundItems": 139
+          }
+        },
+        {
+          "frame": 61800,
+          "simulatedSeconds": 1030,
+          "heapBytes": 21859905,
+          "sector": 7,
+          "counts": {
+            "enemies": 115,
+            "playerBullets": 112,
+            "enemyBullets": 137,
+            "mines": 19,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 24,
+            "particles": 349,
+            "texts": 81,
+            "groundItems": 147
+          }
+        },
+        {
+          "frame": 62400,
+          "simulatedSeconds": 1040,
+          "heapBytes": 39622371,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 115,
+            "enemyBullets": 142,
+            "mines": 20,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 112,
+            "texts": 9,
+            "groundItems": 153
+          }
+        },
+        {
+          "frame": 63000,
+          "simulatedSeconds": 1050,
+          "heapBytes": 29524227,
+          "sector": 7,
+          "counts": {
+            "enemies": 106,
+            "playerBullets": 89,
+            "enemyBullets": 204,
+            "mines": 20,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 24,
+            "particles": 554,
+            "texts": 81,
+            "groundItems": 168
+          }
+        },
+        {
+          "frame": 63600,
+          "simulatedSeconds": 1060,
+          "heapBytes": 8373798,
+          "sector": 7,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 0,
+            "enemyBullets": 223,
+            "mines": 23,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 143,
+            "texts": 5,
+            "groundItems": 170
+          }
+        },
+        {
+          "frame": 64200,
+          "simulatedSeconds": 1070,
+          "heapBytes": 15544643,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 115,
+            "enemyBullets": 190,
+            "mines": 15,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 215,
+            "texts": 32,
+            "groundItems": 182
+          }
+        },
+        {
+          "frame": 64800,
+          "simulatedSeconds": 1080,
+          "heapBytes": 23203205,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 114,
+            "enemyBullets": 200,
+            "mines": 17,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 189,
+            "texts": 45,
+            "groundItems": 180
+          }
+        },
+        {
+          "frame": 65400,
+          "simulatedSeconds": 1090,
+          "heapBytes": 15000998,
+          "sector": 7,
+          "counts": {
+            "enemies": 110,
+            "playerBullets": 104,
+            "enemyBullets": 257,
+            "mines": 13,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 12,
+            "particles": 219,
+            "texts": 21,
+            "groundItems": 196
+          }
+        },
+        {
+          "frame": 66000,
+          "simulatedSeconds": 1100,
+          "heapBytes": 10308521,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 98,
+            "enemyBullets": 247,
+            "mines": 21,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 56,
+            "texts": 6,
+            "groundItems": 206
+          }
+        },
+        {
+          "frame": 66600,
+          "simulatedSeconds": 1110,
+          "heapBytes": 35653498,
+          "sector": 7,
+          "counts": {
+            "enemies": 116,
+            "playerBullets": 99,
+            "enemyBullets": 206,
+            "mines": 23,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 17,
+            "particles": 282,
+            "texts": 38,
+            "groundItems": 221
+          }
+        },
+        {
+          "frame": 67200,
+          "simulatedSeconds": 1120,
+          "heapBytes": 16876400,
+          "sector": 7,
+          "counts": {
+            "enemies": 118,
+            "playerBullets": 87,
+            "enemyBullets": 241,
+            "mines": 20,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 229,
+            "texts": 22,
+            "groundItems": 226
+          }
+        },
+        {
+          "frame": 67800,
+          "simulatedSeconds": 1130,
+          "heapBytes": 30025706,
+          "sector": 7,
+          "counts": {
+            "enemies": 116,
+            "playerBullets": 114,
+            "enemyBullets": 254,
+            "mines": 11,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 134,
+            "texts": 30,
+            "groundItems": 238
+          }
+        },
+        {
+          "frame": 68400,
+          "simulatedSeconds": 1140,
+          "heapBytes": 11621396,
+          "sector": 7,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 77,
+            "enemyBullets": 231,
+            "mines": 9,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 7,
+            "particles": 78,
+            "texts": 5,
+            "groundItems": 240
+          }
+        },
+        {
+          "frame": 69000,
+          "simulatedSeconds": 1150,
+          "heapBytes": 9173167,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 115,
+            "enemyBullets": 189,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 10,
+            "particles": 94,
+            "texts": 8,
+            "groundItems": 248
+          }
+        },
+        {
+          "frame": 69600,
+          "simulatedSeconds": 1160,
+          "heapBytes": 21353978,
+          "sector": 7,
+          "counts": {
+            "enemies": 102,
+            "playerBullets": 109,
+            "enemyBullets": 206,
+            "mines": 5,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 19,
+            "particles": 273,
+            "texts": 42,
+            "groundItems": 261
+          }
+        },
+        {
+          "frame": 70200,
+          "simulatedSeconds": 1170,
+          "heapBytes": 33769355,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 114,
+            "enemyBullets": 247,
+            "mines": 8,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 6,
+            "particles": 98,
+            "texts": 7,
+            "groundItems": 270
+          }
+        },
+        {
+          "frame": 70800,
+          "simulatedSeconds": 1180,
+          "heapBytes": 21515213,
+          "sector": 7,
+          "counts": {
+            "enemies": 120,
+            "playerBullets": 100,
+            "enemyBullets": 234,
+            "mines": 13,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 8,
+            "particles": 65,
+            "texts": 26,
+            "groundItems": 275
+          }
+        },
+        {
+          "frame": 71400,
+          "simulatedSeconds": 1190,
+          "heapBytes": 20038855,
+          "sector": 7,
+          "counts": {
+            "enemies": 119,
+            "playerBullets": 101,
+            "enemyBullets": 202,
+            "mines": 14,
+            "orbitals": 0,
+            "strikes": 0,
+            "effects": 13,
+            "particles": 123,
+            "texts": 10,
+            "groundItems": 278
+          }
+        }
+      ],
+      "final": {
+        "mode": "playing",
+        "sector": 7,
+        "counts": {
+          "enemies": 98,
+          "playerBullets": 115,
+          "enemyBullets": 181,
+          "mines": 5,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 13,
+          "particles": 197,
+          "texts": 46,
+          "groundItems": 308
+        }
+      }
+    }
+  }
+}

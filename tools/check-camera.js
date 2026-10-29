@@ -7,6 +7,7 @@ function check(ok,message){if(!ok)throw Error(message);passed.push(message);}
 const near=(a,b)=>Math.abs(a-b)<1e-6;
 G.settings=N.deepMerge(N.SETTINGS_DEFAULT,{});G.applySettings(false);
 G.newRun();G.glitch=0;G.camera.shake=0;
+G.level.layout=null; // Isolate camera tracking from the separately tested solid map.
 const p=G.player,L=G.level;
 check(near(G.camera.x,p.x)&&near(G.camera.y,p.y),'new run targets player');
 for(const [x,y] of [[20,L.cy],[L.width-20,L.cy],[L.cx,20],[L.cx,L.height-20],[20,20],[20,L.height-20],[L.width-20,20],[L.width-20,L.height-20]]){

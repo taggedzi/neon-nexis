@@ -36,6 +36,13 @@ N.Ships={types,palette,get,
     c.drawImage(N.Assets.glow(selection.shipColor,128,.7),-32,-32,64,64);c.restore();
     this.drawHull(c,selection);c.restore();
   },
+  intersectsRect(p,x,y,w,h){
+    const a=N.Driving.angle(p)+Math.PI/2,co=Math.cos(a),si=Math.sin(a);
+    const points=get(p.shipType).points.map(([px,py])=>[p.x+px*co-py*si,p.y+px*si+py*co]);
+    if(points.some(([px,py])=>px>=x&&px<=x+w&&py>=y&&py<=y+h))return true;
+    for(const [px,py] of [[x,y],[x+w,y],[x,y+h],[x+w,y+h]])if(this.intersectsCircle(p,px,py,0))return true;
+    return points.some(([px,py],i)=>{const next=points[(i+1)%points.length];return !!N.World.rectEntry(px,py,next[0],next[1],x,y,w,h);});
+  },
   intersectsCircle(p,x,y,r){
     const type=get(p.shipType),dx=x-p.x,dy=y-p.y;
     if(dx*dx+dy*dy>(type.radius+r)*(type.radius+r))return false;

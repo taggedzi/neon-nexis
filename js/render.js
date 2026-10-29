@@ -163,13 +163,14 @@ function drawWorld(c,theme,dt){
   // map floor
   c.save();
   c.fillStyle='rgba(2,7,12,.92)';
-  c.fillRect(0,0,L.width,L.height);
+  if(L.layout){N.WorldRender.paths(L.layout);c.fill(L.layout.floorPath);}else c.fillRect(0,0,L.width,L.height);
   // outer boundary shadow glow
   c.globalCompositeOperation='lighter';
   c.strokeStyle=N.withAlpha(theme.a,.06);c.lineWidth=32;
-  c.strokeRect(0,0,L.width,L.height);
+  if(!L.layout)c.strokeRect(0,0,L.width,L.height);
   c.globalCompositeOperation='source-over';
   // grid
+  c.save();if(L.layout)c.clip(L.layout.floorPath);
   const hw=G.w/(2*G.zoom),hh=G.h/(2*G.zoom);
   const left=Math.max(0,Math.floor((G.camera.x-hw-60)/100)*100);
   const right=Math.min(L.width,Math.ceil((G.camera.x+hw+60)/100)*100);
@@ -192,6 +193,7 @@ function drawWorld(c,theme,dt){
     const x=left+((i*431+G.time*4)%Math.max(1,right-left));
     c.beginPath();c.moveTo(x,top);c.lineTo(x-180,bottom);c.stroke();
   }
+  c.restore();
   // platforms
   for(const p of L.platforms){
     if(!cull(p.x,p.y,400))continue;
@@ -226,6 +228,7 @@ function drawWorld(c,theme,dt){
   }
   c.globalAlpha=1;c.globalCompositeOperation='source-over';
   // map border
+  if(L.layout){N.WorldRender.boundary(c,L.layout,theme);}else{
   c.strokeStyle=N.withAlpha(theme.a,.55);c.lineWidth=2;
   c.strokeRect(0,0,L.width,L.height);
   c.strokeStyle=N.withAlpha(theme.b,.25);c.lineWidth=1;c.setLineDash([10,14]);
@@ -237,6 +240,7 @@ function drawWorld(c,theme,dt){
     c.beginPath();c.moveTo(x+sx*corner,y);c.lineTo(x,y);c.lineTo(x,y+sy*corner);c.stroke();
   }
   txt(c,'SECTOR '+String(G.run.level).padStart(2,'0')+' // CONTAINMENT FIELD',L.width/2,26,11,N.withAlpha(theme.a,.42),'center',FONT_M);
+  }
   c.restore();
 }
 function drawAnchor(c,a,theme){
@@ -524,6 +528,7 @@ function drawOrbitals(c){
   const p=G.player;if(!p)return;
   c.save();c.globalCompositeOperation='lighter';
   for(const o of G.orbitals){
+    if(o.occluded)continue;
     const alpha=Math.min(1,o.life/Math.max(.1,o.maxLife)*2);
     c.save();c.translate(o.x,o.y);c.rotate(G.time*3+o.angle);
     c.globalAlpha=alpha*.5;c.strokeStyle=o.color;c.lineWidth=.7;
@@ -666,10 +671,11 @@ function drawHUD(c,theme){
     c.fillStyle='rgba(0,240,255,.025)';c.fillRect(ix,iy,iw,ih);
     c.strokeStyle=N.withAlpha(theme.a,.2);c.strokeRect(ix,iy,iw,ih);
     const sx=iw/G.level.width,sy=ih/G.level.height;
+    if(G.level.layout)N.WorldRender.minimap(c,G.level.layout,ix,iy,iw,ih,theme);
     for(const a of G.level.anchors){if(!a.alive)continue;c.fillStyle=theme.a;c.fillRect(ix+a.x*sx-1.5,iy+a.y*sy-1.5,3,3);}
     for(const e of G.enemies){if(e.dead)continue;c.fillStyle=e.elite?'#ffb31f':'rgba(255,51,92,.42)';c.fillRect(ix+e.x*sx-.8,iy+e.y*sy-.8,e.elite?2.5:1.4,e.elite?2.5:1.4);}
     const pxp=ix+p.x*sx,pyp=iy+p.y*sy;
-    c.save();c.translate(pxp,pyp);c.rotate(p.aim+Math.PI/2);c.fillStyle='#fff';c.beginPath();c.moveTo(0,-4);c.lineTo(3,4);c.lineTo(-3,4);c.closePath();c.fill();c.restore();
+    c.save();c.translate(pxp,pyp);c.rotate(N.Driving.angle(p)+Math.PI/2);c.fillStyle='#fff';c.beginPath();c.moveTo(0,-4);c.lineTo(3,4);c.lineTo(-3,4);c.closePath();c.fill();c.restore();
     if(G.level.activeBoss&&!G.level.activeBoss.dead){const e=G.level.activeBoss;c.strokeStyle='#ff335c';c.lineWidth=1;c.beginPath();c.arc(ix+e.x*sx,iy+e.y*sy,4,0,TAU);c.stroke();}
   }
   // boss bar

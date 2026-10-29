@@ -9,6 +9,7 @@ const down=(code,repeat=false)=>window.dispatchEvent(new KeyboardEvent('keydown'
 const up=code=>window.dispatchEvent(new KeyboardEvent('keyup',{code,bubbles:true}));
 const originalAim=I.getAim;
 G.newRun();G.camera.shake=0;
+G.level.layout=null; // Heading/velocity checks use an unobstructed movement fixture.
 I.getAim=p=>({angle:1.1,fire:false,source:'mouse',point:{x:p.x+100,y:p.y+200}});
 try{
   G.settings.movementMode='directional';G.applySettings(false);I.resetMovement();down('KeyW');down('KeyD');

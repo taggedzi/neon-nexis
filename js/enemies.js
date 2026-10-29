@@ -30,6 +30,13 @@ G.pickStyle=function(){
 };
 G.safeSpawnPos=function(minD=480,maxD=860){
   const p=G.player,l=G.level;
+  if(l.layout){
+    const valid=l.layout.cells.filter(c=>N.World.free(l.layout,c.x,c.y,70)&&N.dist(c.x,c.y,p.x,p.y)>=minD&&N.dist(c.x,c.y,p.x,p.y)<=maxD);
+    if(valid.length){const at=valid[Math.floor(Math.random()*valid.length)];return {x:at.x,y:at.y};}
+    const far=l.layout.cells.filter(c=>N.World.free(l.layout,c.x,c.y,70)&&N.dist(c.x,c.y,p.x,p.y)>=minD*.72);
+    if(far.length){const at=far[Math.floor(Math.random()*far.length)];return {x:at.x,y:at.y};}
+    return N.World.findFree(l.layout,p.x+minD,p.y,70);
+  }
   for(let i=0;i<28;i++){
     const a=Math.random()*TAU,d=minD+Math.random()*(maxD-minD);
     let x=p.x+Math.cos(a)*d,y=p.y+Math.sin(a)*d;
@@ -71,6 +78,8 @@ G.spawnEnemy=function(style,x,y,opts={}){
     bossPattern:0,phase:Math.random()*TAU,alive:true,lastHit:-99,hitPulse:0
   };
   e.maxHp=e.hp;
+  if(G.level.layout)Object.assign(e,N.World.findFree(G.level.layout,e.x,e.y,e.r));
+  e.worldX=e.x;e.worldY=e.y;
   G.enemies.push(e);
   G.addRing(e.x,e.y,e.r*1.9,e.color,.45,1.4);
   G.addParticles(e.x,e.y,e.color,elite?20:8,{speed:elite?180:90,life:.55,size:elite?2.4:1.4,glow:true});
@@ -121,7 +130,7 @@ G.spawnEliteWarden=function(){
   N.Audio.boss();
 };
 G.spawnBoss=function(){
-  const p=G.player,pos=G.safeSpawnPos(650,820);
+  const p=G.player,pos=G.level.layout?.boss||G.safeSpawnPos(650,820);
   const style=G.level.styles.find(s=>s.role==='boss')||N.ENEMY_BY_ID.boss;
   G.spawnEnemy(style,pos.x,pos.y,{elite:true,boss:true});
   G.triggerGlitch(.9,'#ff335c');
@@ -146,11 +155,15 @@ G.updateSpawning=function(dt){
 
 // ——— hostile AI ———
 function moveToward(e,tx,ty,speed,dt,accel=4){
+  e.pathChecked=true;
+  const waypoint=N.World.waypoint(e,G.player);
+  if(waypoint){tx=waypoint.x;ty=waypoint.y;}
   const a=Math.atan2(ty-e.y,tx-e.x);
   e.vx+=(Math.cos(a)*speed-e.vx)*Math.min(1,dt*accel);
   e.vy+=(Math.sin(a)*speed-e.vy)*Math.min(1,dt*accel);
 }
 function keepIn(e){
+  if(G.level.layout){N.World.move(e,e.worldX,e.worldY,e.r);e.worldX=e.x;e.worldY=e.y;return;}
   e.x=clamp(e.x,40,G.level.width-40);e.y=clamp(e.y,40,G.level.height-40);
 }
 function fireAt(e,angle,speed,damage,opts={}){
@@ -176,9 +189,12 @@ G.enemyFireAt=fireAt;
 
 G.updateEnemies=function(dt){
   const p=G.player;
+  const playerX=p.x,playerY=p.y;
   const dScale=dmgScale();
   for(const e of G.enemies){
     if(e.dead)continue;
+    e.worldX=e.x;e.worldY=e.y;
+    e.pathChecked=false;
     e.spawnT=Math.max(0,e.spawnT-dt);
     e.hitFlash=Math.max(0,e.hitFlash-dt*5);
     e.hitPulse+=dt*6;
@@ -315,6 +331,7 @@ G.updateEnemies=function(dt){
         const a=Math.random()*TAU,d=260+Math.random()*190;
         e.x=clamp(p.x+Math.cos(a)*d,70,G.level.width-70);
         e.y=clamp(p.y+Math.sin(a)*d,70,G.level.height-70);
+        if(G.level.layout){Object.assign(e,N.World.findFree(G.level.layout,e.x,e.y,e.r));e.worldX=e.x;e.worldY=e.y;}
         G.addRing(e.x,e.y,e.r*2,e.color,.4,2);G.triggerGlitch(.28,e.color);
         N.Audio.glitch();
       }
@@ -331,6 +348,7 @@ G.updateEnemies=function(dt){
       const wob=role==='rusher'?Math.sin(G.time*4+e.phase)*.16:0;
       moveToward(e,p.x+(-dy)*wob,p.y+(dx)*wob,e.speed,dt,role==='tank'?1.6:3.4);
     }
+    if(!e.pathChecked){const detour=N.World.waypoint(e,p);if(detour)moveToward(e,detour.x,detour.y,e.speed,dt);}
     e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
     // attack cycles
     if(role==='shooter'){
@@ -397,7 +415,7 @@ G.updateEnemies=function(dt){
       }
     }
     // contact damage
-    if(!p.dead&&N.Ships.intersectsCircle(p,e.x,e.y,e.r*.8)){
+    if(!p.dead&&N.Ships.intersectsCircle(p,e.x,e.y,e.r*.8)&&N.World.clear(p.x,p.y,e.x,e.y)){
       if(p.invuln<=0){
         if(p.stats.thorns>0){
           G.damageEnemy(e,p.stats.thorns,{x:p.x,y:p.y,source:'thorns',allowPayload:false});
@@ -420,7 +438,7 @@ G.updateEnemies=function(dt){
         const b=G.enemies[j];if(b.dead)continue;
         const dx=b.x-a.x,dy=b.y-a.y,rr=(a.r+b.r)*.78;
         const d2=dx*dx+dy*dy;
-        if(d2<rr*rr&&d2>.001){
+        if(d2<rr*rr&&d2>.001&&N.World.clear(a.x,a.y,b.x,b.y)){
           const d=Math.sqrt(d2),push=(rr-d)*.32;
           const nx=dx/d,ny=dy/d;
           a.x-=nx*push;a.y-=ny*push;b.x+=nx*push;b.y+=ny*push;
@@ -429,6 +447,10 @@ G.updateEnemies=function(dt){
     }
   }
   // cull
+  if(G.level.layout){
+    for(const e of G.enemies)if(!e.dead)keepIn(e);
+    N.World.move(p,playerX,playerY,N.Ships.get(p.shipType).radius,true);
+  }
   for(let i=G.enemies.length-1;i>=0;i--){if(G.enemies[i].dead)G.enemies.splice(i,1);}
 };
 

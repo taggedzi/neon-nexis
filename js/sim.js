@@ -48,6 +48,7 @@ G.spawnEnemyBullet=function(o){
   return b;
 };
 G.spawnMine=function(o){
+  if(G.level?.layout){const point=N.World.findFree(G.level.layout,o.x,o.y,15);o={...o,...point};}
   const m=Object.assign({
     id:uid('mine_'),x:0,y:0,owner:'player',damage:20,radius:70,color:'#ff335c',
     life:9,maxLife:9,armTime:.45,armed:false,dead:false,spin:0
@@ -69,6 +70,7 @@ G.spawnOrbital=function(o){
   }
 };
 G.spawnStrike=function(o){
+  if(G.level?.layout){const point=N.World.findFree(G.level.layout,o.x,o.y,10);o={...o,...point};}
   G.strikes.push({
     id:uid('strike_'),x:o.x,y:o.y,delay:o.delay||.6,maxDelay:o.delay||.6,
     radius:o.radius||70,damage:o.damage||25,color:o.color||'#ffb31f',dead:false
@@ -91,6 +93,7 @@ G.fireWeapon=function(w){
 };
 G.updatePlayer=function(dt){
   const p=G.player;if(!p||p.dead)return;
+  const previousX=p.x,previousY=p.y,previousAngle=N.Driving.angle(p);
   const inp=N.Input;
   const mouse=inp.getMouse();
   let aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
@@ -155,6 +158,7 @@ G.updatePlayer=function(dt){
   p.x+=p.vx*dt;p.y+=p.vy*dt;
   const margin=Math.max(20,N.Ships.get(p.shipType).radius);
   p.x=clamp(p.x,margin,G.level.width-margin);p.y=clamp(p.y,margin,G.level.height-margin);
+  N.World.move(p,previousX,previousY,N.Ships.get(p.shipType).radius,true,previousAngle);
   G.updateCamera(dt);
   // Aim through the camera used to draw this frame, including its shake offset.
   aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
@@ -176,14 +180,14 @@ function nearestTarget(x,y,maxDist,excludeSet){
     if(e.dead)continue;
     if(excludeSet&&excludeSet.has(e.id))continue;
     const d=N.dist2(x,y,e.x,e.y);
-    if(d<bd){bd=d;best=e;}
+    if(d<bd&&N.World.clear(x,y,e.x,e.y)){bd=d;best=e;}
   }
   if(!best){
     for(const a of G.level.anchors){
       if(!a.alive)continue;
       if(excludeSet&&excludeSet.has(a.id))continue;
       const d=N.dist2(x,y,a.x,a.y);
-      if(d<bd){bd=d;best=a;}
+      if(d<bd&&N.World.clear(x,y,a.x,a.y)){bd=d;best=a;}
     }
   }
   if(!best){
@@ -191,7 +195,7 @@ function nearestTarget(x,y,maxDist,excludeSet){
       if(!c.alive)continue;
       if(excludeSet&&excludeSet.has(c.id))continue;
       const d=N.dist2(x,y,c.x,c.y);
-      if(d<bd){bd=d;best=c;}
+      if(d<bd&&N.World.clear(x,y,c.x,c.y)){bd=d;best=c;}
     }
   }
   return best;
@@ -233,7 +237,9 @@ G.chainLightning=chainLightning;
 G.beam=function(angle,damage,color,length,width){
   const p=G.player;
   const x1=p.x+Math.cos(angle)*18,y1=p.y+Math.sin(angle)*18;
-  const x2=x1+Math.cos(angle)*length,y2=y1+Math.sin(angle)*length;
+  let x2=x1+Math.cos(angle)*length,y2=y1+Math.sin(angle)*length;
+  const wall=N.World.segment(G.level.layout,x1,y1,x2,y2,width/2);
+  if(wall){const t=Math.max(0,wall.t-.0001);x2=x1+(x2-x1)*t;y2=y1+(y2-y1)*t;}
   const crit={critChance:p.stats.critChance,critMul:p.stats.critMul};
   for(const e of G.enemies){
     if(e.dead)continue;
@@ -258,6 +264,7 @@ G.arcBolt=function(angle,damage,color,chainCount,range){
   for(const e of G.enemies){
     if(e.dead)continue;
     const dx=e.x-ox,dy=e.y-oy,d=Math.hypot(dx,dy);
+    if(!N.World.clear(ox,oy,e.x,e.y))continue;
     if(d>range||d<1)continue;
     const dot=(dx/d)*dirx+(dy/d)*diry;
     const score=dot*2.4-(d/range);
@@ -385,14 +392,24 @@ G.updatePlayerBullets=function(dt){
       b.vx=Math.cos(b.angle)*sp;b.vy=Math.sin(b.angle)*sp;
     }
     b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
+    const wall=N.World.segment(G.level.layout,b.prevX,b.prevY,b.x,b.y,b.size);
+    if(wall){
+      const t=Math.max(0,wall.t-.0001);b.x=b.prevX+(b.x-b.prevX)*t;b.y=b.prevY+(b.y-b.prevY)*t;
+      G.addParticles(b.x,b.y,b.color,4,{speed:70,life:.25,size:1.2});
+      if(b.bounce>0&&(wall.nx||wall.ny)){b.bounce--;reflectBullet(b,wall.nx,wall.ny);continue;}
+      if(b.explode||b.kind==='mortar'||b.kind==='gravity')G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:8,shake:1.5});
+      b.dead=true;continue;
+    }
     if(b.pull){
       for(const e of G.enemies){
         if(e.dead)continue;
         const d=N.dist(b.x,b.y,e.x,e.y);
-        if(d<240+e.r){
+        if(d<240+e.r&&N.World.clear(b.x,b.y,e.x,e.y)){
+          const oldX=e.x,oldY=e.y;
           const f=Math.min(.28,b.pull*dt/(d+60));
           e.x+=(b.x-e.x)*f;e.y+=(b.y-e.y)*f;
           e.vx*=.94;e.vy*=.94;
+          N.World.move(e,oldX,oldY,e.r);
         }
       }
     }
@@ -401,9 +418,9 @@ G.updatePlayerBullets=function(dt){
       if(b.tickTimer<=0){
         b.tickTimer=b.tick;
         const rr=(b.aoe||40)+b.size;
-        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false});}
-        for(const a of G.level.anchors){if(a.alive&&N.dist2(b.x,b.y,a.x,a.y)<(rr+a.r)*(rr+a.r))G.damageAnchor(a,b.damage*.7,{x:b.x,y:b.y});}
-        for(const c of G.level.caches){if(c.alive&&N.dist2(b.x,b.y,c.x,c.y)<(rr+c.r)*(rr+c.r))G.damageCache(c,b.damage*.7,{x:b.x,y:b.y});}
+        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r)&&N.World.clear(b.x,b.y,e.x,e.y))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false});}
+        for(const a of G.level.anchors){if(a.alive&&N.dist2(b.x,b.y,a.x,a.y)<(rr+a.r)*(rr+a.r)&&N.World.clear(b.x,b.y,a.x,a.y))G.damageAnchor(a,b.damage*.7,{x:b.x,y:b.y});}
+        for(const c of G.level.caches){if(c.alive&&N.dist2(b.x,b.y,c.x,c.y)<(rr+c.r)*(rr+c.r)&&N.World.clear(b.x,b.y,c.x,c.y))G.damageCache(c,b.damage*.7,{x:b.x,y:b.y});}
         G.addParticles(b.x,b.y,b.color,4,{speed:40,life:.3,size:1.2,glow:true});
         G.addRing(b.x,b.y,rr,b.color,.25,1,false);
       }
@@ -492,6 +509,7 @@ G.updateEnemyBullets=function(dt){
     if(b.accel){const sp=Math.min(1000,Math.hypot(b.vx,b.vy)+b.accel*dt);b.vx=Math.cos(b.angle)*sp;b.vy=Math.sin(b.angle)*sp;}
     b.x+=b.vx*dt;b.y+=b.vy*dt;
     b.spin+=dt*4;
+    if(N.World.segment(G.level.layout,b.prevX,b.prevY,b.x,b.y,b.size)){b.dead=true;continue;}
     if(b.life<=0||b.x<-30||b.y<-30||b.x>G.level.width+30||b.y>G.level.height+30){b.dead=true;continue;}
     if(p&&!p.dead&&p.invuln<=0&&N.Ships.intersectsCircle(p,b.x,b.y,b.size)){
       G.damagePlayer(b.damage,b.x,b.y,false);
@@ -528,10 +546,12 @@ G.updateOrbitals=function(dt){
     o.life-=dt;o.angle+=o.spin*dt;
     const x=p.x+Math.cos(o.angle)*o.radius,y=p.y+Math.sin(o.angle)*o.radius;
     o.x=x;o.y=y;
+    o.occluded=!N.World.clear(p.x,p.y,x,y);
+    if(o.occluded)continue;
     for(const e of G.enemies){
       if(e.dead)continue;
       if(o.hits[e.id]&&G.time-o.hits[e.id]<.35)continue;
-      if(N.dist2(x,y,e.x,e.y)<(6+e.r)*(6+e.r)){
+      if(N.dist2(x,y,e.x,e.y)<(6+e.r)*(6+e.r)&&N.World.clear(x,y,e.x,e.y)){
         o.hits[e.id]=G.time;
         G.damageEnemy(e,o.damage,{x,y,critChance:p.stats.critChance,critMul:p.stats.critMul,source:'orbital'});
       }
@@ -539,12 +559,12 @@ G.updateOrbitals=function(dt){
     for(const a of G.level.anchors){
       if(!a.alive)continue;
       if(o.hits[a.id]&&G.time-o.hits[a.id]<.35)continue;
-      if(N.dist2(x,y,a.x,a.y)<(6+a.r)*(6+a.r)){o.hits[a.id]=G.time;G.damageAnchor(a,o.damage,{x,y});}
+      if(N.dist2(x,y,a.x,a.y)<(6+a.r)*(6+a.r)&&N.World.clear(x,y,a.x,a.y)){o.hits[a.id]=G.time;G.damageAnchor(a,o.damage,{x,y});}
     }
     for(const c of G.level.caches){
       if(!c.alive)continue;
       if(o.hits[c.id]&&G.time-o.hits[c.id]<.35)continue;
-      if(N.dist2(x,y,c.x,c.y)<(6+c.r)*(6+c.r)){o.hits[c.id]=G.time;G.damageCache(c,o.damage,{x,y});}
+      if(N.dist2(x,y,c.x,c.y)<(6+c.r)*(6+c.r)&&N.World.clear(x,y,c.x,c.y)){o.hits[c.id]=G.time;G.damageCache(c,o.damage,{x,y});}
     }
   }
 };
@@ -589,10 +609,12 @@ G.updateGroundItems=function(dt){
     if(it.pickupDelay>0){it.pickupDelay-=dt;continue;}
     const d=N.dist(it.x,it.y,p.x,p.y);
     if(magnet&&d<radius*1.5){
+      const oldX=it.x,oldY=it.y;
       const f=Math.min(1,dt*3.2);
       it.x+=(p.x-it.x)*f;it.y+=(p.y-it.y)*f;
+      N.World.move(it,oldX,oldY,12);
     }
-    if(d<radius){
+    if(d<radius&&N.World.clear(p.x,p.y,it.x,it.y)){
       G.collectGroundItem(it,false);
       // Remove the pickup immediately even when collection opened an overlay
       // (overflow / level-up); otherwise a checkpoint saved during that overlay
@@ -643,7 +665,7 @@ G.completeLevel=function(reason){
   p.buffs.overclock=0;p.buffs.speed=0;p.buffs.magnet=0;
   G.pendingLevelUps=0;G.overflow=null;
   G.level=G.generateLevel(G.run.level,null);
-  p.x=G.level.cx;p.y=G.level.cy;p.vx=0;p.vy=0;
+  p.x=G.level.layout?.spawn.x||G.level.cx;p.y=G.level.layout?.spawn.y||G.level.cy;p.vx=0;p.vy=0;
   G.camera.x=p.x;G.camera.y=p.y;G.camera.shake=0;
   G.camera.sx=0;G.camera.sy=0;
   G.resetEntityArrays();

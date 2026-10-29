@@ -36,7 +36,7 @@ function id(prefix){G.entityId=(G.entityId||0)+1;return prefix+G.entityId;}
 function rngFor(seed){return N.RNG(seed);}
 function angleTo(a,b){return Math.atan2(b.y-a.y,b.x-a.x);}
 function panOf(x){ if(!G.w) return 0; return clamp(((x-G.camera.x)*G.zoom)/(G.w*.55),-1,1); }
-function isInMap(x,y,margin=0){return G.level && x>=margin && y>=margin && x<=G.level.width-margin && y<=G.level.height-margin;}
+function isInMap(x,y,margin=0){return G.level&&(G.level.layout?N.World.free(G.level.layout,x,y,margin):x>=margin&&y>=margin&&x<=G.level.width-margin&&y<=G.level.height-margin);}
 
 G.notify=function(text,type='info',duration){
   if(N.UI&&N.UI.toast) N.UI.toast(text,type,duration);
@@ -276,8 +276,9 @@ function generateLevel(levelNum,saved){
   const r=N.RNG(seed);
   const theme=themeFor(levelNum);
   const hueShift=((levelNum-1)*37)%360;
-  const width=clamp(3000+(levelNum-1)*90,3000,4400);
-  const height=clamp(2100+(levelNum-1)*70,2100,3200);
+  const layout=G.run.mapVersion===1?N.Maps.generate(seed):null;
+  const width=layout?layout.width:clamp(3000+(levelNum-1)*90,3000,4400);
+  const height=layout?layout.height:clamp(2100+(levelNum-1)*70,2100,3200);
   const cx=width/2,cy=height/2;
   const styles=N.ENEMY_STYLES.filter((s,i)=>i%2===((levelNum-1)%2));
   const bossStyle=styles.find(s=>s.role==='boss')||N.ENEMY_BY_ID.archon;
@@ -303,8 +304,9 @@ function generateLevel(levelNum,saved){
   const anchorCount=6;
   for(let i=0;i<anchorCount;i++){
     const a=i/anchorCount*TAU+r.range(-.26,.26);
-    const x=clamp(cx+Math.cos(a)*width*.335+r.range(-90,90),240,width-240);
-    const y=clamp(cy+Math.sin(a)*height*.335+r.range(-90,90),240,height-240);
+    let x=clamp(cx+Math.cos(a)*width*.335+r.range(-90,90),240,width-240);
+    let y=clamp(cy+Math.sin(a)*height*.335+r.range(-90,90),240,height-240);
+    if(layout){const pos=N.Maps.place(layout,r,60,anchors,190);x=pos.x;y=pos.y;}
     const hp=Math.round(290+levelNum*55+r.range(-20,35));
     anchors.push({id:'anchor_'+i,x,y,r:32+Math.min(12,levelNum*.7),hp,maxHp:hp,alive:true,angle:r.angle(),type:i%3,attackTimer:r.range(.7,2.2),guardTimer:r.range(4,8),hitFlash:0,phase:r.angle()});
   }
@@ -312,13 +314,14 @@ function generateLevel(levelNum,saved){
   for(let i=0;i<r.int(14,19);i++){
     let x,y,tries=0;
     do{x=r.range(180,width-180);y=r.range(180,height-180);tries++;}while(tries<80&&(N.dist(x,y,cx,cy)<280||anchors.some(a=>N.dist(x,y,a.x,a.y)<190)||caches.some(c=>N.dist(x,y,c.x,c.y)<110)));
+    if(layout){const pos=N.Maps.place(layout,r,35,[...anchors,...caches],130);x=pos.x;y=pos.y;}
     const corrupt=r.next()<.18;
     const hp=Math.round(42+levelNum*5+r.range(-8,12));
     caches.push({id:'cache_'+i,x,y,r:17+Math.min(8,levelNum*.4),hp,maxHp:hp,alive:true,angle:r.angle(),spin:r.range(-.5,.5),hitFlash:0,phase:r.angle(),corrupt,loot:lootFromRng(r,corrupt,levelNum)});
   }
   // deterministic style colors get a per-sector hue shift
   const level={
-    number:levelNum,seed,width,height,cx,cy,theme,themeIndex:(levelNum-1)%N.THEMES.length,hueShift,
+    number:levelNum,seed,width,height,cx,cy,layout,theme,themeIndex:(levelNum-1)%N.THEMES.length,hueShift,
     styles,bossStyle,wardenStyle,platforms,dust,anchors,caches,
     elapsed:0,duration:DURATION,kills:0,damage:0,
     spawnTimer:N.SPAWN_TUNING.initialRoutineDelay*N.SPAWN_TUNING.routineIntervalMultiplier,surgeTimer:60,anchorGuardTimer:6,
@@ -367,11 +370,11 @@ G.newRun=function(selection){
   N.Input.resetMovement();
   N.Input.resetFire();
   const seed=(Math.random()*0xFFFFFFFF)>>>0;
-  G.run={seed,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
+  G.run={seed,mapVersion:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
   Object.assign(G.player,N.Ships.selection(selection));
   G.level=generateLevel(1,null);
-  G.player.x=G.level.cx;G.player.y=G.level.cy;
+  G.player.x=G.level.layout?.spawn.x||G.level.cx;G.player.y=G.level.layout?.spawn.y||G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
   G.camera.shake=0;G.camera.sx=0;G.camera.sy=0;
   G.resetEntityArrays();
@@ -465,9 +468,9 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   const p=G.player;
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
-    run:{seed:G.run.seed,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
+    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
-      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,shipType:p.shipType,shipColor:p.shipColor,
+      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
       core:(p.core||[]).slice(),activeWeapon:p.activeWeapon,weaponSlots:p.weaponSlots,passiveSlots:p.passiveSlots,
       dashCharges:p.dashCharges,dashTimer:p.dashTimer,buffs:Object.assign({},p.buffs),invuln:0
@@ -497,6 +500,7 @@ G.restoreCheckpoint=function(){
 };
 G.loadFromSave=function(save,fromDeath=false){
   if(!save||save.version!==SAVE_VERSION||!save.run||!save.player) return false;
+  if(save.run.mapVersion!=null&&save.run.mapVersion!==0&&save.run.mapVersion!==1)return false;
   try{
     N.Input.resetMovement();
     N.Input.resetFire();
@@ -505,12 +509,14 @@ G.loadFromSave=function(save,fromDeath=false){
     },save.run);
     G.level=generateLevel(G.run.level,save.level||null);
     const p=hydratePlayer(save.player,G.level);
+    if(G.level.layout)N.World.move(p,p.x,p.y,N.Ships.get(p.shipType).radius,true);
     G.player=p;
     G.camera.x=p.x;G.camera.y=p.y;
     G.camera.shake=0;G.camera.sx=0;G.camera.sy=0;
     G.camera.zoom=G.zoom;
     G.resetEntityArrays();
     G.groundItems=(save.level&&save.level.groundItems||[]).map(hydrateGroundItem);
+    if(G.level.layout)for(const item of G.groundItems)Object.assign(item,N.World.findFree(G.level.layout,item.x,item.y,12));
     G.level.elapsed=clamp(+save.level?.elapsed||0,0,DURATION);
     G.level.wardenSpawned=!!save.level?.wardenSpawned;
     G.level.bossSpawned=!!save.level?.bossSpawned;
@@ -545,7 +551,7 @@ G.loadFromSave=function(save,fromDeath=false){
 function hydratePlayer(sp,lvl){
   const p={
     x:clamp(+sp.x||lvl.cx,30,lvl.width-30),y:clamp(+sp.y||lvl.cy,30,lvl.height-30),
-    vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:Number.isFinite(sp.heading)?N.angleDelta(0,sp.heading):-Math.PI/2,hp:+sp.hp||1,shield:+sp.shield||0,
+    vx:0,vy:0,radius:13,aim:Number.isFinite(sp.aim)?N.angleDelta(0,sp.aim):-Math.PI/2,heading:Number.isFinite(sp.heading)?N.angleDelta(0,sp.heading):-Math.PI/2,hp:+sp.hp||1,shield:+sp.shield||0,
     level:Math.max(1,+sp.level||1),xp:Math.max(0,+sp.xp||0),xpNext:Math.max(1,+sp.xpNext||G.xpForLevel(1)),
     weapons:(sp.weapons||[]).filter(w=>w&&N.WEAPON_BY_ID[w.id]).map(w=>makeWeapon(w.id,w.tier||1,w.level||1)),
     passives:(sp.passives||[]).filter(m=>m&&N.MOD_BY_ID[m.id]).map(m=>({id:m.id,stacks:clamp(m.stacks|0,1,N.MOD_BY_ID[m.id].maxStacks||3)})),
@@ -854,15 +860,16 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
   G.triggerGlitch(opts.glitch==null?.16:opts.glitch,color);
   N.Audio.explosion(opts.big||false);
   if(owner==='player'){
-    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion'});}
-    for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r))G.damageAnchor(a,damage,{x,y,explosion:true});}
-    for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r))G.damageCache(c,damage,{x,y,explosion:true});}
+    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r)&&N.World.clear(x,y,e.x,e.y))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion'});}
+    for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r)&&N.World.clear(x,y,a.x,a.y))G.damageAnchor(a,damage,{x,y,explosion:true});}
+    for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }else{
-    if(!G.player.dead&&N.Ships.intersectsCircle(G.player,x,y,radius))G.damagePlayer(damage,x,y,false);
-    for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r))G.damageCache(c,damage,{x,y,explosion:true});}
+    if(!G.player.dead&&N.Ships.intersectsCircle(G.player,x,y,radius)&&N.World.clear(x,y,G.player.x,G.player.y))G.damagePlayer(damage,x,y,false);
+    for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }
 };
 G.spawnGroundLoot=function(loot,x,y,label){
+  if(G.level?.layout){const point=N.World.findFree(G.level.layout,x,y,12);x=point.x;y=point.y;}
   const it=lootItemToGround(loot,x,y,label);
   G.groundItems.push(it);
   G.addRing(x,y,32,it.color,.5,1.4);

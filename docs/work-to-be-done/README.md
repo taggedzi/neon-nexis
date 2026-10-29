@@ -11,17 +11,21 @@ tracking IDs; GitHub is not required.
 | 004 | [Add ship-relative driving controls](004-control-options.md) | Implemented — needs validation |
 | 005 | [Reduce enemy spawn frequency](005-enemy-spawning.md) | Implemented — needs validation |
 | 006 | [Remove discarded items](006-discarded-items.md) | Implemented — needs validation |
-| 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Planned |
+| 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Implemented — needs validation |
 | 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Implemented — needs validation |
 
-## Suggested implementation order
+## Implementation sequence and validation
 
-Establish a performance baseline first (001), before changing spawn frequency
-(005), so reduced enemy counts do not hide underlying performance problems.
-Controls, camera, and firing (004, 003, 008) form a related play-feel milestone.
-Ship selection and discarded-item cleanup (002, 006) can be delivered independently.
-Procedural maps (007) should follow the performance baseline and include another
-performance check with obstacles and bosses.
+Delivered in order: 001, 006, 003, 004, 002, 008, 005, 007. Ship selection proceeded
+while firing decisions were pending. Performance baselines preceded balance and
+map changes; 007 includes a separate final-map performance smoke check.
+
+All eight issues have focused implementation commits and follow-up hash records
+in their documents. None is Done: owner visual/handling/pacing review, physical
+controller checks, and performance/memory acceptance remain where documented.
+The software-rendered automated browser does not meet the agreed 16.7 ms p95
+display target; accelerated 20-minute simulations are supplemental checks rather
+than full-duration rendering or retained-memory validation.
 
 ## Scope and decisions
 

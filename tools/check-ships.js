@@ -16,6 +16,7 @@ for(const type of S.types){
     G.saveCheckpoint(true,'ship-test');G.restoreCheckpoint();
     check(G.player.shipType===type.id&&G.player.shipColor===color.color,'ship selection survives save/restore');
   }
+  G.level.layout=null; // Test hull geometry independently of solid-map collision.
   const p=G.player;p.shipType=type.id;p.aim=-Math.PI/2;p.x=1000;p.y=1000;
   check(S.intersectsCircle(p,p.x,p.y,0),'hull center is inside hitbox');
   check(!S.intersectsCircle(p,p.x+1000,p.y,1),'far circle is outside hitbox');
