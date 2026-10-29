@@ -1,19 +1,18 @@
 # Work to be done
 
-These local issue documents record requested changes. All issues are **Planned**;
-none are implemented by this documentation commit. They can later be copied into
-GitHub Issues. Numbers are local tracking IDs, not GitHub issue numbers.
+These Markdown documents are the authoritative local tracker. Numbers are local
+tracking IDs; GitHub is not required.
 
-| ID | Issue |
-| --- | --- |
-| 001 | [Improve overall performance, especially during large enemy waves](001-performance.md) |
-| 002 | [Choose ship type and color before a run](002-ship-selection.md) |
-| 003 | [Center the ship and improve camera tracking](003-camera-follow.md) |
-| 004 | [Add ship-relative driving controls](004-control-options.md) |
-| 005 | [Reduce enemy spawn frequency](005-enemy-spawning.md) |
-| 006 | [Remove discarded items](006-discarded-items.md) |
-| 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) |
-| 008 | [Add toggle and held-button firing modes](008-firing-options.md) |
+| ID | Issue | Status |
+| --- | --- | --- |
+| 001 | [Improve overall performance, especially during large enemy waves](001-performance.md) | Implemented — needs validation |
+| 002 | [Choose ship type and color before a run](002-ship-selection.md) | Planned |
+| 003 | [Center the ship and improve camera tracking](003-camera-follow.md) | Planned |
+| 004 | [Add ship-relative driving controls](004-control-options.md) | Planned |
+| 005 | [Reduce enemy spawn frequency](005-enemy-spawning.md) | Planned |
+| 006 | [Remove discarded items](006-discarded-items.md) | Planned |
+| 007 | [Generate varied map sizes and shapes](007-procedural-maps.md) | Planned |
+| 008 | [Add toggle and held-button firing modes](008-firing-options.md) | Planned |
 
 ## Suggested implementation order
 

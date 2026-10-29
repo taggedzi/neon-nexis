@@ -5,12 +5,19 @@ const N=window.NEON;
 const AS=N.Assets={};
 const TAU=N.TAU;
 const glowCache=new Map();
+// Runtime glows are 128×128 RGBA: 128 entries use about 8 MiB of pixel data.
+// Bound the cache across sector colors; keep frequently drawn textures warm.
+const MAX_GLOW_TEXTURES=128;
 const iconCache=new Map();
 const bodyCache=new Map();
 
 AS.makeGlow=function(color,size=96,power=.55){
   const key=color+'|'+size+'|'+power;
-  if(glowCache.has(key)) return glowCache.get(key);
+  if(glowCache.has(key)){
+    const cached=glowCache.get(key);
+    glowCache.delete(key);glowCache.set(key,cached);
+    return cached;
+  }
   const c=document.createElement('canvas'); c.width=c.height=size;
   const x=c.getContext('2d');
   const g=x.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
@@ -19,6 +26,7 @@ AS.makeGlow=function(color,size=96,power=.55){
   g.addColorStop(.55,N.withAlpha(color,power*.22));
   g.addColorStop(1,N.withAlpha(color,0));
   x.fillStyle=g; x.fillRect(0,0,size,size);
+  if(glowCache.size>=MAX_GLOW_TEXTURES)glowCache.delete(glowCache.keys().next().value);
   glowCache.set(key,c); return c;
 };
 AS.drawGlow=function(ctx,color,x,y,r,alpha=1,comp='lighter'){
@@ -26,13 +34,7 @@ AS.drawGlow=function(ctx,color,x,y,r,alpha=1,comp='lighter'){
   ctx.save(); ctx.globalCompositeOperation=comp; ctx.globalAlpha=alpha;
   ctx.drawImage(img,x-r,y-r,r*2,r*2); ctx.restore();
 };
-AS.glow=function(color,size=96,power=.55){
-  const c=document.createElement('canvas'); c.width=c.height=size;
-  const x=c.getContext('2d');
-  const g=x.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  g.addColorStop(0,N.withAlpha(color,.95));g.addColorStop(.18,N.withAlpha(color,power));g.addColorStop(.55,N.withAlpha(color,power*.22));g.addColorStop(1,N.withAlpha(color,0));
-  x.fillStyle=g;x.fillRect(0,0,size,size); return c;
-};
+AS.glow=AS.makeGlow;
 AS.makeNoise=function(){
   const size=220, c=document.createElement('canvas'); c.width=c.height=size;
   const x=c.getContext('2d'), d=x.createImageData(size,size);
