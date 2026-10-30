@@ -119,6 +119,9 @@ G.applySettings=function(persist=true){
 };
 G.setMode=function(m){
   if(m!=='playing'){N.Input.resetMovement();N.Input.resetFire();}
+  if(N.Coop&&N.Coop.isActive()&&!N.Coop._applyingRemote&&G.mode==='playing'&&m!=='playing'&&m!=='menu'&&m!=='boot'&&m!=='gameover'&&m!=='complete'&&m!=='paused'){
+    N.Coop.requestGlobalPause();
+  }
   G.mode=m;
   document.body.classList.toggle('playing',m==='playing');
   if(m==='playing') N.Audio.setScene('game');
@@ -407,7 +410,21 @@ G.pauseGame=function(){
   if(N.UI) N.UI.showPause(G.getPauseData());
   return true;
 };
+G.returnToCoopPause=function(){
+  if(!(N.Coop&&N.Coop.isActive()&&N.Coop.pauseState!=='PLAY')) return false;
+  G.setMode('paused');
+  N.Audio.setScene('paused');
+  N.Coop.showPauseState();
+  return true;
+};
 G.resumeGame=function(){
+  if(N.Coop&&N.Coop.isActive()&&!N.Coop._applyingRemote&&N.Coop.pauseState!=='PLAY'){
+    if(N.Coop.pauseState==='PAUSED') N.Coop.sendReady();
+    G.setMode('paused');
+    N.Audio.setScene('paused');
+    N.Coop.showPauseState();
+    return;
+  }
   if(G.mode==='playing') return;
   if(!G.player||G.player.dead){G.setMode('menu');if(N.UI)N.UI.showMenu();return;}
   if(G.overflow){G.openOverflow();return;}
@@ -429,6 +446,7 @@ G.openInventory=function(){
 };
 G.closeInventory=function(){
   if(G.mode!=='inventory') return;
+  if(G.returnToCoopPause()) return;
   if(G.inventoryFromGame){
     G.setMode('playing');
     N.Audio.setScene('game');
@@ -691,6 +709,7 @@ G.applyProtocol=function(pid){
   N.Audio.pickup(true);
   G.triggerGlitch(.28,def.color);
   G.saveCheckpoint(true,'levelup');
+  if(G.returnToCoopPause()) return;
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
   N.Input.resetFire();
@@ -722,7 +741,9 @@ G.leaveOverflow=function(){
   if(!G.overflow) return;
   const o=G.overflow;
   G.notify('ITEM DISCARDED // '+getLootName(o.item),'warn');
-  G.overflow=null;G.setMode('playing');
+  G.overflow=null;
+  if(G.returnToCoopPause()) return;
+  G.setMode('playing');
   if(N.UI)N.UI.hideAll();
   N.Input.resetFire();N.Audio.setScene('game');
   G.saveCheckpoint(true,'discard');
@@ -742,7 +763,9 @@ G.swapOverflow=function(type,index){
   N.Audio.pickup(true);
   G.triggerGlitch(.32,'#b6ff2b');
   G.notify('SWAPPED // '+getLootName({kind:o.kind,itemId:o.item.itemId,weaponId:o.item.itemId,modId:o.item.itemId}),'loot');
-  G.overflow=null;G.setMode('playing');
+  G.overflow=null;
+  if(G.returnToCoopPause()) return;
+  G.setMode('playing');
   if(N.UI)N.UI.hideAll();
   N.Input.resetFire();N.Audio.setScene('game');
   G.saveCheckpoint(true,'overflow');
@@ -874,7 +897,8 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
   G.triggerGlitch(opts.glitch==null?.16:opts.glitch,color);
   N.Audio.explosion(opts.big||false);
   if(owner==='player'){
-    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r)&&N.World.clear(x,y,e.x,e.y))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion'});}
+    const srcPlayer=opts.player||G.player;
+    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r)&&N.World.clear(x,y,e.x,e.y))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion',player:srcPlayer});}
     for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r)&&N.World.clear(x,y,a.x,a.y))G.damageAnchor(a,damage,{x,y,explosion:true});}
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }else{
@@ -1015,6 +1039,11 @@ G.openRewards=function(){
   if((G.mode!=='playing'&&G.mode!=='paused')||!G.player||G.player.dead)return false;
   G.setMode('rewards');N.Input.resetFire();N.Audio.setScene('paused');
   N.UI.showRewards();return true;
+};
+G.closeRewards=function(){
+  if(G.mode!=='rewards') return;
+  if(G.returnToCoopPause()) return;
+  G.resumeGame();
 };
 G.takeReward=function(index){
   if(G.mode!=='rewards')return;

@@ -16,7 +16,9 @@ never opens a socket or changes a save.
 - [x] 9. Join code UI + name/color selection (`#screen-coop`, host/join/copy controls)
 - [x] 10. Disconnect / reconnect handling (socket retry loop, peer-left → co-op screen, relay fallback)
 - [x] 11. Test single-player still works (automated regression suite passes in Chromium and Firefox)
-- [ ] 12. Basic co-op playtest notes (manual two-tab test; no automated co-op spec yet)
+- [x] 12. Automated two-window co-op spec: host fire sync, guest fire ownership,
+  signaling-drop survival, shared pause/ready/countdown, and menu pause
+  (`tools/ci/coop-smoke.spec.cjs`)
 
 ## Current architecture
 
@@ -75,14 +77,90 @@ The host presses **START CO-OP RUN**.
 when the page is served over HTTPS. The server host defaults to `0.0.0.0` and the
 port to `8787`; both are configurable with `HOST` and `PORT`.
 
+## Recent fixes (network and ownership)
+
+Implemented on `feat/coop-multiplayer` after the initial integration:
+
+- **Signaling grace window.** The server no longer sends `peer-left` the instant a
+  socket closes. A dropped socket schedules the notice after
+  `peerOfflineGraceMs` (default 10s, configurable per server instance); a quick
+  reconnect clears the timer. Rooms still expire on the existing 60s peer grace
+  and 5-minute TTL.
+- **Host reconnect keeps the room code.** The server includes the code and current
+  peer presence in `hosted`, and the client stores the code in its connection
+  intent so a retry rejoins the same room instead of allocating a new one. A
+  reconnecting host whose peer is gone receives `peer: null`, which ends the
+  active session cleanly.
+- **Peer identity tracking.** `Coop._peerId` records the linked peer. If the peer
+  disappears or a different peer is announced while a session is active, the
+  session ends instead of silently continuing against the wrong peer.
+- **Fatal errors end sessions.** `Coop.onError` now tears down an active session
+  rather than only showing a toast. The Net layer reports the error state after
+  the teardown so the UI still shows the failure.
+- **Single rewards tick for guests.** `Coop.updateGuest` no longer calls
+  `N.Rewards.tick(dt)`; `G.update` already does, so guests were earning rewards
+  twice per frame.
+- **Guest mirror interpolation.** `Coop.applyRemoteState` no longer snaps the
+  remote mirror to each state packet; movement and aim are interpolated like the
+  rest of the mirrored world.
+- **Active weapon in loadout signature.** Changing the selected weapon now
+  produces a new signature and sends a loadout update immediately.
+- **Remote hit suppression off-screen states.** Incoming hits are ignored while
+  the guest is not in `playing` mode (inventory, rewards, level-up, overflow,
+  menus). The host simulation still runs, but the guest is not damaged while its
+  own UI is covering the game.
+- **Orbital ownership.** `G.spawnOrbital` stores an `owner`; `G.updateOrbitals`
+  uses `o.owner || G.player` for position, stats, and damage credit. Guest
+  orbitals no longer orbit or credit the host.
+- **Explosion ownership.** Mine, strike, and explosive-bullet explosions now pass
+  the owning player into `G.explode`, which forwards it to `G.damageEnemy` so
+  kill/XP credit lands on the correct player.
+- **Server-authoritative shared pause.** Any menu or pause input sends
+  `pause_request` to the signaling socket. The server moves the room to `PAUSED`
+  and broadcasts `global_pause`; every client stops its simulation. Each player
+  presses READY (`ready_signal`), the server broadcasts `ready_state`, and once
+  both are ready it runs a 3-second `countdown_start` and then `global_resume`.
+  The server cancels a countdown if a member drops. The client stores the pause
+  state in `Coop.pauseState` and renders it on the existing pause screen.
+- **Menu close returns to ready.** Closing inventory, rewards, level-up, or
+  overflow during a shared pause shows the co-op pause screen. It does not send
+  `ready_signal` until that player presses READY. The rewards close control reads
+  RETURN TO READY while a co-op session is active.
+
+## Known limitations
+
+- If the guest's reward bank is full when the host grants an item, the host has
+  already removed the item and the guest's `N.Rewards.bank` failure leaves it
+  uncollected. The item is lost in that edge case.
+- The shared pause is server-relayed; if the signaling socket is lost, the room
+  cannot advance its pause state until the client reconnects. The 10-second
+  `peerOfflineGraceMs` window covers brief drops.
+- A player still inside a menu (inventory, rewards, level-up, overflow) cannot
+  press READY until the menu is closed. The other player waits on the pause
+  screen; this is intentional but means a long menu holds the session.
+- Pause state lives only in memory on the server. A server restart drops all
+  rooms, including paused ones.
+
 ## Remaining validation
 
-The Playwright regression suite passes when run under Node 20. Install Node 20
-locally and put its `bin` directory on `PATH` first, then run
-`npm run test:browser`. It covers the single-player smoke, regression,
-save-policy, and settings suites in both Chromium and Firefox. The server
-regression check, syntax check, and lint also pass. A two-window co-op smoke test
-is still a manual step because there is no automated co-op spec yet.
+Checked on 2026-10-30 with Node v24.21.0 on Linux:
+
+- `node tools/ci/syntax.cjs` passed.
+- `npx eslint` on the touched co-op scripts passed (`js/game.js`, `js/ui.js`,
+  `js/coop.js`, `js/net.js`, `server/coop-server.cjs`,
+  `tools/check-coop-server.cjs`, `tools/ci/coop-smoke.spec.cjs`).
+- `node tools/check-coop-server.cjs` passed, 30 assertions, including
+  pause, ready, countdown, and resume.
+- `git diff --check` passed.
+- `npx playwright test tools/ci/coop-smoke.spec.cjs` passed, 12 tests.
+  Playwright 1.64.1 launched Chromium 156.0.8078.4 and Firefox 157.0. Coverage
+  is host fire sync, guest fire ownership, a brief signaling drop, shared
+  pause/ready/countdown, inventory pause, and rewards pause.
+
+The full single-player browser suite (`npm run test:browser`) was not re-run
+in this session. Playwright still requires Node 20 or newer, and this checkout's
+`package.json` asks for Node 24. The system Node on `PATH` may be older; put a
+Node 24 `bin` directory first before `npm run test:browser`.
 
 ## Notes for the next contributor
 

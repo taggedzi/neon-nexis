@@ -86,8 +86,8 @@
   }
 
   function fail(message) {
-    Net.state = 'error';
     if (typeof Net.onError === 'function') Net.onError(message);
+    Net.state = 'error';
     emitStatus(message);
     closeSocket();
   }
@@ -186,7 +186,15 @@
     switch (message.t) {
       case 'hosted':
         Net.code = message.code;
-        setState(Net.peer ? 'connected' : 'waiting', 'ROOM OPEN // SHARE THE CODE');
+        if (intent) intent.code = message.code;
+        if (message.peer) {
+          setPeer(message.peer);
+        } else if (Net.peer) {
+          setPeer(null);
+        }
+        if (intent) {
+          setState(Net.peer ? 'connected' : 'waiting', 'ROOM OPEN // SHARE THE CODE');
+        }
         break;
       case 'joined':
         Net.code = message.code;
@@ -207,9 +215,18 @@
         break;
       case 'peer-left':
         setPeer(null);
-        Net.transport = 'none';
-        closePeerConnection();
-        setState('waiting', 'PEER DISCONNECTED');
+        if (intent) {
+          Net.transport = 'none';
+          closePeerConnection();
+          setState('waiting', 'PEER DISCONNECTED');
+        }
+        break;
+      /* Server-owned pause protocol messages are forwarded to the co-op layer. */
+      case 'global_pause':
+      case 'ready_state':
+      case 'countdown_start':
+      case 'global_resume':
+        if (typeof Net.onMessage === 'function') Net.onMessage(message);
         break;
       case 'signal':
         handleSignal(message.data);
@@ -426,6 +443,15 @@
     }
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ t: 'relay', to: Net.peerId, data: message }));
+      return true;
+    }
+    return false;
+  };
+
+  Net.sendControl = function (message) {
+    if (!message || typeof message !== 'object') return false;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
       return true;
     }
     return false;

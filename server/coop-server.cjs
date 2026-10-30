@@ -15,6 +15,7 @@ const MAX_PAYLOAD_BYTES = 32768;
 const ROOM_TTL_MS = 5 * 60 * 1000;
 const PEER_GRACE_MS = 60 * 1000;
 const SWEEP_INTERVAL_MS = 30 * 1000;
+const DEFAULT_PEER_OFFLINE_GRACE_MS = 10 * 1000;
 
 function allocateCode(rooms) {
   for (let attempt = 0; attempt < 24; attempt++) {
@@ -47,6 +48,9 @@ function publicPeer(client) {
 
 function createCoopServer(options = {}) {
   const rooms = new Map();
+  const peerOfflineGraceMs = Number.isFinite(Number(options.peerOfflineGraceMs)) && Number(options.peerOfflineGraceMs) >= 0
+    ? Number(options.peerOfflineGraceMs)
+    : DEFAULT_PEER_OFFLINE_GRACE_MS;
   const ownsHttpServer = !options.server;
   const httpServer = options.server || http.createServer((request, response) => {
     response.writeHead(200, {
@@ -81,12 +85,113 @@ function createCoopServer(options = {}) {
     if (open(peer)) send(peer, { t: 'peer-left' });
   }
 
+  function clearOfflineTimer(client) {
+    if (client && client.offlineTimer) {
+      clearTimeout(client.offlineTimer);
+      client.offlineTimer = null;
+    }
+  }
+
+  /* A dropped socket is often a brief signaling blip. Tell the peer only after
+   * the grace window so a quick reconnect does not end an active session. */
+  function schedulePeerLeft(client, room) {
+    clearOfflineTimer(client);
+    client.offlineTimer = setTimeout(function () {
+      client.offlineTimer = null;
+      if (client.socket || client.room !== room) return;
+      notifyPeerLeft(client, room);
+      touch(room);
+    }, peerOfflineGraceMs);
+    if (client.offlineTimer.unref) client.offlineTimer.unref();
+  }
+
   function attach(client, room, role) {
+    clearOfflineTimer(client);
+    const previous = role === 'host' ? room.host : room.guest;
+    if (previous && previous !== client) clearOfflineTimer(previous);
     client.room = room;
     client.role = role;
     if (role === 'host') room.host = client;
     else room.guest = client;
     touch(room);
+    ensureRoomState(room);
+    if (room.pauseState !== 'PLAY') {
+      clearCountdown(room);
+      room.pauseState = 'PAUSED';
+      room.readyPeers.clear();
+      broadcastRoom(room, { t: 'global_pause', by: room.pauseOwner || null });
+    }
+  }
+
+  function ensureRoomState(room) {
+    if (!room.pauseState) room.pauseState = 'PLAY';
+    if (!room.readyPeers) room.readyPeers = new Set();
+    if (room.pauseOwner === undefined) room.pauseOwner = null;
+    if (room.countdownTimer === undefined) room.countdownTimer = null;
+  }
+
+  function roomMembers(room) {
+    return [room.host, room.guest].filter(function (member) { return !!member; });
+  }
+
+  function broadcastRoom(room, message) {
+    for (const member of roomMembers(room)) {
+      if (open(member)) send(member, message);
+    }
+  }
+
+  function clearCountdown(room) {
+    if (room.countdownTimer) {
+      clearTimeout(room.countdownTimer);
+      room.countdownTimer = null;
+    }
+  }
+
+  function startGlobalPause(room, initiator) {
+    ensureRoomState(room);
+    clearCountdown(room);
+    room.pauseState = 'PAUSED';
+    room.pauseOwner = initiator && initiator.clientId ? initiator.clientId : null;
+    room.readyPeers.clear();
+    broadcastRoom(room, { t: 'global_pause', by: room.pauseOwner });
+  }
+
+  function handleReady(room, client) {
+    ensureRoomState(room);
+    if (room.pauseState !== 'PAUSED') return;
+    if (!client.clientId) return;
+    room.readyPeers.add(client.clientId);
+    broadcastRoom(room, { t: 'ready_state', ready: Array.from(room.readyPeers) });
+    const members = roomMembers(room);
+    if (members.length >= 2 && room.readyPeers.size >= members.length) {
+      room.pauseState = 'COUNTDOWN';
+      broadcastRoom(room, { t: 'countdown_start', seconds: 3 });
+      clearCountdown(room);
+      room.countdownTimer = setTimeout(function () {
+        room.countdownTimer = null;
+        if (room.pauseState !== 'COUNTDOWN') return;
+        const activeMembers = roomMembers(room).filter(function (member) { return open(member); });
+        if (activeMembers.length < roomMembers(room).length) {
+          room.pauseState = 'PAUSED';
+          room.readyPeers.clear();
+          broadcastRoom(room, { t: 'global_pause', by: room.pauseOwner || null });
+          return;
+        }
+        room.pauseState = 'PLAY';
+        room.readyPeers.clear();
+        broadcastRoom(room, { t: 'global_resume' });
+        touch(room);
+      }, 3000);
+      if (room.countdownTimer.unref) room.countdownTimer.unref();
+    }
+  }
+
+  function handlePauseRequest(room, client) {
+    if (!room) return;
+    ensureRoomState(room);
+    if (room.pauseState === 'PLAY') {
+      startGlobalPause(room, client);
+    }
   }
 
   function hostRoom(client, message) {
@@ -113,7 +218,11 @@ function createCoopServer(options = {}) {
     }
 
     attach(client, room, 'host');
-    send(client, { t: 'hosted', code: room.code });
+    send(client, {
+      t: 'hosted',
+      code: room.code,
+      peer: open(room.guest) ? publicPeer(room.guest) : null
+    });
 
     if (open(room.guest)) {
       send(client, { t: 'peer', peer: publicPeer(room.guest) });
@@ -166,11 +275,16 @@ function createCoopServer(options = {}) {
   function leave(client, explicit) {
     const room = client.room;
     if (!room) return;
+    clearOfflineTimer(client);
+    clearCountdown(room);
+    room.pauseState = 'PLAY';
+    if (room.readyPeers) room.readyPeers.clear();
     const wasHost = client.role === 'host';
     if (explicit) notifyPeerLeft(client, room);
     if (wasHost) {
       rooms.delete(room.code);
       if (room.guest) {
+        clearOfflineTimer(room.guest);
         room.guest.room = null;
         room.guest.role = null;
       }
@@ -188,6 +302,8 @@ function createCoopServer(options = {}) {
       case 'join': joinRoom(client, message); break;
       case 'signal':
       case 'relay': forward(client, message); break;
+      case 'pause_request': handlePauseRequest(client.room, client); break;
+      case 'ready_signal': handleReady(client.room, client); break;
       case 'leave': leave(client, true); break;
       case 'ping': send(client, { t: 'pong' }); break;
       default: break;
@@ -198,8 +314,8 @@ function createCoopServer(options = {}) {
     const room = client.room;
     if (!room) return;
     client.socket = null;
-    notifyPeerLeft(client, room);
     touch(room);
+    schedulePeerLeft(client, room);
   }
 
   wss.on('connection', (socket) => {
@@ -245,23 +361,34 @@ function createCoopServer(options = {}) {
       const guestDown = !room.guest || !open(room.guest);
       if (hostDown && now - room.updatedAt > PEER_GRACE_MS) {
         rooms.delete(code);
+        clearCountdown(room);
         if (open(room.guest)) send(room.guest, { t: 'peer-left' });
-        if (room.guest) {
-          room.guest.room = null;
-          room.guest.role = null;
+        for (const member of [room.host, room.guest]) {
+          if (!member) continue;
+          clearOfflineTimer(member);
+          member.room = null;
+          member.role = null;
         }
         continue;
       }
       if (room.guest && guestDown && now - room.updatedAt > PEER_GRACE_MS) {
         if (open(room.host)) send(room.host, { t: 'peer-left' });
+        clearCountdown(room);
+        room.pauseState = 'PLAY';
+        if (room.readyPeers) room.readyPeers.clear();
+        clearOfflineTimer(room.guest);
+        room.guest.room = null;
+        room.guest.role = null;
         room.guest = null;
         touch(room);
       }
       if (now - room.updatedAt > ROOM_TTL_MS) {
         rooms.delete(code);
+        clearCountdown(room);
         for (const member of [room.host, room.guest]) {
           if (open(member)) send(member, { t: 'peer-left' });
           if (member) {
+            clearOfflineTimer(member);
             member.room = null;
             member.role = null;
           }

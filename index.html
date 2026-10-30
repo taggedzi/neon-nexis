@@ -101,6 +101,10 @@
             <div class="sector-chip" id="pause-sector">SECTOR 01</div>
           </div>
           <div class="pause-stats" id="pause-stats"></div>
+          <div class="pause-coop" id="pause-coop" hidden>
+            <div class="pause-coop-status" id="pause-coop-status"></div>
+            <div class="pause-coop-countdown" id="pause-coop-countdown" hidden></div>
+          </div>
           <div class="menu-buttons compact">
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
             <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
@@ -108,7 +112,7 @@
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
             <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
           </div>
-          <div class="micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
+          <div class="micro" id="pause-micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
         </div>
       </section>
 

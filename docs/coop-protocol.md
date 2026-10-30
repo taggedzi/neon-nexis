@@ -33,6 +33,12 @@ The signaling URL defaults to `ws://<page-host>:8787`. Override it with the
 | both | `{t:"relay", from, data}` | Gameplay message fallback. |
 | client → server | `{t:"leave"}` | Leave the room. |
 | server → client | `{t:"notfound"}` / `{t:"full"}` / `{t:"error"}` | Join failures. |
+| client → server | `{t:"pause_request"}` | Ask the room to pause (any menu or pause input). |
+| client → server | `{t:"ready_signal"}` | Mark this client ready to resume. |
+| server → both | `{t:"global_pause", by}` | Room is paused. `by` is the initiating `clientId` (or `null`). |
+| server → both | `{t:"ready_state", ready:[clientId]}` | Current ready set. |
+| server → both | `{t:"countdown_start", seconds}` | All players ready; countdown begins. |
+| server → both | `{t:"global_resume"}` | Countdown finished; resume the simulation. |
 
 Profile objects are `{name, shipType, shipColor}`. Names are assigned by the
 client as `PLAYER 1` or `PLAYER 2`; players cannot type a name.
@@ -68,7 +74,7 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `xp` | XP earned by a guest kill | on kill |
 | `kill` | Shared kill count and reward pacing tick | on kill |
 | `level` | Next run seed/sector, or sector-complete state | on change |
-| `complete` / `gameover` / `pause` / `bye` | Session flow | on change |
+| `complete` / `gameover` / `bye` | Session flow | on change |
 
 ### Guest → host
 
@@ -79,6 +85,28 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `fire` | Weapon index, aim angle, origin | per shot |
 | `hit-ack` | Reserved for future rewind checks | unused |
 | `bye` | Leaving | once |
+
+## Shared pause and ready flow
+
+The server owns the pause state so both clients stop and resume together. Control
+messages travel on the signaling WebSocket rather than the WebRTC/relay gameplay
+path, because only the server can decide when every participant is ready.
+
+1. A client opens any menu (inventory, rewards, level-up, overflow, pause) or
+   presses the pause key. It sends `pause_request`.
+2. The server moves the room to `PAUSED`, records the initiator, and broadcasts
+   `global_pause`.
+3. Every client pauses its simulation. The initiator keeps its menu open; the
+   other client shows the co-op pause screen. Closing the menu and pressing
+   READY sends `ready_signal`.
+4. The server broadcasts `ready_state` after each signal. When every connected
+   room member is ready, it broadcasts `countdown_start` with a 3-second timer.
+5. After the countdown the server broadcasts `global_resume`, and each client
+   resumes its simulation.
+
+If a member's socket drops during the countdown, the server cancels the resume
+and broadcasts `global_pause` again. A reconnecting member receives the current
+pause state when it reattaches.
 
 ## Ownership rules
 

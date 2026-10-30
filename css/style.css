@@ -189,6 +189,12 @@ input[type=range]:focus-visible{filter:brightness(1.4)}
 .pause-stats div{background:rgba(3,8,14,.8);padding:10px 12px;display:flex;justify-content:space-between;gap:8px}
 .pause-stats b{font-size:8px;letter-spacing:.17em;color:var(--muted);font-weight:400}
 .pause-stats span{font-size:10px;color:#d9f9ff}
+.pause-coop{margin:0 0 18px}
+.pause-coop-status{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;font-size:9px;letter-spacing:.14em;color:var(--muted)}
+.pause-coop-status span{padding:4px 9px;border:1px solid var(--line);background:rgba(0,240,255,.03)}
+.pause-coop-status span.ready{color:#b6ff2b;border-color:rgba(182,255,43,.45);background:rgba(182,255,43,.06)}
+.pause-coop-countdown{font-size:56px;font-weight:700;line-height:1;text-align:center;color:var(--cyan);text-shadow:0 0 24px rgba(0,240,255,.55);padding:14px 0 18px;letter-spacing:.04em}
+.pause-coop-countdown.hidden{display:none}
 .inventory-panel{width:min(1000px,95vw)}
 .inv-summary{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
 .chip{font-size:8.5px;letter-spacing:.12em;border:1px solid var(--line);padding:4px 8px;color:var(--muted);background:rgba(0,240,255,.025);clip-path:var(--clip-sm)}

@@ -29,6 +29,7 @@
   Coop._initialized = false;
   Coop._ending = false;
   Coop._applyingRemote = false;
+  Coop._peerId = null;
   Coop._stateAt = 0;
   Coop._worldAt = 0;
   Coop._flushAt = 0;
@@ -39,6 +40,14 @@
   Coop._strikeQueue = [];
   Coop._fireWindow = 0;
   Coop._fireCount = 0;
+
+  Coop.pauseState = 'PLAY';
+  Coop.pauseOwner = null;
+  Coop.readyPeers = [];
+  Coop.countdownRemaining = 0;
+  Coop._countdownTimer = null;
+  Coop._countdownFallback = null;
+  Coop._readySent = false;
 
   function clock() {
     return performance.now();
@@ -169,15 +178,23 @@
   };
 
   Coop.onPeer = function (peer) {
+    const previousId = Coop._peerId;
+    const nextId = peer && peer.clientId ? peer.clientId : null;
     Coop.peerProfile = peer ? peer.profile : null;
+    Coop._peerId = nextId;
     if (N.UI && N.UI.updateCoopPeer) N.UI.updateCoopPeer(peer);
-    if (!peer && Coop.active) {
+    if (!Coop.active) return;
+    if (!peer) {
       Coop.endSession('PEER DISCONNECTED');
+    } else if (previousId && nextId && previousId !== nextId) {
+      Coop.endSession('PEER CHANGED');
     }
   };
 
   Coop.onError = function (message) {
-    if (N.UI) N.UI.toast(String(message || 'CO-OP ERROR'), 'danger', 2600);
+    const text = String(message || 'CO-OP ERROR');
+    if (N.UI) N.UI.toast(text, 'danger', 2600);
+    if (Coop.active) Coop.endSession(text);
   };
 
   Coop.hostRoom = function (profile) {
@@ -202,6 +219,7 @@
     Coop.guest = false;
     Coop._ending = false;
     Coop.peerProfile = N.Net.peer.profile;
+    Coop._peerId = N.Net.peer.clientId || null;
     Coop._bulletQueue = [];
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
@@ -239,6 +257,7 @@
     Coop.guest = true;
     Coop._ending = false;
     Coop.peerProfile = message.host || null;
+    Coop._peerId = message.host && message.host.clientId ? message.host.clientId : null;
     Coop.localProfile = profileOf(Object.assign({}, Coop.localProfile, { name: 'PLAYER 2' }));
 
     G.run = {
@@ -340,6 +359,7 @@
   Coop.endSession = function (reason) {
     if (Coop._ending) return;
     Coop._ending = true;
+    Coop.resetPauseState();
     Coop.active = false;
     Coop.role = 'solo';
     Coop.host = false;
@@ -347,6 +367,7 @@
     Coop.started = false;
     Coop.remotePlayers.length = 0;
     Coop.peerProfile = null;
+    Coop._peerId = null;
     Coop._bulletQueue = [];
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
@@ -363,6 +384,7 @@
   };
 
   Coop.leaveToMenu = function () {
+    Coop.resetPauseState();
     Coop.active = false;
     Coop.role = 'solo';
     Coop.host = false;
@@ -370,6 +392,7 @@
     Coop.started = false;
     Coop.remotePlayers.length = 0;
     Coop.peerProfile = null;
+    Coop._peerId = null;
     G.coopRun = false;
     if (N.Net) N.Net.leave();
     if (N.UI) {
@@ -416,6 +439,7 @@
       p.weapons.map(function (weapon) { return [weapon.id, weapon.level, weapon.tier]; }),
       p.passives.map(function (mod) { return [mod.id, mod.stacks]; }),
       p.core || [],
+      p.activeWeapon,
       stats
     ]);
     if (!force && signature === Coop._loadoutSignature) return;
@@ -603,7 +627,6 @@
     G.updateOrbitals(dt);
     G.updateStrikes(dt);
     G.updateEffects(dt);
-    N.Rewards.tick(dt);
     Coop.updateGuestWorld(dt);
   };
 
@@ -662,11 +685,6 @@
     mirror.shipColor = N.Ships.selection({ shipType: mirror.shipType, shipColor: message.shipColor }).shipColor;
     mirror.magnet = !!message.magnet;
     mirror.pickupRadius = finite(message.pickupRadius, mirror.pickupRadius || 95);
-    if (!Coop.host) {
-      mirror.x = mirror.tx;
-      mirror.y = mirror.ty;
-      mirror.aim = mirror.ta;
-    }
   };
 
   Coop.applyLoadout = function (message) {
@@ -870,6 +888,18 @@
       case 'pause':
         Coop.applyRemotePause(!!message.paused);
         break;
+      case 'global_pause':
+        Coop.applyGlobalPause(message.by);
+        break;
+      case 'ready_state':
+        Coop.applyReadyState(message.ready);
+        break;
+      case 'countdown_start':
+        Coop.applyCountdownStart(finite(message.seconds, 3));
+        break;
+      case 'global_resume':
+        Coop.applyGlobalResume();
+        break;
       case 'fx':
         Coop.applyFx(message);
         break;
@@ -957,6 +987,7 @@
 
   Coop.applyRemoteHit = function (message) {
     if (!Coop.isGuest() || !G.player || G.player.dead) return;
+    if (G.mode !== 'playing') return;
     const amount = Math.max(0, finite(message.amount, 0));
     if (!amount) return;
     Coop._applyingRemote = true;
@@ -1037,6 +1068,15 @@
     }
   };
 
+  Coop.showPauseState = function () {
+    if (!N.UI) return;
+    if (Coop.pauseState === 'COUNTDOWN' && N.UI.showCoopCountdown) {
+      N.UI.showCoopCountdown(Coop.countdownRemaining || 3);
+    } else if (N.UI.showPause) {
+      N.UI.showPause(G.getPauseData());
+    }
+  };
+
   Coop.applyRemotePause = function (paused) {
     if (Coop._applyingRemote) return;
     Coop._applyingRemote = true;
@@ -1046,6 +1086,106 @@
     } finally {
       Coop._applyingRemote = false;
     }
+  };
+
+  Coop.resetPauseState = function () {
+    Coop.pauseState = 'PLAY';
+    Coop.pauseOwner = null;
+    Coop.readyPeers = [];
+    Coop.countdownRemaining = 0;
+    Coop._readySent = false;
+    clearInterval(Coop._countdownTimer);
+    clearTimeout(Coop._countdownFallback);
+    Coop._countdownTimer = null;
+    Coop._countdownFallback = null;
+  };
+
+  Coop.requestGlobalPause = function () {
+    if (!Coop.active || Coop._applyingRemote) return false;
+    if (Coop.pauseState !== 'PLAY') return false;
+    Coop.pauseState = 'PAUSED';
+    Coop.pauseOwner = N.Net.clientId || null;
+    Coop.readyPeers = [];
+    Coop._readySent = false;
+    N.Net.sendControl({ t: 'pause_request' });
+    return true;
+  };
+
+  Coop.sendReady = function () {
+    if (!Coop.active) return false;
+    if (Coop.pauseState !== 'PAUSED') return false;
+    if (Coop._readySent) return false;
+    Coop._readySent = true;
+    N.Net.sendControl({ t: 'ready_signal' });
+    if (N.UI && N.UI.updateCoopPause) N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: true });
+    return true;
+  };
+
+  Coop.applyGlobalPause = function (by) {
+    if (!Coop.active) return;
+    Coop.pauseState = 'PAUSED';
+    Coop.pauseOwner = by || null;
+    Coop.readyPeers = [];
+    Coop._readySent = false;
+    Coop._applyingRemote = true;
+    try {
+      if (G.mode === 'playing') {
+        G.pauseGame();
+      } else if (G.mode === 'paused' && N.UI && N.UI.showCoopPause) {
+        N.UI.showCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers });
+      }
+    } finally {
+      Coop._applyingRemote = false;
+    }
+  };
+
+  Coop.applyReadyState = function (ready) {
+    if (!Coop.active) return;
+    Coop.readyPeers = Array.isArray(ready) ? ready.slice() : [];
+    if (N.UI && N.UI.updateCoopPause) {
+      N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: Coop._readySent });
+    }
+  };
+
+  Coop.applyCountdownStart = function (seconds) {
+    if (!Coop.active) return;
+    const total = Math.max(1, finite(seconds, 3));
+    Coop.pauseState = 'COUNTDOWN';
+    Coop.countdownRemaining = total;
+    Coop._readySent = false;
+    Coop._applyingRemote = true;
+    try {
+      if (G.mode === 'playing') G.pauseGame();
+    } finally {
+      Coop._applyingRemote = false;
+    }
+    if (N.UI && N.UI.showCoopCountdown) N.UI.showCoopCountdown(total);
+    clearInterval(Coop._countdownTimer);
+    clearTimeout(Coop._countdownFallback);
+    Coop._countdownTimer = setInterval(function () {
+      Coop.countdownRemaining = Math.max(0, Coop.countdownRemaining - 1);
+      if (N.UI && N.UI.updateCoopCountdown) N.UI.updateCoopCountdown(Coop.countdownRemaining);
+      if (Coop.countdownRemaining <= 0) {
+        clearInterval(Coop._countdownTimer);
+        Coop._countdownTimer = null;
+      }
+    }, 1000);
+    Coop._countdownFallback = setTimeout(function () {
+      Coop._countdownFallback = null;
+      if (Coop.pauseState === 'COUNTDOWN') Coop.applyGlobalResume();
+    }, (total + 1.5) * 1000);
+  };
+
+  Coop.applyGlobalResume = function () {
+    if (!Coop.active) return;
+    Coop.resetPauseState();
+    Coop._applyingRemote = true;
+    try {
+      if (G.mode !== 'playing') G.resumeGame();
+    } finally {
+      Coop._applyingRemote = false;
+    }
+    if (N.UI && N.UI.hideAll) N.UI.hideAll();
   };
 
   Coop.applyFx = function (message) {
@@ -1123,7 +1263,9 @@
 
   Coop.onPause = function (paused) {
     if (!Coop.active || Coop._applyingRemote) return;
-    N.Net.send({ t: 'pause', paused: !!paused });
+    if (paused) {
+      Coop.requestGlobalPause();
+    }
   };
 
   Coop.init();

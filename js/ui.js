@@ -151,10 +151,16 @@ UI.init=function(){
 
   $('btn-rewards-hud').addEventListener('click',()=>G.openRewards());
   $('btn-pause-rewards').addEventListener('click',()=>G.openRewards());
-  $('btn-rewards-close').addEventListener('click',()=>G.resumeGame());
+  $('btn-rewards-close').addEventListener('click',()=>G.closeRewards());
   $('btn-rewards-protocol').addEventListener('click',()=>G.choosePendingProtocol());
   // pause
-  $('btn-resume').addEventListener('click',()=>G.resumeGame());
+  $('btn-resume').addEventListener('click',()=>{
+    if(N.Coop&&N.Coop.isActive()&&N.Coop.pauseState==='PAUSED'){
+      N.Coop.sendReady();
+      return;
+    }
+    G.resumeGame();
+  });
   $('btn-inventory').addEventListener('click',()=>G.openInventory());
   $('btn-pause-settings').addEventListener('click',()=>openSettings('pause'));
   $('btn-save-quit').addEventListener('click',()=>G.saveAndQuit());
@@ -638,7 +644,79 @@ UI.showPause=function(data){
   ];
   $('pause-stats').innerHTML=cells.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('');
   $('btn-save-quit').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & QUIT';
+  if(N.Coop&&N.Coop.isActive()){
+    UI.showCoopPause({owner:N.Coop.pauseOwner,ready:N.Coop.readyPeers,selfReady:N.Coop._readySent});
+  }else{
+    UI.hideCoopElements();
+  }
   showScreen('pause');
+};
+UI.hideCoopElements=function(){
+  const coopEl=$('pause-coop');
+  if(coopEl)coopEl.hidden=true;
+  const countdownEl=$('pause-coop-countdown');
+  if(countdownEl)countdownEl.hidden=true;
+  const title=document.querySelector('#screen-pause h2');
+  if(title)title.textContent='PAUSED';
+  const resumeBtn=$('btn-resume');
+  if(resumeBtn){resumeBtn.textContent='RESUME';resumeBtn.disabled=false;}
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.';
+};
+UI.showCoopPause=function(data){
+  const coop=N.Coop;
+  if(!coop||!coop.isActive())return;
+  const coopEl=$('pause-coop');
+  if(coopEl)coopEl.hidden=false;
+  const countdownEl=$('pause-coop-countdown');
+  if(countdownEl)countdownEl.hidden=true;
+  const title=document.querySelector('#screen-pause h2');
+  if(title)title.textContent='CO-OP PAUSE';
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='WAITING FOR ALL PLAYERS TO READY UP';
+  UI.updateCoopPause(data);
+  showScreen('pause');
+};
+UI.updateCoopPause=function(data){
+  const coop=N.Coop;
+  if(!coop||!coop.isActive())return;
+  const ready=Array.isArray(data&&data.ready)?data.ready:[];
+  const selfId=N.Net&&N.Net.clientId;
+  const peerId=coop._peerId;
+  const selfReady=!!selfId&&ready.indexOf(selfId)>=0;
+  const peerReady=!!peerId&&ready.indexOf(peerId)>=0;
+  const statusEl=$('pause-coop-status');
+  if(statusEl){
+    const selfLabel=coop.host?'PLAYER 1 (YOU)':'PLAYER 2 (YOU)';
+    const peerLabel=coop.host?'PLAYER 2':'PLAYER 1';
+    statusEl.innerHTML=
+      '<span class="'+(selfReady?'ready':'')+'">'+selfLabel+': '+(selfReady?'READY':'WAITING')+'</span>'+
+      '<span class="'+(peerReady?'ready':'')+'">'+peerLabel+': '+(peerReady?'READY':'WAITING')+'</span>';
+  }
+  const resumeBtn=$('btn-resume');
+  if(resumeBtn){resumeBtn.textContent=selfReady?'WAITING FOR PLAYERS':'READY';resumeBtn.disabled=selfReady;}
+};
+UI.showCoopCountdown=function(seconds){
+  const coop=N.Coop;
+  if(!coop||!coop.isActive())return;
+  const coopEl=$('pause-coop');
+  if(coopEl)coopEl.hidden=false;
+  const countdownEl=$('pause-coop-countdown');
+  if(countdownEl)countdownEl.hidden=false;
+  const title=document.querySelector('#screen-pause h2');
+  if(title)title.textContent='CO-OP RESUME';
+  const resumeBtn=$('btn-resume');
+  if(resumeBtn){resumeBtn.textContent='RESUMING...';resumeBtn.disabled=true;}
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='ALL PLAYERS READY // RESUMING IN '+seconds;
+  UI.updateCoopCountdown(seconds);
+  showScreen('pause');
+};
+UI.updateCoopCountdown=function(seconds){
+  const countdownEl=$('pause-coop-countdown');
+  if(countdownEl)countdownEl.textContent=String(Math.max(0,seconds));
+  const micro=$('pause-micro');
+  if(micro)micro.textContent=seconds>0?'ALL PLAYERS READY // RESUMING IN '+seconds:'RESUMING...';
 };
 UI.showInventory=function(data){
   if(!data)return;
@@ -730,6 +808,8 @@ UI.showRewards=function(){
     list.appendChild(row);
   });
   $('rewards-capacity').textContent=`EQUIPMENT ${pending.length}/${N.Rewards.CAPACITY} · Weapons attach to empty bays. Full bays defer weapons here; modules always wait here. Full tray leaves deferred gear on the ground. Unspent protocols are retained.`;
+  const close=$('btn-rewards-close');
+  if(close) close.textContent=(N.Coop&&N.Coop.isActive())?'RETURN TO READY':'RETURN TO COMBAT';
   showScreen('rewards');
 };
 
@@ -842,7 +922,7 @@ function backAction(){
     case 'settings': closeSettings();break;
     case 'pause': G.resumeGame();break;
     case 'inventory': G.closeInventory();break;
-    case 'rewards': G.resumeGame();break;
+    case 'rewards': G.closeRewards();break;
     case 'coop': UI.closeCoop();break;
     case 'howto': case 'credits': case 'ship': UI.showMenu();break;
     case 'confirm': {
@@ -873,7 +953,7 @@ function onKeyDown(e){
   }
   if(e.code===G.settings.keyboard.rewards&&(currentScreen==='rewards'||currentScreen==='pause')){
     e.preventDefault();e.stopPropagation();
-    if(currentScreen==='rewards')G.resumeGame();else G.openRewards();
+    if(currentScreen==='rewards')G.closeRewards();else G.openRewards();
     return;
   }
   const invKey=(G.settings.keyboard&&G.settings.keyboard.inventory)||'KeyI';

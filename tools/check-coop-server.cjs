@@ -98,6 +98,45 @@ function client(url) {
   checks += 1;
   missing.close();
 
+  host.send({ t: 'pause_request' });
+  const hostPause = await host.next();
+  const guestPause = await guest.next();
+  assert.equal(hostPause.t, 'global_pause');
+  assert.equal(guestPause.t, 'global_pause');
+  assert.equal(hostPause.by, 'host-id');
+  assert.equal(guestPause.by, 'host-id');
+  checks += 4;
+
+  host.send({ t: 'pause_request' });
+  host.send({ t: 'ready_signal' });
+  const hostReady = await host.next();
+  const guestReady = await guest.next();
+  assert.equal(hostReady.t, 'ready_state');
+  assert.deepEqual(hostReady.ready, ['host-id']);
+  assert.equal(guestReady.t, 'ready_state');
+  assert.deepEqual(guestReady.ready, ['host-id']);
+  checks += 4;
+
+  guest.send({ t: 'ready_signal' });
+  const hostReadyAll = await host.next();
+  const guestReadyAll = await guest.next();
+  assert.equal(hostReadyAll.t, 'ready_state');
+  assert.deepEqual(hostReadyAll.ready, ['host-id', 'guest-id']);
+  assert.deepEqual(guestReadyAll.ready, ['host-id', 'guest-id']);
+  const hostCountdown = await host.next();
+  const guestCountdown = await guest.next();
+  assert.equal(hostCountdown.t, 'countdown_start');
+  assert.equal(hostCountdown.seconds, 3);
+  assert.equal(guestCountdown.t, 'countdown_start');
+  assert.equal(guestCountdown.seconds, 3);
+  checks += 6;
+
+  const hostResume = await host.next(5000);
+  const guestResume = await guest.next(5000);
+  assert.equal(hostResume.t, 'global_resume');
+  assert.equal(guestResume.t, 'global_resume');
+  checks += 2;
+
   guest.send({ t: 'leave' });
   const left = await host.next();
   assert.equal(left.t, 'peer-left');
