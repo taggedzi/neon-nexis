@@ -366,13 +366,16 @@ function getLootName(it){
 G.getLootName=getLootName;
 
 // ——— run lifecycle ———
-G.newRun=function(selection){
+G.newRun=function(selection,options){
+  options=options||{};
   N.Input.resetMovement();
   N.Input.resetFire();
-  const seed=(Math.random()*0xFFFFFFFF)>>>0;
+  const seed=Number.isFinite(options.seed)?options.seed>>>0:(Math.random()*0xFFFFFFFF)>>>0;
+  G.coopRun=!!options.coop;
   G.run={seed,mapVersion:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
   Object.assign(G.player,N.Ships.selection(selection));
+  G.player.name=options.name||'PLAYER 1';
   G.level=generateLevel(1,null);
   G.player.x=G.level.layout?.spawn.x||G.level.cx;G.player.y=G.level.layout?.spawn.y||G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
@@ -385,8 +388,8 @@ G.newRun=function(selection){
   G.spawnInitialEnemies();
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
-  G.saveCheckpoint(true,'start');
-  G.notify('SECTOR 01 // SURVIVAL PROTOCOL ENGAGED','loot',3000);
+  if(!options.coop) G.saveCheckpoint(true,'start');
+  G.notify(options.coop?'CO-OP SECTOR 01 // LINK ENGAGED':'SECTOR 01 // SURVIVAL PROTOCOL ENGAGED','loot',3000);
   G.triggerGlitch(.45,'#00f0ff');
   N.Audio.glitch();
 };
@@ -400,6 +403,7 @@ G.pauseGame=function(){
   G.setMode('paused');
   N.Input.resetFire();
   N.Audio.ui('back');
+  if(N.Coop) N.Coop.onPause(true);
   if(N.UI) N.UI.showPause(G.getPauseData());
   return true;
 };
@@ -411,6 +415,7 @@ G.resumeGame=function(){
   if(N.UI) N.UI.hideAll();
   N.Input.resetFire();
   N.Audio.setScene('game');
+  if(N.Coop) N.Coop.onPause(false);
   G.triggerGlitch(.2,'#00f0ff');
 };
 G.openInventory=function(){
@@ -436,6 +441,7 @@ G.closeInventory=function(){
   }
 };
 G.saveAndQuit=function(){
+  if(N.Coop&&N.Coop.isActive()){N.Coop.leaveToMenu();return true;}
   if(!G.run||!G.player||G.player.dead) return false;
   const ok=G.saveCheckpoint(true,'quit');
   G.setMode('menu');
@@ -446,6 +452,7 @@ G.saveAndQuit=function(){
   return true;
 };
 G.completeToMenu=function(){
+  if(N.Coop&&N.Coop.isActive()){N.Coop.leaveToMenu();return;}
   G.setMode('menu');
   N.Input.resetFire();
   N.Audio.setScene('menu');
@@ -464,6 +471,7 @@ G.getSaveInfo=function(){
   };
 };
 G.saveCheckpoint=function(silent=false,reason='checkpoint'){
+  if(N.Coop&&N.Coop.isActive()) return false;
   if(N.SavePolicy && N.SavePolicy.inspect().incompatible) return false;
   if(!G.run||!G.player||!G.level||G.player.dead) return false;
   const p=G.player;
@@ -495,6 +503,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   return ok;
 };
 G.restoreCheckpoint=function(){
+  if(N.Coop&&N.Coop.isGuest()){G.notify('CO-OP SESSIONS DO NOT USE LOCAL CHECKPOINTS','warn');return false;}
   let save=N.readSave();
   if(!save||save.version!==SAVE_VERSION) save=G.lastCheckpoint;
   if(!save){G.notify('NO CHECKPOINT SIGNAL FOUND','danger');return false;}
@@ -858,6 +867,7 @@ G.addBolt=function(points,color,life=.14,width=2){
   G.effects.push({type:'bolt',points,color,life,maxLife:life,width});
 };
 G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
+  if(N.Coop) N.Coop.onExplosion(x,y,radius,color);
   G.addRing(x,y,radius,color,opts.life||.42,opts.width||2.2);
   G.addParticles(x,y,color,opts.particles||16,{speed:220,life:.7,size:2.2,glow:true});
   G.shake(opts.shake==null?3:opts.shake);
@@ -869,6 +879,12 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }else{
     if(!G.player.dead&&N.Ships.intersectsCircle(G.player,x,y,radius)&&N.World.clear(x,y,G.player.x,G.player.y))G.damagePlayer(damage,x,y,false);
+    if(N.Coop&&N.Coop.isHost()){
+      for(const rp of N.Coop.remotePlayers){
+        if(!rp||rp.dead||rp.invuln>0)continue;
+        if(N.Ships.intersectsCircle(rp,x,y,radius)&&N.World.clear(x,y,rp.x,rp.y))N.Coop.sendHit(rp,damage,x,y,false);
+      }
+    }
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }
 };

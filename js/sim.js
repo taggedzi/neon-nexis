@@ -21,7 +21,8 @@ G.spawnBullet=function(o){
     id:uid('pb_'),x:0,y:0,vx:0,vy:0,angle:0,speed:0,damage:0,size:2,life:1,maxLife:1,
     color:'#00f0ff',kind:'pulse',pierce:0,bounce:0,chain:0,aoe:0,curve:0,homing:false,
     turnRate:0,accel:0,trail:false,dot:false,tick:0,tickTimer:0,pull:0,explode:false,
-    weaponId:null,hitSet:null,critChance:0,critMul:1.75,owner:'player',prevX:0,prevY:0,dead:false
+    weaponId:null,hitSet:null,critChance:0,critMul:1.75,owner:'player',prevX:0,prevY:0,dead:false,
+    coopPlayer:G.coopFiringPlayer||null,coopCosmetic:false
   },o);
   b.hitSet=b.hitSet||new Set();
   b.maxLife=b.life;
@@ -31,13 +32,14 @@ G.spawnBullet=function(o){
   b.tickTimer=b.tick||0;
   if(G.playerBullets.length>=MAX_PLAYER_BULLETS) G.playerBullets.shift();
   G.playerBullets.push(b);
+  if(N.Coop) N.Coop.onPlayerBullet(b);
   return b;
 };
 G.spawnEnemyBullet=function(o){
   const b=Object.assign({
     id:uid('eb_'),x:0,y:0,vx:0,vy:0,angle:0,speed:0,damage:0,size:3,life:4.4,maxLife:4.4,
     color:'#ff335c',kind:'hostile',curve:0,homing:false,turnRate:0,accel:0,owner:'enemy',
-    prevX:0,prevY:0,dead:false,spin:0
+    prevX:0,prevY:0,dead:false,spin:0,coopCosmetic:false
   },o);
   b.maxLife=b.life;
   b.vx=Math.cos(b.angle)*b.speed;
@@ -45,16 +47,19 @@ G.spawnEnemyBullet=function(o){
   b.prevX=b.x;b.prevY=b.y;
   if(G.enemyBullets.length>=MAX_ENEMY_BULLETS) G.enemyBullets.splice(0,30);
   G.enemyBullets.push(b);
+  if(N.Coop) N.Coop.onEnemyBullet(b);
   return b;
 };
 G.spawnMine=function(o){
   if(G.level?.layout){const point=N.World.findFree(G.level.layout,o.x,o.y,15);o={...o,...point};}
   const m=Object.assign({
     id:uid('mine_'),x:0,y:0,owner:'player',damage:20,radius:70,color:'#ff335c',
-    life:9,maxLife:9,armTime:.45,armed:false,dead:false,spin:0
+    life:9,maxLife:9,armTime:.45,armed:false,dead:false,spin:0,
+    coopPlayer:G.coopFiringPlayer||null,coopCosmetic:false
   },o);
   G.mines.push(m);
   G.addRing(m.x,m.y,m.radius*.7,m.color,.35,1);
+  if(N.Coop) N.Coop.onMine(m);
   return m;
 };
 G.spawnOrbital=function(o){
@@ -73,9 +78,11 @@ G.spawnStrike=function(o){
   if(G.level?.layout){const point=N.World.findFree(G.level.layout,o.x,o.y,10);o={...o,...point};}
   G.strikes.push({
     id:uid('strike_'),x:o.x,y:o.y,delay:o.delay||.6,maxDelay:o.delay||.6,
-    radius:o.radius||70,damage:o.damage||25,color:o.color||'#ffb31f',dead:false
+    radius:o.radius||70,damage:o.damage||25,color:o.color||'#ffb31f',dead:false,
+    coopPlayer:G.coopFiringPlayer||null,coopCosmetic:false
   });
   G.addRing(o.x,o.y,o.radius||70,o.color||'#ffb31f',.5,.8);
+  if(N.Coop) N.Coop.onStrike(G.strikes[G.strikes.length-1]);
 };
 G.addText=G.addText;
 G.addParticles=G.addParticles;
@@ -88,6 +95,7 @@ G.fireWeapon=function(w){
   const rate=(p.stats.rateMul||1)*(1+(w.level-1)*.06)*(p.buffs.overclock>0?1.35:1);
   w.cooldown=Math.max(.035,(def.base.cooldown||.5)/Math.max(.2,rate));
   try{def.fire(G,w,G.aim.angle);}catch(e){console.error('weapon fire error',w.id,e);}
+  if(N.Coop) N.Coop.onLocalFire(w);
   N.Audio.weapon(def.sound||'pulse',panOf(p.x));
   G.addParticles(p.x+Math.cos(G.aim.angle)*20,p.y+Math.sin(G.aim.angle)*20,def.color,2,{angle:G.aim.angle,spread:.7,speed:80,life:.2,size:1.4});
 };
@@ -224,7 +232,7 @@ function chainLightning(x,y,b,maxJumps){
     if(!t)break;
     points.push([t.x,t.y]);
     hit.add(t.id);
-    damageTarget(t,b.damage*.62,{x:t.x,y:t.y,critChance:b.critChance||0,critMul:b.critMul||1.75,source:'chain',allowPayload:false});
+    damageTarget(t,b.damage*.62,{x:t.x,y:t.y,critChance:b.critChance||0,critMul:b.critMul||1.75,source:'chain',allowPayload:false,player:b.coopPlayer});
     G.addParticles(t.x,t.y,b.color,3,{speed:70,life:.35,size:1.3});
     cx=t.x;cy=t.y;
   }
@@ -252,6 +260,7 @@ G.beam=function(angle,damage,color,length,width){
     if(c.alive&&N.distToSegment(c.x,c.y,x1,y1,x2,y2)<c.r+width/2)G.damageCache(c,damage,{x:c.x,y:c.y,...crit});
   }
   G.addBeam(x1,y1,x2,y2,color,width,.2);
+  if(N.Coop) N.Coop.onBeam(x1,y1,x2,y2,color,width,.2);
   G.addParticles(x2,y2,color,5,{angle:angle+Math.PI,spread:.3,speed:120,life:.25,size:1.4});
   G.triggerGlitch(.12,color);
   G.shake(2.2);
@@ -293,6 +302,11 @@ G.arcBolt=function(angle,damage,color,chainCount,range){
 };
 G.damageEnemy=function(e,dmg,opts={}){
   if(!e||e.dead)return 0;
+  if(N.Coop&&N.Coop.blocksLocalDamage()){
+    e.hitFlash=Math.max(e.hitFlash||0,.2);
+    G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.3,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
+    return 0;
+  }
   let amount=Math.max(0,dmg);
   let crit=false;
   if(opts.critChance&&Math.random()<opts.critChance){amount*=opts.critMul||1.75;crit=true;}
@@ -303,20 +317,29 @@ G.damageEnemy=function(e,dmg,opts={}){
     if(amount<=0){G.addText(e.x,e.y-e.r-6,'SHIELD','#6ad7ff',10);return 0;}
   }
   e.hp-=amount;e.hitFlash=.2;
-  const p=G.player;
+  const p=opts.player||G.player;
   p.totalDamage+=amount;G.run.damage=(G.run.damage||0)+amount;G.level.damage=(G.level.damage||0)+amount;
-  if(p.stats.lifesteal>0){p.hp=Math.min(p.stats.maxHp,p.hp+amount*p.stats.lifesteal);}
+  if(p.stats.lifesteal>0){
+    const heal=amount*p.stats.lifesteal;
+    p.hp=Math.min(p.stats.maxHp,p.hp+heal);
+    if(N.Coop&&N.Coop.isHost()&&p!==G.player)N.Coop.sendHeal(heal);
+  }
   G.addText(e.x+(Math.random()-.5)*e.r*.6,e.y-e.r*.7,(crit?'✦':'')+Math.round(amount),crit?'#fff':'#d8f4ff',crit?13:10);
   G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.32,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
   N.Audio.hit(panOf(e.x));
   if(opts.explosion!==true&&p.stats.explodeChance>0&&Math.random()<p.stats.explodeChance){
     G.explode(e.x,e.y,55*p.stats.explodeRadius,amount*.45,p.stats.maxShield>0?'#ffb31f':'#ffb31f','player',{particles:8,shake:1.2,glitch:.08,big:false});
   }
-  if(e.hp<=0)G.killEnemy(e,opts);
+  if(e.hp<=0)G.killEnemy(e,Object.assign({},opts,{player:p}));
   return amount;
 };
 G.damageAnchor=function(a,dmg,opts={}){
   if(!a||!a.alive)return 0;
+  if(N.Coop&&N.Coop.blocksLocalDamage()){
+    a.hitFlash=Math.max(a.hitFlash||0,.25);
+    G.addParticles(a.x,a.y,G.level.theme.b,3,{speed:100,life:.35,size:1.4});
+    return 0;
+  }
   let amount=Math.max(0,dmg);let crit=false;
   if(opts.critChance&&Math.random()<opts.critChance){amount*=opts.critMul||1.75;crit=true;}
   a.hp-=amount;a.hitFlash=.25;
@@ -329,6 +352,11 @@ G.damageAnchor=function(a,dmg,opts={}){
 };
 G.damageCache=function(c,dmg,opts={}){
   if(!c||!c.alive)return 0;
+  if(N.Coop&&N.Coop.blocksLocalDamage()){
+    c.hitFlash=Math.max(c.hitFlash||0,.25);
+    G.addParticles(c.x,c.y,c.corrupt?'#ff335c':G.level.theme.a,3,{speed:80,life:.3,size:1.2});
+    return 0;
+  }
   let amount=Math.max(0,dmg);let crit=false;
   if(opts.critChance&&Math.random()<opts.critChance){amount*=opts.critMul||1.75;crit=true;}
   c.hp-=amount;c.hitFlash=.25;
@@ -339,6 +367,7 @@ G.damageCache=function(c,dmg,opts={}){
   return amount;
 };
 G.damagePlayer=function(amount,x,y,contact=false){
+  if(N.Coop&&N.Coop.blocksLocalDamage()) return false;
   const p=G.player;
   if(!p||p.dead||p.invuln>0)return false;
   if(p.stats.dodge>0&&Math.random()<p.stats.dodge){
@@ -418,7 +447,7 @@ G.updatePlayerBullets=function(dt){
       if(b.tickTimer<=0){
         b.tickTimer=b.tick;
         const rr=(b.aoe||40)+b.size;
-        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r)&&N.World.clear(b.x,b.y,e.x,e.y))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false});}
+        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r)&&N.World.clear(b.x,b.y,e.x,e.y))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false,player:b.coopPlayer});}
         for(const a of G.level.anchors){if(a.alive&&N.dist2(b.x,b.y,a.x,a.y)<(rr+a.r)*(rr+a.r)&&N.World.clear(b.x,b.y,a.x,a.y))G.damageAnchor(a,b.damage*.7,{x:b.x,y:b.y});}
         for(const c of G.level.caches){if(c.alive&&N.dist2(b.x,b.y,c.x,c.y)<(rr+c.r)*(rr+c.r)&&N.World.clear(b.x,b.y,c.x,c.y))G.damageCache(c,b.damage*.7,{x:b.x,y:b.y});}
         G.addParticles(b.x,b.y,b.color,4,{speed:40,life:.3,size:1.2,glow:true});
@@ -431,7 +460,7 @@ G.updatePlayerBullets=function(dt){
         if(N.dist2(b.x,b.y,e.x,e.y)<(b.size+e.r*.9)*(b.size+e.r*.9)){
           b.hitSet.add(e.id);
           const hitX=b.x,hitY=b.y;
-          G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'bullet',allowPayload:true});
+          G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'bullet',allowPayload:true,player:b.coopPlayer});
           if(b.chain>0)chainLightning(hitX,hitY,b,b.chain);
           if(b.explode||b.kind==='mortar'||b.kind==='gravity'){
             G.explode(b.x,b.y,b.aoe||70,b.damage*.85,b.color,'player',{big:b.kind==='gravity',particles:12,shake:2.2});
@@ -516,6 +545,17 @@ G.updateEnemyBullets=function(dt){
       b.dead=true;
       G.addParticles(b.x,b.y,b.color,6,{speed:90,life:.3,size:1.5});
     }
+    if(!b.dead&&N.Coop&&N.Coop.isHost()){
+      for(const rp of N.Coop.remotePlayers){
+        if(!rp||rp.dead||rp.invuln>0)continue;
+        if(N.Ships.intersectsCircle(rp,b.x,b.y,b.size)){
+          N.Coop.sendHit(rp,b.damage,b.x,b.y,false);
+          b.dead=true;
+          G.addParticles(b.x,b.y,b.color,6,{speed:90,life:.3,size:1.5});
+          break;
+        }
+      }
+    }
   }
 };
 G.updateMines=function(dt){
@@ -531,6 +571,11 @@ G.updateMines=function(dt){
         if(!trigger)for(const a of G.level.anchors){if(a.alive&&N.dist2(m.x,m.y,a.x,a.y)<(m.radius*.75+a.r)*(m.radius*.75+a.r)){trigger=true;break;}}
         if(!trigger)for(const c of G.level.caches){if(c.alive&&N.dist2(m.x,m.y,c.x,c.y)<(m.radius*.75+c.r)*(m.radius*.75+c.r)){trigger=true;break;}}
       }else if(G.player&&!G.player.dead&&N.Ships.intersectsCircle(G.player,m.x,m.y,m.radius*.7)){trigger=true;}
+      else if(N.Coop&&N.Coop.isHost()){
+        for(const rp of N.Coop.remotePlayers){
+          if(rp&&!rp.dead&&N.Ships.intersectsCircle(rp,m.x,m.y,m.radius*.7)){trigger=true;break;}
+        }
+      }
     }
     if(trigger||m.life<=0){
       G.explode(m.x,m.y,m.radius,m.damage,m.color,m.owner,{particles:12,shake:2.4,big:false,glitch:.14});
@@ -602,23 +647,39 @@ G.updateGroundItems=function(dt){
   const p=G.player;
   const magnet=p.buffs.magnet>0;
   const radius=p.stats.pickupRadius*(magnet?5.5:1);
+  const coopHost=!!(N.Coop&&N.Coop.isHost());
   for(let i=G.groundItems.length-1;i>=0;i--){
     const it=G.groundItems[i];
     if(it.collected){G.groundItems.splice(i,1);continue;}
     it.phase=(it.phase||0)+dt*2;it.angle=(it.angle||0)+dt*.7;
     if(it.pickupDelay>0){it.pickupDelay-=dt;continue;}
-    const d=N.dist(it.x,it.y,p.x,p.y);
-    if(magnet&&d<radius*1.5){
+    let collector=p,collectorRadius=radius;
+    let d=N.dist(it.x,it.y,p.x,p.y);
+    if(coopHost){
+      const guest=N.Coop.remotePlayers[0];
+      if(guest&&!guest.dead){
+        const gd=N.dist(it.x,it.y,guest.x,guest.y);
+        const gr=(guest.pickupRadius||guest.stats.pickupRadius||95)*(guest.magnet?5.5:1);
+        if(gd<gr&&gd<d){collector=guest;collectorRadius=gr;d=gd;}
+      }
+    }
+    if(collector===p&&magnet&&d<radius*1.5){
       const oldX=it.x,oldY=it.y;
       const f=Math.min(1,dt*3.2);
       it.x+=(p.x-it.x)*f;it.y+=(p.y-it.y)*f;
       N.World.move(it,oldX,oldY,12);
     }
-    if(d<radius&&N.World.clear(p.x,p.y,it.x,it.y)){
-      G.collectGroundItem(it,false);
-      // Banked/consumed items leave the floor; a full reward tray retains gear.
-      if(it.collected)G.groundItems.splice(i,1);
-      if(G.mode!=='playing') return;
+    if(d<collectorRadius&&N.World.clear(collector.x,collector.y,it.x,it.y)){
+      if(collector===p){
+        G.collectGroundItem(it,false);
+        // Banked/consumed items leave the floor; a full reward tray retains gear.
+        if(it.collected)G.groundItems.splice(i,1);
+        if(G.mode!=='playing') return;
+      }else{
+        it.collected=true;
+        N.Coop.grantToGuest(it);
+        G.groundItems.splice(i,1);
+      }
     }
   }
 };
@@ -628,6 +689,7 @@ G.gameOver=function(){
   if(G.mode==='gameover'||G.mode==='complete')return;
   const p=G.player;if(!p)return;
   p.dead=true;p.hp=0;
+  if(N.Coop) N.Coop.onLocalGameOver();
   G.setMode('gameover');
   N.Input.resetFire();
   G.triggerGlitch(1,'#ff335c');
@@ -671,6 +733,7 @@ G.completeLevel=function(reason){
   G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;
   G.triggerGlitch(.8,reason==='timer'?'#b6ff2b':'#ff2bd6');
   N.Audio.complete();
+  if(N.Coop) N.Coop.onHostComplete(summary);
   G.saveCheckpoint(true,'levelcomplete');
   G.setMode('complete');
   N.Input.resetFire();
@@ -685,6 +748,7 @@ G.advanceLevel=function(){
   G.notify('SECTOR '+String(G.run.level).padStart(2,'0')+' // DESCENT CONFIRMED','loot',2400);
   G.triggerGlitch(.4,'#00f0ff');
   if(N.UI) N.UI.hideAll();
+  if(N.Coop) N.Coop.onHostAdvance();
   G.saveCheckpoint(true,'sectorstart');
 };
 
@@ -699,9 +763,12 @@ G.update=function(dt){
   if(N.Input.actionPressed('pause')||N.Input.padActionPressed('pause')){G.pauseGame();return;}
   if(N.Input.actionPressed('inventory')||N.Input.padActionPressed('inventory')){G.openInventory();return;}
   if(N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards')){G.openRewards();return;}
+  if(N.Coop) N.Coop.preUpdate(dt);
   N.Rewards.tick(dt);
   const prevElapsed=G.level.elapsed;
-  G.time+=dt;G.level.elapsed=Math.min(DURATION,G.level.elapsed+dt);
+  G.time+=dt;
+  if(!(N.Coop&&N.Coop.isGuest()))G.level.elapsed=Math.min(DURATION,G.level.elapsed+dt);
+  if(N.Coop&&N.Coop.isGuest()){N.Coop.updateGuest(dt);return;}
   G.updatePlayer(dt);
   if(G.mode!=='playing')return;
   G.updateEnemies(dt);
@@ -721,7 +788,7 @@ G.update=function(dt){
   G.updateEffects(dt);
   G.updateSpawning(dt);
   // auto checkpoints and surges keyed to elapsed time
-  if(G.level.elapsed>=G.checkpointTimer){
+  if(!G.coopRun&&G.level.elapsed>=G.checkpointTimer){
     G.saveCheckpoint(false,'checkpoint');
     G.checkpointTimer+=60;
   }
