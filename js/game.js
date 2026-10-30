@@ -527,11 +527,31 @@ G.restoreCheckpoint=function(){
   if(!save){G.notify('NO CHECKPOINT SIGNAL FOUND','danger');return false;}
   return G.loadFromSave(save,true);
 };
+function finiteField(value){
+  return value==null || Number.isFinite(Number(value));
+}
+function listField(value){
+  return value==null || Array.isArray(value);
+}
 G.canLoadSave=function(save){
-  return !!(save && save.version===SAVE_VERSION && save.run &&
-    typeof save.run==='object' && !Array.isArray(save.run) && save.player &&
-    typeof save.player==='object' && !Array.isArray(save.player) &&
-    (save.run.mapVersion==null || save.run.mapVersion===0 || save.run.mapVersion===1));
+  if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
+  if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
+  const run=save.run, player=save.player;
+  if(!(run.mapVersion==null || run.mapVersion===0 || run.mapVersion===1)) return false;
+  if(!finiteField(run.seed)||!finiteField(run.level)||!finiteField(run.sectors)||!finiteField(run.kills)||!finiteField(run.totalTime)||!finiteField(run.damage)) return false;
+  if(!listField(player.weapons)||!listField(player.passives)||!listField(player.core)) return false;
+  for(const key of ['x','y','hp','shield','level','xp','xpNext','heading','aim','activeWeapon','weaponSlots','passiveSlots','dashCharges','dashTimer']){
+    if(!finiteField(player[key])) return false;
+  }
+  const level=save.level;
+  if(level!=null){
+    if(typeof level!=='object' || Array.isArray(level)) return false;
+    if(!finiteField(level.elapsed)||!finiteField(level.kills)||!finiteField(level.damage)) return false;
+    if(!listField(level.destroyedAnchors)||!listField(level.destroyedCaches)) return false;
+    if(!listField(level.groundItems)) return false;
+    if(Array.isArray(level.groundItems) && level.groundItems.some(item=>!item || typeof item!=='object' || Array.isArray(item))) return false;
+  }
+  return true;
 };
 G.loadFromSave=function(save,fromDeath=false){
   if(!G.canLoadSave(save)) return false;
