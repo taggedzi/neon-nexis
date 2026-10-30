@@ -94,6 +94,7 @@ Later checklist topics remain deferred. See [decisions](../decisions.md).
   All 38 browser tests passed, including both reload smoke tests. Checks ran
   through the underlying Node entry points because this shared filesystem's
   npm executable shims returned Permission denied. `git diff --check` passed.
-  GitHub CI rerun remains pending owner delivery; no commit, push or merge made.
+  Implementation commit is `3fb460d`. Owner requested a pull request on
+  2026-10-29. GitHub CI rerun remains pending on that pull request.
   Issue status remains Implemented — needs validation; deployment criteria above
   remain pending.
