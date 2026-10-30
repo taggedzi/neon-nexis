@@ -375,6 +375,8 @@ function createCoopServer(options = {}) {
     socket.isAlive = true;
     socket.on('pong', () => { socket.isAlive = true; });
     socket.on('message', (raw) => {
+      // An inbound frame proves the socket is still alive, even if a ping was missed.
+      socket.isAlive = true;
       const now = Date.now();
       if (now - client.windowStart >= 1000) {
         client.windowStart = now;

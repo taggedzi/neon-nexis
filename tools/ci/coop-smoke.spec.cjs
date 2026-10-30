@@ -1,20 +1,25 @@
 const { test, expect } = require('@playwright/test');
 
 const ROOM_SETUP_TIMEOUT = 30000;
+const openContexts = [];
+
+function watchPage(page, label, errors) {
+  page.on('pageerror', error => errors.push(label + ' pageerror: ' + error.message));
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push(label + ' console: ' + message.text());
+  });
+}
+
+function trackContext(context) {
+  openContexts.push(context);
+  return context;
+}
 
 async function startCoopRun(browser) {
-  const hostContext = await browser.newContext();
+  const hostContext = trackContext(await browser.newContext());
   const host = await hostContext.newPage();
-  const guestContext = await browser.newContext();
-  const guest = await guestContext.newPage();
-
   const errors = [];
-  for (const [label, page] of [['host', host], ['guest', guest]]) {
-    page.on('pageerror', error => errors.push(label + ' pageerror: ' + error.message));
-    page.on('console', message => {
-      if (message.type() === 'error') errors.push(label + ' console: ' + message.text());
-    });
-  }
+  watchPage(host, 'host', errors);
 
   await host.goto('/');
   await host.locator('#btn-boot').click();
@@ -23,14 +28,51 @@ async function startCoopRun(browser) {
   await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
   const code = await host.evaluate(() => window.NEON.Net.code);
 
+  // Open the guest only after the host has a code. Creating it earlier leaves
+  // the host in the background, and Firefox may not apply a later peer message
+  // until that page is in front again.
+  const guestContext = trackContext(await browser.newContext());
+  const guest = await guestContext.newPage();
+  watchPage(guest, 'guest', errors);
+
   await guest.goto('/');
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
+  await expect(guest.locator('#btn-coop-join')).toBeEnabled();
   await guest.locator('#coop-code-input').fill(code);
   await guest.locator('#btn-coop-join').click();
 
-  await expect.poll(() => host.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
-  await expect.poll(() => guest.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
+  let lastNudge = Date.now();
+  let lastStatus = null;
+  try {
+    await expect.poll(async () => {
+      const [hostStatus, guestStatus] = await Promise.all([
+        host.evaluate(() => ({ peer: !!window.NEON.Net.peer, state: window.NEON.Net.state })),
+        guest.evaluate(() => ({ peer: !!window.NEON.Net.peer, state: window.NEON.Net.state }))
+      ]);
+      lastStatus = { host: hostStatus, guest: guestStatus };
+      if (hostStatus.peer && guestStatus.peer) return true;
+
+      // Foreground whichever page has not applied its peer message yet.
+      if (!hostStatus.peer) await host.bringToFront();
+      if (!guestStatus.peer) await guest.bringToFront();
+      if (Date.now() - lastNudge < 3000) return false;
+      lastNudge = Date.now();
+
+      const down = (status) => status.state === 'idle' || status.state === 'error' || status.state === 'closed' || status.state === 'connecting' || status.state === 'reconnecting';
+      if (!hostStatus.peer && down(hostStatus)) await host.evaluate(() => window.NEON.Net.reconnect());
+      if (!guestStatus.peer && down(guestStatus)) {
+        await guest.evaluate((roomCode) => {
+          const net = window.NEON.Net;
+          if (net.state !== 'idle' && net.state !== 'closed') net.leave(true);
+          window.NEON.Coop.joinRoom(roomCode, window.NEON.Ships.selection({}));
+        }, code);
+      }
+      return false;
+    }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] }).toBe(true);
+  } catch (error) {
+    throw new Error('Co-op peer link did not open: ' + JSON.stringify(lastStatus) + '\n' + error.message);
+  }
 
   await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
   await host.locator('#btn-coop-start').click();
@@ -62,10 +104,21 @@ async function startCoopRun(browser) {
   return { host, guest, hostContext, guestContext, errors, code };
 }
 
-async function closeAll(ctx) {
-  try { await ctx.guestContext.close(); } catch (error) { /* ignore */ }
-  try { await ctx.hostContext.close(); } catch (error) { /* ignore */ }
+async function closeContext(context) {
+  if (!context) return;
+  const index = openContexts.indexOf(context);
+  if (index >= 0) openContexts.splice(index, 1);
+  try { await context.close(); } catch (error) { /* ignore */ }
 }
+
+async function closeAll(ctx) {
+  await closeContext(ctx && ctx.guestContext);
+  await closeContext(ctx && ctx.hostContext);
+}
+
+test.afterEach(async () => {
+  while (openContexts.length) await closeContext(openContexts[openContexts.length - 1]);
+});
 
 test('host fires and guest sees the authoritative bullets', async ({ browser }) => {
   test.setTimeout(120000);

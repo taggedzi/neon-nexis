@@ -326,6 +326,21 @@ if (process.argv[2] === '--roomless-probe') {
   assert.equal(server.rooms.has(rehosted.code), true);
   checks += 8;
 
+  const marked = client(url);
+  await marked.open();
+  marked.send({ t: 'host', clientId: 'marked-host', profile: {} });
+  const markedHosted = await marked.next();
+  assert.equal(markedHosted.t, 'hosted');
+  server.sweep(Date.now());
+  marked.socket.isAlive = false;
+  marked.send({ t: 'ping' });
+  const markedPong = await marked.next();
+  assert.equal(markedPong.t, 'pong');
+  server.sweep(Date.now());
+  assert.equal(marked.socket.readyState, WebSocket.OPEN);
+  checks += 3;
+  marked.close();
+
   idle.close();
   server.close();
   console.log('Co-op signaling checks passed (' + checks + ' assertions).');
