@@ -229,6 +229,7 @@
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
     Coop._strikeQueue = [];
+    Coop._grantSerial = 0;
 
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     G.newRun(Coop.localProfile, { seed: seed, coop: true, name: 'PLAYER 1' });
@@ -306,6 +307,7 @@
     G.overflow = null;
     G.lastSummary = null;
     N.Rewards.reset();
+    Coop._acceptedGrants = new Set();
     Coop.started = true;
     Coop._stateAt = 0;
     Coop._worldAt = 0;
@@ -377,6 +379,8 @@
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
     Coop._strikeQueue = [];
+    Coop._acceptedGrants = new Set();
+    Coop._grantSerial = 0;
     G.coopRun = false;
     if (N.Net) N.Net.leave(true);
     if (G.mode !== 'menu' && G.mode !== 'boot') G.setMode('menu');
@@ -865,7 +869,10 @@
         Coop.applyRemoteHit(message);
         break;
       case 'grant':
-        Coop.applyGrant(message.item);
+        Coop.applyGrant(message);
+        break;
+      case 'grant_ack':
+        Coop.applyGrantAck(message);
         break;
       case 'xp':
         G.addXp(Math.max(0, finite(message.amount, 0)));
@@ -1015,28 +1022,82 @@
     return true;
   };
 
-  Coop.applyGrant = function (item) {
-    if (!Coop.isGuest() || !item || !G.player) return;
-    G.collectGroundItem({
-      id: item.id,
-      kind: item.kind,
-      itemId: item.itemId,
+  function cleanGrantId(value) {
+    const text = String(value || '');
+    return /^[A-Za-z0-9_-]{1,40}$/.test(text) ? text : '';
+  }
+
+  function cleanItemText(value, max, fallback) {
+    if (typeof value !== 'string' || !value || value.length > max) return fallback;
+    return value;
+  }
+
+  Coop.applyGrant = function (message) {
+    if (!Coop.isGuest() || !G.player || !message || typeof message !== 'object') return;
+    const grantId = cleanGrantId(message.grantId);
+    const item = message.item;
+    if (!grantId || !item || typeof item !== 'object' || Array.isArray(item)) return;
+    const kind = item.kind === 'weapon' || item.kind === 'mod' || item.kind === 'consumable' ? item.kind : '';
+    const itemId = cleanItemText(item.itemId, 40, '');
+    if (!kind || !itemId) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: false });
+      return;
+    }
+    if (!Coop._acceptedGrants) Coop._acceptedGrants = new Set();
+    if (Coop._acceptedGrants.has(grantId)) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: true });
+      return;
+    }
+    const ground = {
+      id: cleanItemText(item.id, 40, grantId),
+      kind: kind,
+      itemId: itemId,
       x: finite(item.x, G.player.x),
       y: finite(item.y, G.player.y),
-      tier: finite(item.tier, 1),
-      color: item.color || '#00f0ff',
-      label: item.label || null,
+      tier: Math.max(1, Math.min(3, Math.floor(finite(item.tier, 1)))),
+      color: cleanItemText(item.color, 32, '#00f0ff'),
+      label: cleanItemText(item.label, 40, null),
       pickupDelay: 0,
       angle: 0,
       phase: 0
-    }, false);
+    };
+    G.collectGroundItem(ground, false);
+    if (!ground.collected) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: false });
+      return;
+    }
+    Coop._acceptedGrants.add(grantId);
+    N.Net.send({ t: 'grant_ack', grantId: grantId, ok: true });
     Coop.sendLoadout(true);
   };
 
+  Coop.applyGrantAck = function (message) {
+    if (!Coop.isHost() || !message || typeof message !== 'object' || !G.groundItems) return;
+    const grantId = cleanGrantId(message.grantId);
+    if (!grantId) return;
+    const index = G.groundItems.findIndex(function (item) { return item.grantId === grantId; });
+    if (index < 0) return;
+    const item = G.groundItems[index];
+    if (message.ok === true) {
+      item.collected = true;
+      item.grantPending = false;
+      G.groundItems.splice(index, 1);
+      return;
+    }
+    item.grantPending = false;
+    item.grantWait = 0;
+    item.grantHold = 0.75;
+  };
+
   Coop.grantToGuest = function (item) {
-    if (!Coop.isHost() || !item) return;
-    N.Net.send({
+    if (!Coop.isHost() || !item) return false;
+    if (!cleanGrantId(item.grantId)) {
+      Coop._grantSerial = (Coop._grantSerial || 0) + 1;
+      item.grantId = 'g' + Coop._grantSerial;
+    }
+    return N.Net.send({
       t: 'grant',
+      grantId: item.grantId,
       item: {
         id: item.id,
         kind: item.kind,

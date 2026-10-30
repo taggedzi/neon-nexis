@@ -509,3 +509,138 @@ test('countdown fallback waits for the server before resuming', async ({ browser
     await closeAll(ctx);
   }
 });
+
+test('guest pickups stay until the grant is accepted', async ({ browser }) => {
+  test.setTimeout(120000);
+  const ctx = await startCoopRun(browser);
+  const { host, guest, errors } = ctx;
+  try {
+    const modId = await host.evaluate(() => {
+      const mod = window.NEON.MODS.find((item) => item.type !== 'curse') || window.NEON.MODS[0];
+      return mod.id;
+    });
+
+    const blocked = await host.evaluate((itemId) => {
+      const net = window.NEON.Net;
+      const G = window.NEON.Game;
+      const remote = window.NEON.Coop.remotePlayers[0];
+      net.__send = net.send.bind(net);
+      net.send = (message) => {
+        if (message && message.t === 'grant') return false;
+        return net.__send(message);
+      };
+      G.enemies.forEach((enemy) => { enemy.dead = true; });
+      G.player.vx = 0;
+      G.player.vy = 0;
+      G.player.x = remote.x + 2500;
+      G.player.y = remote.y + 2500;
+      G.groundItems.length = 0;
+      G.groundItems.push({
+        id: 'grant-blocked',
+        kind: 'mod',
+        itemId: itemId,
+        x: remote.x,
+        y: remote.y,
+        tier: 1,
+        color: '#00f0ff',
+        angle: 0,
+        phase: 0,
+        pickupDelay: 0,
+        label: null
+      });
+      G.updateGroundItems(0.05);
+      const item = G.groundItems.find((entry) => entry.id === 'grant-blocked');
+      return {
+        present: !!item,
+        collected: !!(item && item.collected),
+        pending: !!(item && item.grantPending),
+        grantId: item ? item.grantId : ''
+      };
+    }, modId);
+    expect(blocked.present).toBe(true);
+    expect(blocked.collected).toBe(false);
+    expect(blocked.pending).toBe(false);
+    expect(blocked.grantId).not.toBe('');
+
+    await host.waitForTimeout(700);
+    expect(await host.evaluate(() => window.NEON.Game.groundItems.some((entry) => entry.id === 'grant-blocked' && !entry.collected))).toBe(true);
+    const before = await guest.evaluate(() => window.NEON.Rewards.state().pending.length);
+
+    await host.evaluate(() => {
+      const net = window.NEON.Net;
+      net.send = net.__send;
+      const item = window.NEON.Game.groundItems.find((entry) => entry.id === 'grant-blocked');
+      if (item) item.grantHold = 0;
+    });
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.groundItems.some((entry) => entry.id === 'grant-blocked')), { timeout: 8000 }).toBe(false);
+    await expect.poll(() => guest.evaluate(() => window.NEON.Rewards.state().pending.length), { timeout: 8000 }).toBe(before + 1);
+
+    const duplicated = await guest.evaluate((itemId) => {
+      const grants = window.NEON.Coop._acceptedGrants;
+      const grantId = Array.from(grants || [])[0];
+      const count = window.NEON.Rewards.state().pending.length;
+      window.NEON.Coop.applyGrant({
+        t: 'grant',
+        grantId: grantId,
+        item: { id: 'grant-blocked', kind: 'mod', itemId: itemId, tier: 1, color: '#00f0ff' }
+      });
+      return {
+        grantId: grantId || '',
+        count: count,
+        after: window.NEON.Rewards.state().pending.length
+      };
+    }, modId);
+    expect(duplicated.grantId).not.toBe('');
+    expect(duplicated.after).toBe(duplicated.count);
+
+    await guest.evaluate((itemId) => {
+      const rewards = window.NEON.Rewards;
+      const mod = window.NEON.MOD_BY_ID[itemId];
+      const row = { kind: 'mod', itemId: itemId, tier: 1, color: mod.color };
+      rewards.state().pending = Array.from({ length: rewards.CAPACITY }, () => Object.assign({}, row));
+    }, modId);
+    await host.evaluate((itemId) => {
+      const G = window.NEON.Game;
+      const remote = window.NEON.Coop.remotePlayers[0];
+      G.player.x = remote.x + 2500;
+      G.player.y = remote.y + 2500;
+      G.groundItems.length = 0;
+      G.groundItems.push({
+        id: 'grant-full',
+        kind: 'mod',
+        itemId: itemId,
+        x: remote.x,
+        y: remote.y,
+        tier: 1,
+        color: '#00f0ff',
+        angle: 0,
+        phase: 0,
+        pickupDelay: 0,
+        label: null
+      });
+      G.updateGroundItems(0.05);
+    }, modId);
+
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.groundItems.some((entry) => entry.id === 'grant-full')), { timeout: 8000 }).toBe(true);
+    await host.waitForTimeout(1000);
+    const held = await host.evaluate(() => {
+      const item = window.NEON.Game.groundItems.find((entry) => entry.id === 'grant-full');
+      return { present: !!item && !item.collected, grantId: item ? item.grantId : '' };
+    });
+    expect(held.present).toBe(true);
+    expect(held.grantId).not.toBe('');
+    expect(await guest.evaluate(() => window.NEON.Rewards.state().pending.length)).toBe(4);
+
+    await guest.evaluate(() => { window.NEON.Rewards.state().pending.pop(); });
+    await host.evaluate(() => {
+      const item = window.NEON.Game.groundItems.find((entry) => entry.id === 'grant-full');
+      if (item) item.grantHold = 0;
+    });
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.groundItems.some((entry) => entry.id === 'grant-full')), { timeout: 8000 }).toBe(false);
+    await expect.poll(() => guest.evaluate(() => window.NEON.Rewards.state().pending.length), { timeout: 8000 }).toBe(4);
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.groundItems.some((entry) => entry.id === 'grant-full')), { timeout: 8000 }).toBe(false);
+    expect(errors).toEqual([]);
+  } finally {
+    await closeAll(ctx);
+  }
+});
