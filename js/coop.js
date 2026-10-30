@@ -1045,17 +1045,43 @@
     });
   };
 
+  function bounded(value, fallback, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+
+  /* Completion text crosses the peer boundary. Keep only bounded fields so a
+   * summary cannot carry markup or unexpected properties into the UI. */
+  function summaryFromPeer(summary) {
+    if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return null;
+    return {
+      reason: summary.reason === 'timer' ? 'timer' : 'clear',
+      sector: Math.floor(bounded(summary.sector, 1, 0, 9999)),
+      time: bounded(summary.time, 0, 0, 1e7),
+      kills: Math.floor(bounded(summary.kills, 0, 0, 1e7)),
+      damage: bounded(summary.damage, 0, 0, 1e12),
+      level: Math.floor(bounded(summary.level, 1, 1, 9999)),
+      anchors: Math.floor(bounded(summary.anchors, 0, 0, 999)),
+      anchorsTotal: Math.floor(bounded(summary.anchorsTotal, 0, 0, 999)),
+      nextLevel: Math.floor(bounded(summary.nextLevel, 1, 1, 9999)),
+      sectors: Math.floor(bounded(summary.sectors, 0, 0, 9999))
+    };
+  }
+
   Coop.applyComplete = function (summary) {
-    if (!Coop.isGuest() || !summary) return;
-    G.lastSummary = summary;
+    if (!Coop.isGuest()) return;
+    const safe = summaryFromPeer(summary);
+    if (!safe) return;
+    G.lastSummary = safe;
     if (G.run) {
-      G.run.sectors = Math.max(G.run.sectors || 0, finite(summary.sectors, 0));
-      G.run.totalTime = Math.max(G.run.totalTime || 0, finite(summary.time, 0));
-      G.run.level = Math.max(G.run.level, finite(summary.nextLevel, G.run.level));
+      G.run.sectors = Math.max(G.run.sectors || 0, safe.sectors);
+      G.run.totalTime = Math.max(G.run.totalTime || 0, safe.time);
+      G.run.level = Math.max(G.run.level, safe.nextLevel);
     }
     G.setMode('complete');
     N.Input.resetFire();
-    if (N.UI) N.UI.showComplete(summary);
+    if (N.UI) N.UI.showComplete(safe);
   };
 
   Coop.applyRemoteGameOver = function () {

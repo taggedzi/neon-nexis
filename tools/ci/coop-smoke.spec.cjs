@@ -295,3 +295,80 @@ test('opening rewards pauses the peer and closing it shows the ready screen', as
     await closeAll(ctx);
   }
 });
+
+test('peer completion summary is shown as text', async ({ browser }) => {
+  test.setTimeout(120000);
+  const ctx = await startCoopRun(browser);
+  const { host, guest, errors } = ctx;
+  const marker = 'coopSummaryMarker';
+  const payload = '<img src=x onerror="window.' + marker + '=true">';
+  try {
+    const direct = await guest.evaluate((kills) => {
+      window.coopSummaryMarker = false;
+      window.NEON.Coop.onMessage({
+        t: 'complete',
+        summary: {
+          sector: 1,
+          reason: 'timer',
+          time: 12,
+          kills: kills,
+          damage: 4,
+          level: 2,
+          anchors: 1,
+          anchorsTotal: 6,
+          nextLevel: 2,
+          sectors: 1
+        }
+      });
+      const stats = document.getElementById('complete-stats');
+      return {
+        marker: window.coopSummaryMarker,
+        images: stats.querySelectorAll('img').length,
+        text: stats.textContent
+      };
+    }, payload);
+    await guest.waitForTimeout(400);
+    expect(direct.images).toBe(0);
+    expect(direct.text).not.toContain('onerror');
+    expect(direct.text).toContain('KILLS');
+    expect(await guest.evaluate(() => window.coopSummaryMarker)).toBe(false);
+
+    await host.evaluate((kills) => {
+      window.NEON.Net.send({
+        t: 'complete',
+        summary: {
+          sector: 3,
+          reason: 'anchors',
+          time: 40,
+          kills: kills,
+          damage: 9,
+          level: 4,
+          anchors: 0,
+          anchorsTotal: 6,
+          nextLevel: 4,
+          sectors: 2
+        }
+      });
+    }, payload);
+    await guest.waitForTimeout(500);
+    const transported = await guest.evaluate(() => ({
+      marker: window.coopSummaryMarker,
+      images: document.querySelectorAll('#complete-stats img').length,
+      html: document.getElementById('complete-stats').innerHTML
+    }));
+    expect(transported.marker).toBe(false);
+    expect(transported.images).toBe(0);
+    expect(transported.html).not.toContain('<img');
+
+    await host.evaluate(() => window.NEON.Game.completeLevel('anchors'));
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('complete');
+    await expect(guest.locator('#complete-title')).toHaveText('SECTOR CLEARED');
+    await expect(host.locator('#complete-title')).toHaveText('SECTOR CLEARED');
+    await host.locator('#btn-advance').click();
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('playing');
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('playing');
+    expect(errors).toEqual([]);
+  } finally {
+    await closeAll(ctx);
+  }
+});
