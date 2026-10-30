@@ -2,17 +2,23 @@
   "name": "neon-nexus",
   "private": true,
   "description": "Development checks for the client-side game",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "check:syntax": "node tools/ci/syntax.cjs",
     "lint": "eslint .",
     "test:unit": "node tools/ci/unit.cjs",
     "test:browser": "playwright test",
+    "signal": "node server/coop-server.cjs",
     "check": "npm run check:syntax && npm run lint && npm run test:unit && npm run test:browser"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "eslint": "10.13.0",
     "globals": "17.13.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
   }
 }
