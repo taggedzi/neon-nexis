@@ -125,3 +125,26 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   images, JSON validation evidence, and shared agent configuration remain trackable.
 - Checks: `git diff --check` and representative `git check-ignore` checks passed.
   Existing `.playwright-mcp/` artifacts remain on disk and are now ignored.
+
+### 2026-10-30 — Co-op shared pause is server-owned
+
+- Owner requested that menus pause all co-op members, that the game only continue
+  after every member marks ready, and that a 3-second countdown run on all clients
+  before resuming.
+- Decision: The signaling server owns the room pause state. Clients send
+  `pause_request` and `ready_signal` over the signaling WebSocket (not the WebRTC
+  gameplay channel); the server broadcasts `global_pause`, `ready_state`,
+  `countdown_start`, and `global_resume`. A countdown is cancelled and the room
+  returns to `PAUSED` if a member's socket drops.
+- Rationale: Only the server sees every member, so it is the only place that can
+  decide when all are ready. Keeping the handshake on the signaling socket avoids
+  depending on which gameplay transport happens to be active.
+- Approval: Explicit owner instruction on 2026-10-30. Message names, 3-second
+  duration, and `PAUSED`/`COUNTDOWN`/`PLAY` states are agent implementation choices.
+- Consequences: The old boolean `pause` gameplay message is retired; clients keep
+  a local `Coop.pauseState` mirror for UI. Pause state is in-memory and is lost if
+  the server restarts. The protocol is documented in
+  [docs/coop-protocol.md](coop-protocol.md) and validated by
+  `tools/ci/coop-smoke.spec.cjs` (requires Node 20+ for Playwright).
+- Supersedes: The earlier co-op note that guest menus could not pause the host and
+  that pause ownership was unresolved.

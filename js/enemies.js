@@ -56,7 +56,7 @@ G.spawnEnemy=function(style,x,y,opts={}){
   // Central gate also covers multi-enemy summons, splitters and anchor guards.
   if(!opts.requiredEncounter&&G.enemies.length>=G.enemyPopulationCap())return null;
   const role=N.ROLES[style.role]||N.ROLES.rusher;
-  const p=G.player;
+  const p=(N.Coop&&N.Coop.nearestPlayer)?N.Coop.nearestPlayer(x,y):G.player;
   const hpScale=dmgScale();
   const elite=!!(opts.elite||role.elite);
   const boss=!!(opts.boss||role.boss);
@@ -172,7 +172,7 @@ G.updateSpawning=function(dt){
 // ——— hostile AI ———
 function moveToward(e,tx,ty,speed,dt,accel=4){
   e.pathChecked=true;
-  const waypoint=N.World.waypoint(e,G.player);
+  const waypoint=N.World.waypoint(e,{x:tx,y:ty});
   if(waypoint){tx=waypoint.x;ty=waypoint.y;}
   const a=Math.atan2(ty-e.y,tx-e.x);
   e.vx+=(Math.cos(a)*speed-e.vx)*Math.min(1,dt*accel);
@@ -204,11 +204,12 @@ function aimed(e,spread,n,speed,damage,opts={}){
 G.enemyFireAt=fireAt;
 
 G.updateEnemies=function(dt){
-  const p=G.player;
-  const playerX=p.x,playerY=p.y;
+  const localPlayer=G.player;
+  const playerX=localPlayer.x,playerY=localPlayer.y;
   const dScale=dmgScale();
   for(const e of G.enemies){
     if(e.dead)continue;
+    const p=(N.Coop&&N.Coop.isHost())?N.Coop.nearestPlayer(e.x,e.y):localPlayer;
     e.worldX=e.x;e.worldY=e.y;
     e.pathChecked=false;
     e.spawnT=Math.max(0,e.spawnT-dt);
@@ -434,10 +435,11 @@ G.updateEnemies=function(dt){
     if(!p.dead&&N.Ships.intersectsCircle(p,e.x,e.y,e.r*.8)&&N.World.clear(p.x,p.y,e.x,e.y)){
       if(p.invuln<=0){
         if(p.stats.thorns>0){
-          G.damageEnemy(e,p.stats.thorns,{x:p.x,y:p.y,source:'thorns',allowPayload:false});
+          G.damageEnemy(e,p.stats.thorns,{x:p.x,y:p.y,source:'thorns',allowPayload:false,player:p});
           G.addParticles(e.x,e.y,'#ffb31f',5,{speed:80,life:.25,size:1.3});
         }
-        G.damagePlayer(e.contact,e.x,e.y,true);
+        if(p===G.player)G.damagePlayer(e.contact,e.x,e.y,true);
+        else N.Coop.sendHit(p,e.contact,e.x,e.y,true);
       }
       // gentle physical separation so hostiles do not erase the pilot instantly
       if(N.Ships.intersectsCircle(p,e.x,e.y,e.r*.55)){
@@ -465,7 +467,7 @@ G.updateEnemies=function(dt){
   // cull
   if(G.level.layout){
     for(const e of G.enemies)if(!e.dead)keepIn(e);
-    N.World.move(p,playerX,playerY,N.Ships.get(p.shipType).radius,true);
+    N.World.move(localPlayer,playerX,playerY,N.Ships.get(localPlayer.shipType).radius,true);
   }
   for(let i=G.enemies.length-1;i>=0;i--){if(G.enemies[i].dead)G.enemies.splice(i,1);}
 };
@@ -473,10 +475,12 @@ G.updateEnemies=function(dt){
 G.killEnemy=function(e,opts={}){
   if(!e||e.dead)return;
   e.dead=true;e.alive=false;
-  const p=G.player;
+  const killer=opts.player||G.player;
+  const guestKill=!!(N.Coop&&N.Coop.isHost()&&killer!==G.player);
   G.run.kills=(G.run.kills||0)+1;G.level.kills=(G.level.kills||0)+1;
   N.Rewards.onKill();
-  G.addXp(e.xp||1);
+  if(!guestKill)G.addXp(e.xp||1);
+  if(N.Coop&&N.Coop.isHost())N.Coop.onHostKill(e.xp||0,!guestKill);
   G.addParticles(e.x,e.y,e.color,e.elite?32:12,{speed:e.elite?260:160,life:.7,size:e.elite?2.4:1.7,glow:true});
   G.addRing(e.x,e.y,e.r*2.2,e.color,e.elite?.55:.32,e.elite?3:1.5);
   G.addText(e.x,e.y-e.r-10,'+'+Math.round(e.xp||0)+' DATA','#6ad7ff',9);
@@ -493,7 +497,7 @@ G.killEnemy=function(e,opts={}){
     }
   }
   const role=N.ROLES[e.role]||N.ROLES.rusher;
-  const chance=Math.min(.98,(role.dropChance||0)*(p?p.stats.luck:1));
+  const chance=Math.min(.98,(role.dropChance||0)*(killer?killer.stats.luck:1));
   if(e.elite||e.boss||Math.random()<chance){
     G.dropForEnemy(e);
   }
@@ -539,12 +543,13 @@ G.destroyCache=function(c){
 };
 
 G.updateAnchors=function(dt){
-  const p=G.player;
+  const localPlayer=G.player;
   const dScale=dmgScale();
   for(const a of G.level.anchors){
     if(!a.alive)continue;
     a.hitFlash=Math.max(0,a.hitFlash-dt*4);
     a.phase+=dt*.7;
+    const p=(N.Coop&&N.Coop.isHost())?N.Coop.nearestPlayer(a.x,a.y):localPlayer;
     const dist=N.dist(a.x,a.y,p.x,p.y);
     const ang=Math.atan2(p.y-a.y,p.x-a.x);
     a.angle=N.lerpAngle(a.angle,ang,1-Math.exp(-dt*1.5));

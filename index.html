@@ -42,6 +42,7 @@
                 <span>CONTINUE RUN</span><small class="save-meta" id="save-meta"></small>
               </button>
               <button class="neon-btn" id="btn-new-run" type="button">NEW RUN</button>
+              <button class="neon-btn" id="btn-coop" type="button">CO-OP UPLINK</button>
               <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
               <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
               <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
@@ -100,6 +101,10 @@
             <div class="sector-chip" id="pause-sector">SECTOR 01</div>
           </div>
           <div class="pause-stats" id="pause-stats"></div>
+          <div class="pause-coop" id="pause-coop" hidden>
+            <div class="pause-coop-status" id="pause-coop-status"></div>
+            <div class="pause-coop-countdown" id="pause-coop-countdown" hidden></div>
+          </div>
           <div class="menu-buttons compact">
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
             <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
@@ -107,7 +112,7 @@
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
             <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
           </div>
-          <div class="micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
+          <div class="micro" id="pause-micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
         </div>
       </section>
 
@@ -149,6 +154,47 @@
           <div class="ship-choices" id="ship-colors" aria-label="Ship color"></div>
           <p class="micro">COSMETIC HULLS · HITBOXES FOLLOW EACH HULL'S OUTLINE. SPEED, WEAPONS AND ABILITIES ARE IDENTICAL. SELECTION IS FIXED FOR THIS SAVE.</p>
           <div class="panel-footer"><button class="neon-btn subtle" id="btn-ship-cancel" type="button">BACK</button><button class="neon-btn primary" id="btn-ship-launch" type="button">LAUNCH RUN</button></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-coop">
+        <div class="panel wide coop-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">NETWORK PROTOCOL // TWO PILOTS</span><h2>CO-OP UPLINK</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-coop-close" type="button" title="Back">✕</button></div>
+          </div>
+          <div class="coop-grid">
+            <div class="coop-config">
+              <canvas id="coop-preview" width="320" height="160" aria-label="Co-op ship preview"></canvas>
+              <div class="coop-label">HULL</div>
+              <div class="ship-choices" id="coop-ship-types" aria-label="Co-op ship type"></div>
+              <div class="coop-label">COLOR</div>
+              <div class="ship-choices" id="coop-ship-colors" aria-label="Co-op ship color"></div>
+              <p class="micro">CALLSIGNS ARE ASSIGNED BY THE LINK. PLAYER 1 HOSTS; PLAYER 2 JOINS WITH THE CODE.</p>
+            </div>
+            <div class="coop-link">
+              <div class="coop-status" id="coop-status">OFFLINE // NO UPLINK</div>
+              <div class="coop-code-wrap">
+                <div class="coop-label">ROOM CODE</div>
+                <div class="coop-code" id="coop-code">-----</div>
+                <button class="neon-btn subtle" id="btn-coop-copy" type="button" disabled>COPY CODE</button>
+              </div>
+              <div class="coop-actions">
+                <button class="neon-btn primary" id="btn-coop-host" type="button">HOST ROOM</button>
+                <div class="coop-join">
+                  <label class="coop-label" for="coop-code-input">JOIN WITH CODE</label>
+                  <input id="coop-code-input" class="coop-code-input" maxlength="6" inputmode="latin" autocomplete="off" spellcheck="false" placeholder="ABCDE">
+                  <button class="neon-btn primary" id="btn-coop-join" type="button">JOIN ROOM</button>
+                </div>
+              </div>
+              <button class="neon-btn" id="btn-coop-start" type="button" hidden>START CO-OP RUN</button>
+              <div class="coop-note" id="coop-note">SYNC: PENDING // TRANSPORT: OFFLINE</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <div class="micro">SHARED SEED · HOST-AUTHORITATIVE WORLD · P2P WITH RELAY FALLBACK · NO CO-OP SAVES</div>
+            <button class="neon-btn primary" id="btn-coop-back" type="button">BACK</button>
+          </div>
         </div>
       </section>
 
@@ -295,6 +341,7 @@
   </div>
 
   <script src="js/util.js"></script>
+  <script src="js/net.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/assets.js"></script>
   <script src="js/content.js"></script>
@@ -310,6 +357,7 @@
   <script src="js/world-render.js"></script>
   <script src="js/sim.js"></script>
   <script src="js/enemies.js"></script>
+  <script src="js/coop.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
