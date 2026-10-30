@@ -95,7 +95,7 @@ A.unlock=function(){
   const ok=ensure();
   if(!ok) return false;
   unlocked=true;
-  if(ctx.state==='suspended') ctx.resume();
+  A.resume();
   if(!started){started=true; nextNote=ctx.currentTime+.12; step=0; bar=0; startScheduler();}
   A.startMusic();
   return true;
@@ -304,8 +304,21 @@ A.checkpoint=function(){
   try{osc('sine',660,t,.08,.06); osc('sine',990,t+.07,.12,.04);}catch(e){}
 };
 A.noiseBurst=function(dur=.1,vol=.1,freq=1000){if(unlocked&&!settings.audio.muted)try{noise(sfxTime(),dur,vol,freq,'bandpass',sfxBus);}catch(e){}};
-A.suspend=function(){ if(ctx && ctx.state==='running'){try{ctx.suspend();}catch(e){}} };
-A.resume=function(){ if(ctx && ctx.state==='suspended'){try{ctx.resume();}catch(e){}} };
+// Navigation can reject pending state changes asynchronously; audio stays optional.
+A.suspend=function(){
+  if(ctx && ctx.state==='running'){
+    try{
+      ctx.suspend().catch(()=>{});
+    }catch(e){}
+  }
+};
+A.resume=function(){
+  if(ctx && ctx.state==='suspended'){
+    try{
+      ctx.resume().catch(()=>{});
+    }catch(e){}
+  }
+};
 A.now=now;
 N.audio=A;
 })();
