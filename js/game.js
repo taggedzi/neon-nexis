@@ -530,6 +530,9 @@ G.restoreCheckpoint=function(){
 function finiteField(value){
   return value==null || Number.isFinite(Number(value));
 }
+function sectorNumber(value,min){
+  return Number.isInteger(value)&&value>=min&&value<=Number.MAX_SAFE_INTEGER;
+}
 function listField(value){
   return value==null || Array.isArray(value);
 }
@@ -538,7 +541,12 @@ G.canLoadSave=function(save){
   if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
   const run=save.run, player=save.player;
   if(!(run.mapVersion==null || run.mapVersion===0 || run.mapVersion===1)) return false;
-  if(!finiteField(run.seed)||!finiteField(run.level)||!finiteField(run.sectors)||!finiteField(run.kills)||!finiteField(run.totalTime)||!finiteField(run.damage)) return false;
+  if(!finiteField(run.seed)||!finiteField(run.kills)||!finiteField(run.totalTime)||!finiteField(run.damage)) return false;
+  // Sector identity is the current level and the completed-sector count. A null,
+  // fractional, or negative value passes a finite check, then level generation
+  // throws after the live run has already been replaced.
+  if('level' in run && !sectorNumber(run.level,1)) return false;
+  if('sectors' in run && !sectorNumber(run.sectors,0)) return false;
   if(!listField(player.weapons)||!listField(player.passives)||!listField(player.core)) return false;
   for(const key of ['x','y','hp','shield','level','xp','xpNext','heading','aim','activeWeapon','weaponSlots','passiveSlots','dashCharges','dashTimer']){
     if(!finiteField(player[key])) return false;

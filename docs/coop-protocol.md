@@ -117,10 +117,11 @@ pause state when it reattaches.
 - The host is the only client that decides which player claims a ground item.
   It chooses the nearest living player within that player's pickup radius.
   Host-owned items use the normal local path. A guest claim keeps the item on
-  the host floor, with a stable `grantId`, until the guest sends `grant_ack`
-  with `ok: true`. A rejected or interrupted grant leaves the item in place
-  for another attempt. The guest ignores a repeated `grantId` after accepting
-  it, and answers again so a lost acknowledgement can finish the transfer.
+  the host floor, with a stable `grantId`, until the guest sends `grant_ack`.
+  `ok: true` removes it. `ok: false` releases it for another attempt. A missed
+  acknowledgement does not release it; the host sends the same `grantId` again.
+  The guest ignores a repeated `grantId` after accepting it, and answers again
+  so the host can finish the transfer.
 - Anchors, caches, and enemies belong to the host world. Damage from guest
   bullets is applied by the host using the guest's mirrored loadout. Kill XP and
   reward pacing are sent to the guest; loot is dropped by the host.

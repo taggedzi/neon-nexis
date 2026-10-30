@@ -653,11 +653,13 @@ G.updateGroundItems=function(dt){
     if(it.collected){G.groundItems.splice(i,1);continue;}
     it.phase=(it.phase||0)+dt*2;it.angle=(it.angle||0)+dt*.7;
     if(it.pickupDelay>0){it.pickupDelay-=dt;continue;}
-    // A guest grant stays on the floor until that peer accepts it.
+    // A guest grant stays reserved until that peer accepts or rejects it.
+    // A missed acknowledgement retries the same id instead of releasing the item.
     if(it.grantPending){
       it.grantWait=(it.grantWait||0)-dt;
       if(it.grantWait>0) continue;
-      it.grantPending=false;
+      it.grantWait=N.Coop.grantToGuest(it)?1:0.4;
+      continue;
     }else if((it.grantHold||0)>0){
       it.grantHold-=dt;
       if(it.grantHold>0) continue;

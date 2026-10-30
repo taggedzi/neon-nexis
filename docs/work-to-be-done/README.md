@@ -79,9 +79,13 @@ menu-action validation are still pending; see [issue 011](011-controller-parity.
 ## Production readiness — GitHub #6 through #12
 
 Status: Done. Code is on `fix/production-readiness`. The owner reported testing
-complete on 2026-10-30. GitHub #13 is only a private-security contact request
-and is not part of this fix. Two private findings were fixed on the same branch;
-their notes stay local and are not in the commit history.
+complete on 2026-10-30. A later review added two fixes: invalid sector numbers
+are rejected before a load changes the live run, and an unanswered guest grant
+stays reserved until its acknowledgement. `node tools/check-saves.cjs` and
+`node tools/check-grants.cjs` cover those cases. The owner has not repeated a
+playtest of them. GitHub #13 is only a private-security contact request and is
+not part of this fix. Two private findings were fixed on the same branch; their
+notes stay local and are not in the commit history.
 
 | GitHub | Commit | Automated evidence on 2026-10-30 |
 | --- | --- | --- |
