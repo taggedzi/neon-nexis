@@ -265,7 +265,35 @@ function closeSettings(){
   }else UI.showMenu();
 }
 function getPath(obj,path){return path.split('.').reduce((o,k)=>o&&o[k],obj);}
-function setPath(obj,path,val){const parts=path.split('.');let o=obj;for(let i=0;i<parts.length-1;i++)o=o[parts[i]];o[parts[parts.length-1]]=val;}
+const SETTING_PATHS = new Set([
+  'deadzone', 'rightStickFire',
+  'audio.master', 'audio.music', 'audio.sfx', 'audio.muted',
+  'graphics.particles', 'graphics.shake', 'graphics.scanlines',
+  'graphics.glitch', 'graphics.showFps', 'accessibility.reducedFlash'
+]);
+function setPath(obj, path, val) {
+  if (typeof path !== 'string') {
+    return false;
+  }
+  const parts = path.split('.');
+  if (parts.some(key => key === '__proto__' || key === 'constructor' || key === 'prototype') ||
+      !SETTING_PATHS.has(path)) {
+    return false;
+  }
+  let target = obj;
+  for (let i = 0; i < parts.length; i++) {
+    const key = parts[i];
+    if (target === null || typeof target !== 'object' || !Object.hasOwn(target, key)) {
+      return false;
+    }
+    if (i === parts.length - 1) {
+      target[key] = val;
+      return true;
+    }
+    target = target[key];
+  }
+  return false;
+}
 function toggleHTML(path,label){
   const v=!!getPath(G.settings,path);
   return `<div class="setting-row"><div class="setting-label"><b>${esc(label)}</b><small>TOGGLE VISUAL FEEDBACK</small></div>
@@ -286,7 +314,9 @@ function bindRows(root){
     const update=()=>{
       const scale=parseFloat(el.dataset.scale)||1;
       let val=parseFloat(el.value)*scale;
-      setPath(G.settings,el.dataset.setting,val);
+      if (!setPath(G.settings, el.dataset.setting, val)) {
+        return;
+      }
       const valEl=el.parentElement.querySelector('.range-val');
       if(valEl)valEl.textContent=(el.dataset.fmt==='pct'?el.value+'%':el.value);
       const pct=((parseFloat(el.value)-parseFloat(el.min))/(parseFloat(el.max)-parseFloat(el.min)))*100;
@@ -299,7 +329,9 @@ function bindRows(root){
     btn.addEventListener('click',()=>{
       const path=btn.dataset.toggle;
       const next=!getPath(G.settings,path);
-      setPath(G.settings,path,next);
+      if (!setPath(G.settings, path, next)) {
+        return;
+      }
       btn.classList.toggle('on',next);btn.setAttribute('aria-pressed',next?'true':'false');btn.textContent=next?'ON':'OFF';
       G.applySettings(true);
     });
