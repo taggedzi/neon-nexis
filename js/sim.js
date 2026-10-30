@@ -653,6 +653,17 @@ G.updateGroundItems=function(dt){
     if(it.collected){G.groundItems.splice(i,1);continue;}
     it.phase=(it.phase||0)+dt*2;it.angle=(it.angle||0)+dt*.7;
     if(it.pickupDelay>0){it.pickupDelay-=dt;continue;}
+    // A guest grant stays reserved until that peer accepts or rejects it.
+    // A missed acknowledgement retries the same id instead of releasing the item.
+    if(it.grantPending){
+      it.grantWait=(it.grantWait||0)-dt;
+      if(it.grantWait>0) continue;
+      it.grantWait=N.Coop.grantToGuest(it)?1:0.4;
+      continue;
+    }else if((it.grantHold||0)>0){
+      it.grantHold-=dt;
+      if(it.grantHold>0) continue;
+    }
     let collector=p,collectorRadius=radius;
     let d=N.dist(it.x,it.y,p.x,p.y);
     if(coopHost){
@@ -675,10 +686,11 @@ G.updateGroundItems=function(dt){
         // Banked/consumed items leave the floor; a full reward tray retains gear.
         if(it.collected)G.groundItems.splice(i,1);
         if(G.mode!=='playing') return;
+      }else if(!N.Coop.grantToGuest(it)){
+        it.grantHold=0.4;
       }else{
-        it.collected=true;
-        N.Coop.grantToGuest(it);
-        G.groundItems.splice(i,1);
+        it.grantPending=true;
+        it.grantWait=1;
       }
     }
   }

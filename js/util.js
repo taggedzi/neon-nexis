@@ -225,12 +225,14 @@ N.padLabel = function(index){
 };
 N.deepClone = obj=>JSON.parse(JSON.stringify(obj));
 N.deepMerge = function(base, over){
+  const plain=value=>!!value && typeof value==='object' && !Array.isArray(value);
   const out=N.deepClone(base);
-  if(!over||typeof over!=='object') return out;
+  if(!plain(over)) return out;
   for(const k of Object.keys(over)){
-    if(over[k] && typeof over[k]==='object' && !Array.isArray(over[k]) && base[k] && typeof base[k]==='object'){
-      out[k]=N.deepMerge(base[k],over[k]);
-    }else if(over[k]!==undefined){ out[k]=over[k]; }
+    // A settings group stays at its defaults unless the saved value is an object.
+    if(plain(base[k])){
+      if(plain(over[k])) out[k]=N.deepMerge(base[k],over[k]);
+    }else if(over[k]!==undefined) out[k]=over[k];
   }
   return out;
 };

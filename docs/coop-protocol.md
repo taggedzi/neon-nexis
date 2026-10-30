@@ -35,6 +35,7 @@ The signaling URL defaults to `ws://<page-host>:8787`. Override it with the
 | server → client | `{t:"notfound"}` / `{t:"full"}` / `{t:"error"}` | Join failures. |
 | client → server | `{t:"pause_request"}` | Ask the room to pause (any menu or pause input). |
 | client → server | `{t:"ready_signal"}` | Mark this client ready to resume. |
+| client → server | `{t:"pause_sync"}` | Ask for the server's current pause state. |
 | server → both | `{t:"global_pause", by}` | Room is paused. `by` is the initiating `clientId` (or `null`). |
 | server → both | `{t:"ready_state", ready:[clientId]}` | Current ready set. |
 | server → both | `{t:"countdown_start", seconds}` | All players ready; countdown begins. |
@@ -70,7 +71,7 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `bullet` / `ebullet` | Projectile spawn parameters for cosmetic guest simulation | batched at 20 Hz |
 | `mine` / `strike` | Host-created hazard visuals | on creation |
 | `hit` | Damage source amount, position, contact flag | on hit |
-| `grant` | Loot item claimed by the guest | on pickup |
+| `grant` | `grantId` and loot item offered to the guest | on pickup, retried until acknowledged |
 | `xp` | XP earned by a guest kill | on kill |
 | `kill` | Shared kill count and reward pacing tick | on kill |
 | `level` | Next run seed/sector, or sector-complete state | on change |
@@ -84,6 +85,7 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `loadout` | Weapons, passives, protocols, derived stats | on change |
 | `fire` | Weapon index, aim angle, origin | per shot |
 | `hit-ack` | Reserved for future rewind checks | unused |
+| `grant_ack` | `grantId` and `ok` after the guest accepts or rejects a grant | on each `grant` |
 | `bye` | Leaving | once |
 
 ## Shared pause and ready flow
@@ -102,7 +104,9 @@ path, because only the server can decide when every participant is ready.
 4. The server broadcasts `ready_state` after each signal. When every connected
    room member is ready, it broadcasts `countdown_start` with a 3-second timer.
 5. After the countdown the server broadcasts `global_resume`, and each client
-   resumes its simulation.
+   resumes its simulation. A client does not resume because its own timer
+   elapsed. If that resume is missing, the client sends `pause_sync` and
+   applies the server's current pause, countdown, or resume message.
 
 If a member's socket drops during the countdown, the server cancels the resume
 and broadcasts `global_pause` again. A reconnecting member receives the current
@@ -112,8 +116,12 @@ pause state when it reattaches.
 
 - The host is the only client that decides which player claims a ground item.
   It chooses the nearest living player within that player's pickup radius.
-  Host-owned items use the normal local path; guest-owned items are removed from
-  the host world and sent with `grant`.
+  Host-owned items use the normal local path. A guest claim keeps the item on
+  the host floor, with a stable `grantId`, until the guest sends `grant_ack`.
+  `ok: true` removes it. `ok: false` releases it for another attempt. A missed
+  acknowledgement does not release it; the host sends the same `grantId` again.
+  The guest ignores a repeated `grantId` after accepting it, and answers again
+  so the host can finish the transfer.
 - Anchors, caches, and enemies belong to the host world. Damage from guest
   bullets is applied by the host using the guest's mirrored loadout. Kill XP and
   reward pacing are sent to the guest; loot is dropped by the host.
@@ -128,7 +136,11 @@ pause state when it reattaches.
 - A missing join code, full room, or signaling error is reported in the co-op
   screen and never starts a run.
 - If the WebSocket drops, the client retries the signaling server and rejoins the
-  same room with the same client ID. The server keeps the room for a grace period.
+  same room with the same client ID. The server keeps a disconnected peer for a
+  bounded grace period, then removes that peer. A room with both participant
+  sockets open stays up through peer-to-peer play and shared pause; it is not
+  expired just because gameplay is not being relayed. A room that is not a live
+  pair still expires after five minutes without signaling activity.
 - If the data channel drops, gameplay continues over the server relay. The
   transport status indicator reports `RELAY` instead of `P2P`.
 - When a peer leaves, the remaining player is returned to the co-op screen with

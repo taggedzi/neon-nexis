@@ -630,6 +630,26 @@ function renderSettings(){
 }
 UI.switchSettingsTab=function(tab){settingsTab=tab;renderSettings();};
 
+function finiteStat(value,fallback,min,max){
+  const number=Number(value);
+  if(!Number.isFinite(number)) return fallback;
+  return Math.min(max,Math.max(min,number));
+}
+function fillStatGrid(el,cells,accentFirst){
+  if(!el) return;
+  el.replaceChildren();
+  cells.forEach(([label,value],index)=>{
+    const row=document.createElement('div');
+    if(accentFirst&&index===0) row.className='accent';
+    const name=document.createElement('b');
+    name.textContent=String(label);
+    const amount=document.createElement('span');
+    amount.textContent=String(value);
+    row.append(name,amount);
+    el.append(row);
+  });
+}
+
 // ——— pause / inventory / overflow ———
 UI.showPause=function(data){
   if(!data)return;
@@ -642,7 +662,7 @@ UI.showPause=function(data){
     ['PILOT LEVEL',data.level],
     ['ANCHORS',data.anchorsLeft+' / '+data.anchorsTotal]
   ];
-  $('pause-stats').innerHTML=cells.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('pause-stats'),cells,false);
   $('btn-save-quit').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & QUIT';
   if(N.Coop&&N.Coop.isActive()){
     UI.showCoopPause({owner:N.Coop.pauseOwner,ready:N.Coop.readyPeers,selfReady:N.Coop._readySent});
@@ -711,6 +731,10 @@ UI.showCoopCountdown=function(seconds){
   if(micro)micro.textContent='ALL PLAYERS READY // RESUMING IN '+seconds;
   UI.updateCoopCountdown(seconds);
   showScreen('pause');
+};
+UI.showCoopSyncWait=function(){
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='WAITING FOR SIGNAL CONFIRMATION';
 };
 UI.updateCoopCountdown=function(seconds){
   const countdownEl=$('pause-coop-countdown');
@@ -868,23 +892,28 @@ UI.showLevelUp=function(player,choices,milestone){
   showScreen('levelup');
 };
 UI.showComplete=function(summary){
-  if(!summary)return;
-  $('complete-title').textContent=summary.reason==='timer'?'SURVIVAL PROTOCOL COMPLETE':'SECTOR CLEARED';
-  $('complete-badge').textContent=summary.reason==='timer'?'SURVIVE':'CLEAR';
+  if(!summary||typeof summary!=='object')return;
+  const timed=summary.reason==='timer';
+  const sector=Math.floor(finiteStat(summary.sector,1,0,9999));
+  const nextLevel=Math.floor(finiteStat(summary.nextLevel,1,1,9999));
+  const anchors=Math.floor(finiteStat(summary.anchors,0,0,999));
+  const anchorsTotal=Math.floor(finiteStat(summary.anchorsTotal,0,0,999));
+  $('complete-title').textContent=timed?'SURVIVAL PROTOCOL COMPLETE':'SECTOR CLEARED';
+  $('complete-badge').textContent=timed?'SURVIVE':'CLEAR';
   const cells=[
-    ['SECTOR',String(summary.sector).padStart(2,'0')],
-    ['TIME',N.formatTime(summary.time)],
-    ['KILLS',summary.kills],
-    ['DAMAGE',N.formatNum(summary.damage)],
-    ['PILOT LV',summary.level],
-    ['ANCHORS LEFT',summary.anchors+' / '+summary.anchorsTotal]
+    ['SECTOR',String(sector).padStart(2,'0')],
+    ['TIME',N.formatTime(finiteStat(summary.time,0,0,1e7))],
+    ['KILLS',Math.floor(finiteStat(summary.kills,0,0,1e7))],
+    ['DAMAGE',N.formatNum(finiteStat(summary.damage,0,0,1e12))],
+    ['PILOT LV',Math.floor(finiteStat(summary.level,1,1,9999))],
+    ['ANCHORS LEFT',anchors+' / '+anchorsTotal]
   ];
-  $('complete-stats').innerHTML=cells.map(([a,b],i)=>`<div class="${i===0?'accent':''}"><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('complete-stats'),cells,true);
   const guest=N.Coop&&N.Coop.isGuest();
   const advance=$('btn-advance');
   advance.hidden=guest;
   advance.disabled=guest;
-  advance.textContent=guest?'WAITING FOR PLAYER 1':'DESCEND TO SECTOR '+String(summary.nextLevel).padStart(2,'0');
+  advance.textContent=guest?'WAITING FOR PLAYER 1':'DESCEND TO SECTOR '+String(nextLevel).padStart(2,'0');
   $('btn-complete-menu').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & RETURN TO MENU';
   showScreen('complete');
 };
@@ -900,7 +929,7 @@ UI.showGameOver=function(data){
     ['SECTOR TIME',N.formatTime(data.sectorTime)],
     ['DAMAGE DEALT',N.formatNum(data.damage)]
   ];
-  $('gameover-stats').innerHTML=cells.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('gameover-stats'),cells,false);
   const coop=N.Coop&&N.Coop.isActive();
   $('btn-restore').disabled=coop?true:!data.hasCheckpoint;
   $('btn-gameover-menu').textContent=coop?'LEAVE CO-OP':'RETURN TO MAIN MENU';

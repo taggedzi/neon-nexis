@@ -75,3 +75,28 @@ controller testing is not claimed; recorded controller checks use synthetic inpu
 Status: Implemented — needs validation. The owner approved the delivered changes
 on 2026-10-29 (“I like the changes”). Physical-controller usability and remaining
 menu-action validation are still pending; see [issue 011](011-controller-parity.md).
+
+## Production readiness — GitHub #6 through #12
+
+Status: Done. Code is on `fix/production-readiness`. The owner reported testing
+complete on 2026-10-30. A later review added two fixes: invalid sector numbers
+are rejected before a load changes the live run, and an unanswered guest grant
+stays reserved until its acknowledgement. `node tools/check-saves.cjs` and
+`node tools/check-grants.cjs` cover those cases. The owner has not repeated a
+playtest of them. GitHub #13 is only a private-security contact request and is
+not part of this fix. Two private findings were fixed on the same branch; their
+notes stay local and are not in the commit history.
+
+| GitHub | Commit | Automated evidence on 2026-10-30 |
+| --- | --- | --- |
+| [#6](https://github.com/taggedzi/neon-nexis/issues/6) | `275a261` | Signaling checks keep a live pair, including a paused pair, through an accelerated sweep. A local two-socket wait of 335 seconds also kept the room, both sockets, and pause. |
+| [#7](https://github.com/taggedzi/neon-nexis/issues/7) | `3b7c435` | Chromium 156.0.8078.4 and Firefox 157.0 retried pause and ready after a dropped signaling socket. The pause menu stayed up. |
+| [#8](https://github.com/taggedzi/neon-nexis/issues/8) | `ddd7b7e` | The same browsers stayed paused when resume was withheld, then resumed only after the server answered. |
+| [#9](https://github.com/taggedzi/neon-nexis/issues/9) | `3992bfb` | The same browsers kept a guest pickup through a failed send and a full reward tray, then delivered it once. |
+| [#10](https://github.com/taggedzi/neon-nexis/issues/10) | `456a477` | Node save checks and both browsers routed invalid version 1 checkpoints to recovery and continued a legacy version 1 checkpoint. |
+| [#11](https://github.com/taggedzi/neon-nexis/issues/11) | `3821370` | Node settings checks and both browsers booted with malformed groups and kept stored settings bytes. |
+| [#12](https://github.com/taggedzi/neon-nexis/issues/12) | `a9779b8` | `ws` 8.22.0 is locked. `npm audit` reported 0 vulnerabilities. Clean install is recorded with the final check. |
+
+Environment: Windows, Node v24.14.1, Playwright Chromium 156.0.8078.4, Playwright Firefox 157.0. `npm ci --ignore-scripts` installed 82 packages. `npm audit` reported 0 vulnerabilities. `npm run check` then passed syntax, lint, unit checks, and 68 browser tests. An earlier run of the same command timed out once while Firefox was joining a room; that test passed on an immediate rerun and in the clean suite. Google Chrome was not run separately from Chromium.
+
+GitHub Actions run 41094372550 on pull request #14 failed the same Firefox room join three times. The host already had a code, and `Net.peer` stayed false for 30 seconds. The smoke setup now opens the guest after that code exists, brings forward a page whose peer message has not been applied, and closes contexts left open by a failed setup. An inbound signaling message also marks the socket alive so a missed ping does not drop it on the next sweep. After that change, `node tools/check-coop-server.cjs` passed 69 assertions, and Playwright Firefox 157.0 passed `tools/ci/coop-smoke.spec.cjs` twice (10 tests each time). The full `npm run check` was not rerun for this follow-up. GitHub Actions run 41098022986 then passed on `e378d88`.

@@ -84,8 +84,10 @@ Implemented on `feat/coop-multiplayer` after the initial integration:
 - **Signaling grace window.** The server no longer sends `peer-left` the instant a
   socket closes. A dropped socket schedules the notice after
   `peerOfflineGraceMs` (default 10s, configurable per server instance); a quick
-  reconnect clears the timer. Rooms still expire on the existing 60s peer grace
-  and 5-minute TTL.
+  reconnect clears the timer. A disconnected peer is still removed after the 60s
+  grace, and a room that is not a live pair still expires after the 5-minute TTL.
+  Two open participant sockets are not idle-expired during peer-to-peer play or
+  a shared pause.
 - **Host reconnect keeps the room code.** The server includes the code and current
   peer presence in `hosted`, and the client stores the code in its connection
   intent so a retry rejoins the same room instead of allocating a new one. A
@@ -166,7 +168,7 @@ Node 24 `bin` directory first before `npm run test:browser`.
 
 - The signaling server creates rooms, hands out 5-character codes, relays
   signaling and gameplay fallback messages, rate-limits each socket, and expires
-  idle rooms. It never simulates or stores game state.
+  rooms that are not a live pair. It never simulates or stores game state.
 - Reconnection reuses the same client ID so the server can keep the room during
   its grace period. The host's room survives a brief guest drop; the guest
   re-offers when the peer is re-announced.
