@@ -78,11 +78,10 @@ menu-action validation are still pending; see [issue 011](011-controller-parity.
 
 ## Production readiness — GitHub #6 through #12
 
-Status: Implemented — needs validation. Code is on `fix/production-readiness`.
-Owner playtesting, a real multi-machine network, and physical controllers were
-not run. GitHub #13 is only a private-security contact request and is not part
-of this fix. Two private findings were fixed on the same branch; their notes
-stay local and are not in the commit history.
+Status: Done. Code is on `fix/production-readiness`. The owner reported testing
+complete on 2026-10-30. GitHub #13 is only a private-security contact request
+and is not part of this fix. Two private findings were fixed on the same branch;
+their notes stay local and are not in the commit history.
 
 | GitHub | Commit | Automated evidence on 2026-10-30 |
 | --- | --- | --- |
@@ -96,4 +95,4 @@ stay local and are not in the commit history.
 
 Environment: Windows, Node v24.14.1, Playwright Chromium 156.0.8078.4, Playwright Firefox 157.0. `npm ci --ignore-scripts` installed 82 packages. `npm audit` reported 0 vulnerabilities. `npm run check` then passed syntax, lint, unit checks, and 68 browser tests. An earlier run of the same command timed out once while Firefox was joining a room; that test passed on an immediate rerun and in the clean suite. Google Chrome was not run separately from Chromium.
 
-GitHub Actions run 41094372550 on pull request #14 failed the same Firefox room join three times. The host already had a code, and `Net.peer` stayed false for 30 seconds. The smoke setup now opens the guest after that code exists, brings forward a page whose peer message has not been applied, and closes contexts left open by a failed setup. An inbound signaling message also marks the socket alive so a missed ping does not drop it on the next sweep. After that change, `node tools/check-coop-server.cjs` passed 69 assertions, and Playwright Firefox 157.0 passed `tools/ci/coop-smoke.spec.cjs` twice (10 tests each time). The full `npm run check` was not rerun for this follow-up.
+GitHub Actions run 41094372550 on pull request #14 failed the same Firefox room join three times. The host already had a code, and `Net.peer` stayed false for 30 seconds. The smoke setup now opens the guest after that code exists, brings forward a page whose peer message has not been applied, and closes contexts left open by a failed setup. An inbound signaling message also marks the socket alive so a missed ping does not drop it on the next sweep. After that change, `node tools/check-coop-server.cjs` passed 69 assertions, and Playwright Firefox 157.0 passed `tools/ci/coop-smoke.spec.cjs` twice (10 tests each time). The full `npm run check` was not rerun for this follow-up. GitHub Actions run 41098022986 then passed on `e378d88`.
