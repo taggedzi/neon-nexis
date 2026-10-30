@@ -48,6 +48,8 @@
   Coop._countdownTimer = null;
   Coop._countdownFallback = null;
   Coop._readySent = false;
+  Coop._pendingPause = false;
+  Coop._pendingReady = false;
 
   function clock() {
     return performance.now();
@@ -167,6 +169,9 @@
     N.Net.onMessage = Coop.onMessage;
     N.Net.onPeer = Coop.onPeer;
     N.Net.onError = Coop.onError;
+    N.Net.onSocketOpen = function () {
+      Coop.flushPendingControl();
+    };
   };
 
   Coop.onStatus = function (status) {
@@ -1120,31 +1125,52 @@
     Coop.readyPeers = [];
     Coop.countdownRemaining = 0;
     Coop._readySent = false;
+    Coop._pendingPause = false;
+    Coop._pendingReady = false;
     clearInterval(Coop._countdownTimer);
     clearTimeout(Coop._countdownFallback);
     Coop._countdownTimer = null;
     Coop._countdownFallback = null;
   };
 
+  Coop.flushPendingControl = function () {
+    if (!Coop.active) return false;
+    if (Coop._pendingPause) {
+      if (!N.Net.sendControl({ t: 'pause_request' })) return false;
+      Coop._pendingPause = false;
+    }
+    if (Coop._pendingReady) {
+      if (!N.Net.sendControl({ t: 'ready_signal' })) return false;
+      Coop._pendingReady = false;
+      Coop._readySent = true;
+      if (N.UI && N.UI.updateCoopPause) {
+        N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: true });
+      }
+    }
+    return true;
+  };
+
   Coop.requestGlobalPause = function () {
     if (!Coop.active || Coop._applyingRemote) return false;
-    if (Coop.pauseState !== 'PLAY') return false;
-    Coop.pauseState = 'PAUSED';
-    Coop.pauseOwner = N.Net.clientId || null;
-    Coop.readyPeers = [];
-    Coop._readySent = false;
-    N.Net.sendControl({ t: 'pause_request' });
+    if (Coop.pauseState !== 'PLAY' && !Coop._pendingPause) return false;
+    if (Coop.pauseState === 'PLAY') {
+      Coop.pauseState = 'PAUSED';
+      Coop.pauseOwner = N.Net.clientId || null;
+      Coop.readyPeers = [];
+      Coop._readySent = false;
+    }
+    Coop._pendingPause = true;
+    Coop.flushPendingControl();
     return true;
   };
 
   Coop.sendReady = function () {
     if (!Coop.active) return false;
     if (Coop.pauseState !== 'PAUSED') return false;
-    if (Coop._readySent) return false;
-    Coop._readySent = true;
-    N.Net.sendControl({ t: 'ready_signal' });
-    if (N.UI && N.UI.updateCoopPause) N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: true });
-    return true;
+    if (Coop._readySent && !Coop._pendingReady) return false;
+    Coop._pendingReady = true;
+    Coop._readySent = false;
+    return Coop.flushPendingControl();
   };
 
   Coop.applyGlobalPause = function (by) {

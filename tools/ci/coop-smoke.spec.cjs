@@ -372,3 +372,100 @@ test('peer completion summary is shown as text', async ({ browser }) => {
     await closeAll(ctx);
   }
 });
+
+test('pause and ready are retried after a signaling outage', async ({ browser }) => {
+  test.setTimeout(120000);
+  const hostContext = await browser.newContext();
+  const host = await hostContext.newPage();
+  const guestContext = await browser.newContext();
+  await guestContext.addInitScript(() => {
+    const Original = window.WebSocket;
+    window.__coopSockets = [];
+    const Wrapped = function (...args) {
+      const socket = new Original(...args);
+      window.__coopSockets.push(socket);
+      return socket;
+    };
+    Wrapped.prototype = Original.prototype;
+    for (const key of Object.getOwnPropertyNames(Original)) {
+      if (key === 'prototype' || key === 'length' || key === 'name') continue;
+      try { Wrapped[key] = Original[key]; } catch (error) { /* ignore */ }
+    }
+    window.WebSocket = Wrapped;
+  });
+  const guest = await guestContext.newPage();
+  const errors = [];
+  for (const [label, page] of [['host', host], ['guest', guest]]) {
+    page.on('pageerror', error => errors.push(label + ' pageerror: ' + error.message));
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(label + ' console: ' + message.text());
+    });
+  }
+  try {
+    await host.goto('/');
+    await host.locator('#btn-boot').click();
+    await host.locator('#btn-coop').click();
+    await host.locator('#btn-coop-host').click();
+    await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
+    const code = await host.evaluate(() => window.NEON.Net.code);
+    await guest.goto('/');
+    await guest.locator('#btn-boot').click();
+    await guest.locator('#btn-coop').click();
+    await guest.locator('#coop-code-input').fill(code);
+    await guest.locator('#btn-coop-join').click();
+    await expect.poll(() => host.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
+    await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
+    await host.locator('#btn-coop-start').click();
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
+
+    await guest.evaluate(() => {
+      const net = window.NEON.Net;
+      net.__sendControl = net.sendControl.bind(net);
+      net.sendControl = () => false;
+    });
+    await guest.evaluate(() => window.NEON.Game.pauseGame());
+    expect(await guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+    expect(await guest.evaluate(() => window.NEON.Coop._pendingPause)).toBe(true);
+    expect(await guest.evaluate(() => window.NEON.Game.mode)).toBe('paused');
+    await expect(guest.locator('#screen-pause')).toHaveClass(/active/);
+    expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+
+    const closed = await guest.evaluate(() => {
+      const net = window.NEON.Net;
+      net.sendControl = net.__sendControl;
+      const socket = (window.__coopSockets || []).filter((item) => item.readyState === 1).pop();
+      if (!socket) return false;
+      socket.close();
+      return true;
+    });
+    expect(closed).toBe(true);
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: 10000 }).toBe('paused');
+    await expect.poll(() => guest.evaluate(() => window.NEON.Coop._pendingPause), { timeout: 10000 }).toBe(false);
+    await expect(guest.locator('#screen-pause')).toHaveClass(/active/);
+
+    const failedReady = await guest.evaluate(() => {
+      const net = window.NEON.Net;
+      const original = net.sendControl.bind(net);
+      net.sendControl = () => false;
+      const accepted = window.NEON.Coop.sendReady();
+      const pending = window.NEON.Coop._pendingReady;
+      const marked = window.NEON.Coop._readySent;
+      net.sendControl = original;
+      const retried = window.NEON.Coop.sendReady();
+      return { accepted, pending, marked, retried, ready: window.NEON.Coop._readySent };
+    });
+    expect(failedReady.accepted).toBe(false);
+    expect(failedReady.pending).toBe(true);
+    expect(failedReady.marked).toBe(false);
+    expect(failedReady.retried).toBe(true);
+    expect(failedReady.ready).toBe(true);
+
+    await host.locator('#btn-resume').click();
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: 12000 }).toBe('playing');
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 12000 }).toBe('playing');
+    expect(errors).toEqual([]);
+  } finally {
+    await guestContext.close();
+    await hostContext.close();
+  }
+});

@@ -26,6 +26,7 @@
   Net.onMessage = null;
   Net.onPeer = null;
   Net.onError = null;
+  Net.onSocketOpen = null;
 
   const clientId = makeClientId();
   let socket = null;
@@ -153,6 +154,7 @@
           profile: intent.profile
         }));
       }
+      if (typeof Net.onSocketOpen === 'function') Net.onSocketOpen();
     };
     next.onmessage = function (event) {
       let message;
