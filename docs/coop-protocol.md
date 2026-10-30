@@ -128,7 +128,11 @@ pause state when it reattaches.
 - A missing join code, full room, or signaling error is reported in the co-op
   screen and never starts a run.
 - If the WebSocket drops, the client retries the signaling server and rejoins the
-  same room with the same client ID. The server keeps the room for a grace period.
+  same room with the same client ID. The server keeps a disconnected peer for a
+  bounded grace period, then removes that peer. A room with both participant
+  sockets open stays up through peer-to-peer play and shared pause; it is not
+  expired just because gameplay is not being relayed. A room that is not a live
+  pair still expires after five minutes without signaling activity.
 - If the data channel drops, gameplay continues over the server relay. The
   transport status indicator reports `RELAY` instead of `P2P`.
 - When a peer leaves, the remaining player is returned to the co-op screen with

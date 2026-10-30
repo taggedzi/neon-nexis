@@ -411,7 +411,12 @@ function createCoopServer(options = {}) {
         room.guest = null;
         touch(room);
       }
-      if (now - room.updatedAt > ROOM_TTL_MS) {
+      /* Two open sockets are a live session. P2P gameplay and shared pause do
+       * not relay through this server, so inactivity must not delete them.
+       * Rooms that are not a live pair still expire, and the grace checks
+       * above still bound a disconnected peer. */
+      const pairLive = open(room.host) && open(room.guest);
+      if (!pairLive && now - room.updatedAt > ROOM_TTL_MS) {
         rooms.delete(code);
         clearCountdown(room);
         for (const member of [room.host, room.guest]) {
