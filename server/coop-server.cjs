@@ -76,6 +76,15 @@ function createCoopServer(options = {}) {
     room.updatedAt = Date.now();
   }
 
+  /* Control messages are untrusted. Only the socket that currently occupies a
+   * seat may mutate that room, and a room removed from the map is off limits. */
+  function memberRoom(client) {
+    const room = client && client.room;
+    if (!room || !rooms.has(room.code)) return null;
+    if (room.host !== client && room.guest !== client) return null;
+    return room;
+  }
+
   function open(client) {
     return !!(client && client.socket && client.socket.readyState === WebSocket.OPEN);
   }
@@ -157,6 +166,7 @@ function createCoopServer(options = {}) {
   }
 
   function handleReady(room, client) {
+    if (!room || memberRoom(client) !== room) return;
     ensureRoomState(room);
     if (room.pauseState !== 'PAUSED') return;
     if (!client.clientId) return;
@@ -169,7 +179,7 @@ function createCoopServer(options = {}) {
       clearCountdown(room);
       room.countdownTimer = setTimeout(function () {
         room.countdownTimer = null;
-        if (room.pauseState !== 'COUNTDOWN') return;
+        if (!rooms.has(room.code) || room.pauseState !== 'COUNTDOWN') return;
         const activeMembers = roomMembers(room).filter(function (member) { return open(member); });
         if (activeMembers.length < roomMembers(room).length) {
           room.pauseState = 'PAUSED';
@@ -187,7 +197,7 @@ function createCoopServer(options = {}) {
   }
 
   function handlePauseRequest(room, client) {
-    if (!room) return;
+    if (!room || memberRoom(client) !== room) return;
     ensureRoomState(room);
     if (room.pauseState === 'PLAY') {
       startGlobalPause(room, client);
@@ -266,15 +276,22 @@ function createCoopServer(options = {}) {
   }
 
   function forward(client, message) {
+    const room = memberRoom(client);
     const peer = peerOf(client);
-    if (!open(peer) || message.data == null) return;
-    touch(client.room);
+    if (!room || !open(peer) || message.data == null) return;
+    touch(room);
     send(peer, { t: message.t, from: client.clientId, data: message.data });
   }
 
   function leave(client, explicit) {
-    const room = client.room;
-    if (!room) return;
+    const room = memberRoom(client);
+    if (!room) {
+      if (client) {
+        client.room = null;
+        client.role = null;
+      }
+      return;
+    }
     clearOfflineTimer(client);
     clearCountdown(room);
     room.pauseState = 'PLAY';
@@ -296,14 +313,22 @@ function createCoopServer(options = {}) {
     client.role = null;
   }
 
+  let lastFaultLogAt = 0;
+  function noteHandlerFault() {
+    const now = Date.now();
+    if (now - lastFaultLogAt < 1000) return;
+    lastFaultLogAt = now;
+    console.error('Co-op signaling ignored an invalid control message');
+  }
+
   function handle(client, message) {
     switch (message.t) {
       case 'host': hostRoom(client, message); break;
       case 'join': joinRoom(client, message); break;
       case 'signal':
       case 'relay': forward(client, message); break;
-      case 'pause_request': handlePauseRequest(client.room, client); break;
-      case 'ready_signal': handleReady(client.room, client); break;
+      case 'pause_request': handlePauseRequest(memberRoom(client), client); break;
+      case 'ready_signal': handleReady(memberRoom(client), client); break;
       case 'leave': leave(client, true); break;
       case 'ping': send(client, { t: 'pong' }); break;
       default: break;
@@ -348,14 +373,18 @@ function createCoopServer(options = {}) {
       } catch {
         return;
       }
-      if (message && typeof message === 'object') handle(client, message);
+      if (!message || typeof message !== 'object' || Array.isArray(message)) return;
+      try {
+        handle(client, message);
+      } catch {
+        noteHandlerFault();
+      }
     });
     socket.on('close', () => onClose(client));
     socket.on('error', () => {});
   });
 
-  const sweeper = setInterval(() => {
-    const now = Date.now();
+  function sweep(now = Date.now()) {
     for (const [code, room] of rooms) {
       const hostDown = !open(room.host);
       const guestDown = !room.guest || !open(room.guest);
@@ -403,7 +432,9 @@ function createCoopServer(options = {}) {
       socket.isAlive = false;
       socket.ping();
     }
-  }, SWEEP_INTERVAL_MS);
+  }
+
+  const sweeper = setInterval(() => sweep(), SWEEP_INTERVAL_MS);
   sweeper.unref();
 
   function listen(port = 8787, host = '0.0.0.0') {
@@ -423,7 +454,7 @@ function createCoopServer(options = {}) {
     if (ownsHttpServer && httpServer.listening) httpServer.close();
   }
 
-  return { httpServer, wss, rooms, listen, close };
+  return { httpServer, wss, rooms, listen, close, sweep };
 }
 
 if (require.main === module) {
