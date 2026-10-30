@@ -67,3 +67,34 @@ Later checklist topics remain deferred. See [decisions](../decisions.md).
   checks, physical controllers and real GPU performance remain unvalidated.
 - Export limitation: Browser download initiation is observable; final disk save
   or all download blocking/cancellation is not. Export errors preserve local data.
+
+### CI navigation-error follow-up — 2026-10-29
+
+- Owner reported [failed CI run 40983620225](https://github.com/taggedzi/neon-nexis/actions/runs/40983620225)
+  on main `d259a90`. Syntax, lint, Node checks and 37/38 browser tests passed;
+  Firefox's reload smoke test reported repeated `InvalidStateError: Navigated
+  away from page` errors. No trace artifact was uploaded by that workflow.
+- Branch: `fix/audio-navigation-rejections`, based on freshly fetched main.
+  Agent implementation choice: handle rejected audio state-change promises at
+  their source and route unlock through the guarded resume method. Existing
+  synchronous exception handling remains. Audio failure stays nonfatal, consistent
+  with the engine's existing policy; the smoke test still rejects all page and
+  console errors. No gameplay, save format or test-error filtering changes.
+- Changed files: `js/audio.js`, `tools/check-audio-lifecycle.cjs`, this issue.
+  The new Node regression runs automatically through the existing unit runner.
+  It covers unlock/resume/suspend promise rejection, synchronous exceptions,
+  successful calls and state guards. It failed on the original code with three
+  unhandled navigation-error rejections, then passed with the fix.
+- Three unmodified Firefox smoke runs passed before the fix; the hosted timing
+  failure was not reproduced locally. The regression demonstrates the uncovered
+  audio rejection path, but the hosted error has no captured stack to prove its
+  source. Local verification uses Linux, Node 24.22.2, headless Chromium
+  156.0.8078.4 and Playwright Firefox 157.0 at 1280x720.
+- Syntax, lint and all Node checks passed, including 384 generated map layouts.
+  All 38 browser tests passed, including both reload smoke tests. Checks ran
+  through the underlying Node entry points because this shared filesystem's
+  npm executable shims returned Permission denied. `git diff --check` passed.
+  Implementation commit is `3fb460d`. Owner requested a pull request on
+  2026-10-29. GitHub CI rerun remains pending on that pull request.
+  Issue status remains Implemented — needs validation; deployment criteria above
+  remain pending.
