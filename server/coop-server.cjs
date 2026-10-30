@@ -154,6 +154,7 @@ function createCoopServer(options = {}) {
       clearTimeout(room.countdownTimer);
       room.countdownTimer = null;
     }
+    room.countdownEndsAt = 0;
   }
 
   function startGlobalPause(room, initiator) {
@@ -177,6 +178,7 @@ function createCoopServer(options = {}) {
       room.pauseState = 'COUNTDOWN';
       broadcastRoom(room, { t: 'countdown_start', seconds: 3 });
       clearCountdown(room);
+      room.countdownEndsAt = Date.now() + 3000;
       room.countdownTimer = setTimeout(function () {
         room.countdownTimer = null;
         if (!rooms.has(room.code) || room.pauseState !== 'COUNTDOWN') return;
@@ -202,6 +204,22 @@ function createCoopServer(options = {}) {
     if (room.pauseState === 'PLAY') {
       startGlobalPause(room, client);
     }
+  }
+
+  function handlePauseSync(room, client) {
+    if (!room || memberRoom(client) !== room) return;
+    ensureRoomState(room);
+    if (room.pauseState === 'PLAY') {
+      send(client, { t: 'global_resume' });
+      return;
+    }
+    if (room.pauseState === 'COUNTDOWN') {
+      const remainingMs = Math.max(0, (room.countdownEndsAt || 0) - Date.now());
+      const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+      send(client, { t: 'countdown_start', seconds: seconds });
+      return;
+    }
+    send(client, { t: 'global_pause', by: room.pauseOwner || null });
   }
 
   function hostRoom(client, message) {
@@ -328,6 +346,7 @@ function createCoopServer(options = {}) {
       case 'signal':
       case 'relay': forward(client, message); break;
       case 'pause_request': handlePauseRequest(memberRoom(client), client); break;
+      case 'pause_sync': handlePauseSync(memberRoom(client), client); break;
       case 'ready_signal': handleReady(memberRoom(client), client); break;
       case 'leave': leave(client, true); break;
       case 'ping': send(client, { t: 'pong' }); break;

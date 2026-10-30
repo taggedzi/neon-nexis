@@ -35,6 +35,7 @@ The signaling URL defaults to `ws://<page-host>:8787`. Override it with the
 | server → client | `{t:"notfound"}` / `{t:"full"}` / `{t:"error"}` | Join failures. |
 | client → server | `{t:"pause_request"}` | Ask the room to pause (any menu or pause input). |
 | client → server | `{t:"ready_signal"}` | Mark this client ready to resume. |
+| client → server | `{t:"pause_sync"}` | Ask for the server's current pause state. |
 | server → both | `{t:"global_pause", by}` | Room is paused. `by` is the initiating `clientId` (or `null`). |
 | server → both | `{t:"ready_state", ready:[clientId]}` | Current ready set. |
 | server → both | `{t:"countdown_start", seconds}` | All players ready; countdown begins. |
@@ -102,7 +103,9 @@ path, because only the server can decide when every participant is ready.
 4. The server broadcasts `ready_state` after each signal. When every connected
    room member is ready, it broadcasts `countdown_start` with a 3-second timer.
 5. After the countdown the server broadcasts `global_resume`, and each client
-   resumes its simulation.
+   resumes its simulation. A client does not resume because its own timer
+   elapsed. If that resume is missing, the client sends `pause_sync` and
+   applies the server's current pause, countdown, or resume message.
 
 If a member's socket drops during the countdown, the server cancels the resume
 and broadcasts `global_pause` again. A reconnecting member receives the current

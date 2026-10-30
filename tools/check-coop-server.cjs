@@ -51,6 +51,7 @@ async function runRoomlessProbe() {
   await stray.open();
   stray.send({ t: 'ready_signal', note: 'TOKEN_SHOULD_NOT_LOG' });
   stray.send({ t: 'pause_request', note: 'TOKEN_SHOULD_NOT_LOG' });
+  stray.send({ t: 'pause_sync', note: 'TOKEN_SHOULD_NOT_LOG' });
   await new Promise((resolve) => setTimeout(resolve, 200));
 
   const host = client(url);
@@ -188,10 +189,35 @@ if (process.argv[2] === '--roomless-probe') {
   assert.equal(guestCountdown.seconds, 3);
   checks += 6;
 
+  guest.send({ t: 'pause_sync' });
+  const guestSyncCountdown = await guest.next();
+  assert.equal(guestSyncCountdown.t, 'countdown_start');
+  assert.ok(guestSyncCountdown.seconds >= 1 && guestSyncCountdown.seconds <= 3);
+  checks += 2;
+
   const hostResume = await host.next(5000);
   const guestResume = await guest.next(5000);
   assert.equal(hostResume.t, 'global_resume');
   assert.equal(guestResume.t, 'global_resume');
+  checks += 2;
+
+  host.send({ t: 'pause_sync' });
+  const hostSyncPlay = await host.next();
+  assert.equal(hostSyncPlay.t, 'global_resume');
+  checks += 1;
+
+  guest.send({ t: 'pause_request' });
+  const hostPauseAgain = await host.next();
+  const guestPauseAgain = await guest.next();
+  assert.equal(hostPauseAgain.t, 'global_pause');
+  assert.equal(guestPauseAgain.t, 'global_pause');
+  assert.equal(guestPauseAgain.by, 'guest-id');
+  checks += 3;
+
+  host.send({ t: 'pause_sync' });
+  const hostSyncPaused = await host.next();
+  assert.equal(hostSyncPaused.t, 'global_pause');
+  assert.equal(hostSyncPaused.by, 'guest-id');
   checks += 2;
 
   guest.send({ t: 'leave' });
@@ -289,6 +315,7 @@ if (process.argv[2] === '--roomless-probe') {
   assert.equal(expiredNotice.t, 'peer-left');
   idle.send({ t: 'ready_signal', note: 'TOKEN_SHOULD_NOT_LOG' });
   idle.send({ t: 'pause_request' });
+  idle.send({ t: 'pause_sync', note: 'TOKEN_SHOULD_NOT_LOG' });
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal(server.rooms.has(idleHosted.code), false);
   assert.equal(idleRoom.pauseState, pauseBeforeExpiry);

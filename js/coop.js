@@ -1175,6 +1175,12 @@
 
   Coop.applyGlobalPause = function (by) {
     if (!Coop.active) return;
+    Coop._countdownGeneration = (Coop._countdownGeneration || 0) + 1;
+    clearInterval(Coop._countdownTimer);
+    clearTimeout(Coop._countdownFallback);
+    Coop._countdownTimer = null;
+    Coop._countdownFallback = null;
+    Coop.countdownRemaining = 0;
     Coop.pauseState = 'PAUSED';
     Coop.pauseOwner = by || null;
     Coop.readyPeers = [];
@@ -1199,12 +1205,21 @@
     }
   };
 
+  Coop.requestPauseSync = function () {
+    if (!Coop.active || Coop.pauseState !== 'COUNTDOWN') return false;
+    if (N.UI && N.UI.showCoopSyncWait) N.UI.showCoopSyncWait();
+    return N.Net.sendControl({ t: 'pause_sync' });
+  };
+
   Coop.applyCountdownStart = function (seconds) {
     if (!Coop.active) return;
     const total = Math.max(1, finite(seconds, 3));
+    const generation = (Coop._countdownGeneration || 0) + 1;
+    Coop._countdownGeneration = generation;
     Coop.pauseState = 'COUNTDOWN';
     Coop.countdownRemaining = total;
     Coop._readySent = false;
+    Coop._pendingReady = false;
     Coop._applyingRemote = true;
     try {
       if (G.mode === 'playing') G.pauseGame();
@@ -1215,6 +1230,7 @@
     clearInterval(Coop._countdownTimer);
     clearTimeout(Coop._countdownFallback);
     Coop._countdownTimer = setInterval(function () {
+      if (generation !== Coop._countdownGeneration) return;
       Coop.countdownRemaining = Math.max(0, Coop.countdownRemaining - 1);
       if (N.UI && N.UI.updateCoopCountdown) N.UI.updateCoopCountdown(Coop.countdownRemaining);
       if (Coop.countdownRemaining <= 0) {
@@ -1222,9 +1238,12 @@
         Coop._countdownTimer = null;
       }
     }, 1000);
+    /* The server owns resume. A missed or cancelled countdown asks for the
+     * current room state instead of starting the local simulation. */
     Coop._countdownFallback = setTimeout(function () {
+      if (generation !== Coop._countdownGeneration) return;
       Coop._countdownFallback = null;
-      if (Coop.pauseState === 'COUNTDOWN') Coop.applyGlobalResume();
+      if (Coop.pauseState === 'COUNTDOWN') Coop.requestPauseSync();
     }, (total + 1.5) * 1000);
   };
 

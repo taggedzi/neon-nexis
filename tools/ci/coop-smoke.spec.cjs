@@ -469,3 +469,43 @@ test('pause and ready are retried after a signaling outage', async ({ browser })
     await hostContext.close();
   }
 });
+
+test('countdown fallback waits for the server before resuming', async ({ browser }) => {
+  test.setTimeout(120000);
+  const ctx = await startCoopRun(browser);
+  const { host, guest, errors } = ctx;
+  try {
+    await guest.evaluate(() => {
+      const net = window.NEON.Net;
+      const previous = net.onMessage;
+      net.onMessage = function (message) {
+        if (message && message.t === 'global_resume') return;
+        if (typeof previous === 'function') return previous(message);
+      };
+      net.__resumeHandler = previous;
+    });
+
+    await host.evaluate(() => window.NEON.Game.pauseGame());
+    await expect.poll(() => guest.evaluate(() => window.NEON.Coop.pauseState), { timeout: 8000 }).toBe('PAUSED');
+    await expect.poll(() => host.evaluate(() => window.NEON.Coop.pauseState), { timeout: 8000 }).toBe('PAUSED');
+    await host.evaluate(() => window.NEON.Coop.sendReady());
+    await guest.evaluate(() => window.NEON.Coop.sendReady());
+    await expect.poll(() => guest.evaluate(() => window.NEON.Coop.pauseState), { timeout: 8000 }).toBe('COUNTDOWN');
+
+    await guest.waitForTimeout(5500);
+    expect(await guest.evaluate(() => window.NEON.Game.mode)).not.toBe('playing');
+    expect(await guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('COUNTDOWN');
+    await expect(guest.locator('#pause-micro')).toHaveText('WAITING FOR SIGNAL CONFIRMATION');
+
+    await guest.evaluate(() => {
+      window.NEON.Net.onMessage = window.NEON.Net.__resumeHandler;
+      window.NEON.Coop.requestPauseSync();
+    });
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('playing');
+    expect(await guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('PLAY');
+    expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+    expect(errors).toEqual([]);
+  } finally {
+    await closeAll(ctx);
+  }
+});

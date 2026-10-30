@@ -732,6 +732,10 @@ UI.showCoopCountdown=function(seconds){
   UI.updateCoopCountdown(seconds);
   showScreen('pause');
 };
+UI.showCoopSyncWait=function(){
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='WAITING FOR SIGNAL CONFIRMATION';
+};
 UI.updateCoopCountdown=function(seconds){
   const countdownEl=$('pause-coop-countdown');
   if(countdownEl)countdownEl.textContent=String(Math.max(0,seconds));
