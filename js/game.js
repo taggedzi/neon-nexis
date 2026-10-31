@@ -426,7 +426,7 @@ G.resumeGame=function(){
     return;
   }
   if(G.mode==='playing') return;
-  if(!G.player||G.player.dead){G.setMode('menu');if(N.UI)N.UI.showMenu();return;}
+  if(!G.player||(G.player.dead&&!(N.Coop&&N.Coop.isActive()))){G.setMode('menu');if(N.UI)N.UI.showMenu();return;}
   if(G.overflow){G.openOverflow();return;}
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();

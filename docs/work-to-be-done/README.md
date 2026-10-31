@@ -23,7 +23,7 @@ in [the decision log](../decisions.md).
 | 010 | [Pace equipment rewards and defer choices](010-reward-pacing.md) | Done |
 | 012 | [Prepare GitHub community and release documentation](012-github-community.md) | Done |
 | 013 | [Establish CI/CD and release policy](013-deployment-and-changelog.md) | Implemented — needs validation |
-| 014 | [Persistent co-op lobby, revival, and rejoining](014-coop-lobby-and-revival.md) | Planned |
+| 014 | [Persistent co-op lobby, revival, and rejoining](014-coop-lobby-and-revival.md) | Implemented — needs validation |
 
 ### 009 implementation and validation update
 

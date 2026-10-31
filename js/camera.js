@@ -6,9 +6,10 @@ const G=window.NEON.Game;
 const FOLLOW_RATE=16;
 G.updateCamera=function(dt,snap=false){
   if(!G.player)return;
+  const target=window.NEON.Coop?.cameraTarget()||G.player;
   const follow=snap?1:1-Math.exp(-Math.max(0,dt)*FOLLOW_RATE);
-  G.camera.x+=(G.player.x-G.camera.x)*follow;
-  G.camera.y+=(G.player.y-G.camera.y)*follow;
+  G.camera.x+=(target.x-G.camera.x)*follow;
+  G.camera.y+=(target.y-G.camera.y)*follow;
   const shake=snap?0:(G.camera.shake||0);
   G.camera.sx=shake?(Math.random()-.5)*shake:0;
   G.camera.sy=shake?(Math.random()-.5)*shake:0;

@@ -48,6 +48,8 @@
   Coop._countdownTimer = null;
   Coop._countdownFallback = null;
   Coop._readySent = false;
+  Coop._pendingPause = false;
+  Coop._pendingReady = false;
 
   function clock() {
     return performance.now();
@@ -167,6 +169,9 @@
     N.Net.onMessage = Coop.onMessage;
     N.Net.onPeer = Coop.onPeer;
     N.Net.onError = Coop.onError;
+    N.Net.onSocketOpen = function () {
+      Coop.flushPendingControl();
+    };
   };
 
   Coop.onStatus = function (status) {
@@ -208,27 +213,24 @@
   };
 
   Coop.startHostRun = function () {
-    if (!N.Net.peer) {
-      if (N.UI) N.UI.toast('WAITING FOR PLAYER 2', 'warn');
-      return false;
-    }
     if (Coop.active) return false;
     Coop.active = true;
     Coop.role = 'host';
     Coop.host = true;
     Coop.guest = false;
     Coop._ending = false;
-    Coop.peerProfile = N.Net.peer.profile;
-    Coop._peerId = N.Net.peer.clientId || null;
+    Coop.peerProfile = N.Net.peer ? N.Net.peer.profile : null;
+    Coop._peerId = N.Net.peer ? N.Net.peer.clientId : null;
     Coop._bulletQueue = [];
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
     Coop._strikeQueue = [];
+    Coop._grantSerial = 0;
 
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     G.newRun(Coop.localProfile, { seed: seed, coop: true, name: 'PLAYER 1' });
     const mirror = makeRemotePlayer(Coop.peerProfile || { name: 'PLAYER 2' }, G.level, 1);
-    Coop.remotePlayers = [mirror];
+    Coop.remotePlayers = N.Net.peer ? [mirror] : [];
     Coop.started = true;
     Coop._stateAt = 0;
     Coop._worldAt = 0;
@@ -301,6 +303,7 @@
     G.overflow = null;
     G.lastSummary = null;
     N.Rewards.reset();
+    Coop._acceptedGrants = new Set();
     Coop.started = true;
     Coop._stateAt = 0;
     Coop._worldAt = 0;
@@ -372,6 +375,8 @@
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
     Coop._strikeQueue = [];
+    Coop._acceptedGrants = new Set();
+    Coop._grantSerial = 0;
     G.coopRun = false;
     if (N.Net) N.Net.leave(true);
     if (G.mode !== 'menu' && G.mode !== 'boot') G.setMode('menu');
@@ -860,7 +865,10 @@
         Coop.applyRemoteHit(message);
         break;
       case 'grant':
-        Coop.applyGrant(message.item);
+        Coop.applyGrant(message);
+        break;
+      case 'grant_ack':
+        Coop.applyGrantAck(message);
         break;
       case 'xp':
         G.addXp(Math.max(0, finite(message.amount, 0)));
@@ -1010,28 +1018,82 @@
     return true;
   };
 
-  Coop.applyGrant = function (item) {
-    if (!Coop.isGuest() || !item || !G.player) return;
-    G.collectGroundItem({
-      id: item.id,
-      kind: item.kind,
-      itemId: item.itemId,
+  function cleanGrantId(value) {
+    const text = String(value || '');
+    return /^[A-Za-z0-9_-]{1,40}$/.test(text) ? text : '';
+  }
+
+  function cleanItemText(value, max, fallback) {
+    if (typeof value !== 'string' || !value || value.length > max) return fallback;
+    return value;
+  }
+
+  Coop.applyGrant = function (message) {
+    if (!Coop.isGuest() || !G.player || !message || typeof message !== 'object') return;
+    const grantId = cleanGrantId(message.grantId);
+    const item = message.item;
+    if (!grantId || !item || typeof item !== 'object' || Array.isArray(item)) return;
+    const kind = item.kind === 'weapon' || item.kind === 'mod' || item.kind === 'consumable' ? item.kind : '';
+    const itemId = cleanItemText(item.itemId, 40, '');
+    if (!kind || !itemId) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: false });
+      return;
+    }
+    if (!Coop._acceptedGrants) Coop._acceptedGrants = new Set();
+    if (Coop._acceptedGrants.has(grantId)) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: true });
+      return;
+    }
+    const ground = {
+      id: cleanItemText(item.id, 40, grantId),
+      kind: kind,
+      itemId: itemId,
       x: finite(item.x, G.player.x),
       y: finite(item.y, G.player.y),
-      tier: finite(item.tier, 1),
-      color: item.color || '#00f0ff',
-      label: item.label || null,
+      tier: Math.max(1, Math.min(3, Math.floor(finite(item.tier, 1)))),
+      color: cleanItemText(item.color, 32, '#00f0ff'),
+      label: cleanItemText(item.label, 40, null),
       pickupDelay: 0,
       angle: 0,
       phase: 0
-    }, false);
+    };
+    G.collectGroundItem(ground, false);
+    if (!ground.collected) {
+      N.Net.send({ t: 'grant_ack', grantId: grantId, ok: false });
+      return;
+    }
+    Coop._acceptedGrants.add(grantId);
+    N.Net.send({ t: 'grant_ack', grantId: grantId, ok: true });
     Coop.sendLoadout(true);
   };
 
+  Coop.applyGrantAck = function (message) {
+    if (!Coop.isHost() || !message || typeof message !== 'object' || !G.groundItems) return;
+    const grantId = cleanGrantId(message.grantId);
+    if (!grantId) return;
+    const index = G.groundItems.findIndex(function (item) { return item.grantId === grantId; });
+    if (index < 0) return;
+    const item = G.groundItems[index];
+    if (message.ok === true) {
+      item.collected = true;
+      item.grantPending = false;
+      G.groundItems.splice(index, 1);
+      return;
+    }
+    item.grantPending = false;
+    item.grantWait = 0;
+    item.grantHold = 0.75;
+  };
+
   Coop.grantToGuest = function (item) {
-    if (!Coop.isHost() || !item) return;
-    N.Net.send({
+    if (!Coop.isHost() || !item) return false;
+    if (!cleanGrantId(item.grantId)) {
+      Coop._grantSerial = (Coop._grantSerial || 0) + 1;
+      item.grantId = 'g' + Coop._grantSerial;
+    }
+    return N.Net.send({
       t: 'grant',
+      grantId: item.grantId,
       item: {
         id: item.id,
         kind: item.kind,
@@ -1045,17 +1107,43 @@
     });
   };
 
+  function bounded(value, fallback, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+
+  /* Completion text crosses the peer boundary. Keep only bounded fields so a
+   * summary cannot carry markup or unexpected properties into the UI. */
+  function summaryFromPeer(summary) {
+    if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return null;
+    return {
+      reason: summary.reason === 'timer' ? 'timer' : 'clear',
+      sector: Math.floor(bounded(summary.sector, 1, 0, 9999)),
+      time: bounded(summary.time, 0, 0, 1e7),
+      kills: Math.floor(bounded(summary.kills, 0, 0, 1e7)),
+      damage: bounded(summary.damage, 0, 0, 1e12),
+      level: Math.floor(bounded(summary.level, 1, 1, 9999)),
+      anchors: Math.floor(bounded(summary.anchors, 0, 0, 999)),
+      anchorsTotal: Math.floor(bounded(summary.anchorsTotal, 0, 0, 999)),
+      nextLevel: Math.floor(bounded(summary.nextLevel, 1, 1, 9999)),
+      sectors: Math.floor(bounded(summary.sectors, 0, 0, 9999))
+    };
+  }
+
   Coop.applyComplete = function (summary) {
-    if (!Coop.isGuest() || !summary) return;
-    G.lastSummary = summary;
+    if (!Coop.isGuest()) return;
+    const safe = summaryFromPeer(summary);
+    if (!safe) return;
+    G.lastSummary = safe;
     if (G.run) {
-      G.run.sectors = Math.max(G.run.sectors || 0, finite(summary.sectors, 0));
-      G.run.totalTime = Math.max(G.run.totalTime || 0, finite(summary.time, 0));
-      G.run.level = Math.max(G.run.level, finite(summary.nextLevel, G.run.level));
+      G.run.sectors = Math.max(G.run.sectors || 0, safe.sectors);
+      G.run.totalTime = Math.max(G.run.totalTime || 0, safe.time);
+      G.run.level = Math.max(G.run.level, safe.nextLevel);
     }
     G.setMode('complete');
     N.Input.resetFire();
-    if (N.UI) N.UI.showComplete(summary);
+    if (N.UI) N.UI.showComplete(safe);
   };
 
   Coop.applyRemoteGameOver = function () {
@@ -1094,35 +1182,62 @@
     Coop.readyPeers = [];
     Coop.countdownRemaining = 0;
     Coop._readySent = false;
+    Coop._pendingPause = false;
+    Coop._pendingReady = false;
     clearInterval(Coop._countdownTimer);
     clearTimeout(Coop._countdownFallback);
     Coop._countdownTimer = null;
     Coop._countdownFallback = null;
   };
 
+  Coop.flushPendingControl = function () {
+    if (!Coop.active) return false;
+    if (Coop._pendingPause) {
+      if (!N.Net.sendControl({ t: 'pause_request' })) return false;
+      Coop._pendingPause = false;
+    }
+    if (Coop._pendingReady) {
+      if (!N.Net.sendControl({ t: 'ready_signal' })) return false;
+      Coop._pendingReady = false;
+      Coop._readySent = true;
+      if (N.UI && N.UI.updateCoopPause) {
+        N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: true });
+      }
+    }
+    return true;
+  };
+
   Coop.requestGlobalPause = function () {
     if (!Coop.active || Coop._applyingRemote) return false;
-    if (Coop.pauseState !== 'PLAY') return false;
-    Coop.pauseState = 'PAUSED';
-    Coop.pauseOwner = N.Net.clientId || null;
-    Coop.readyPeers = [];
-    Coop._readySent = false;
-    N.Net.sendControl({ t: 'pause_request' });
+    if (Coop.pauseState !== 'PLAY' && !Coop._pendingPause) return false;
+    if (Coop.pauseState === 'PLAY') {
+      Coop.pauseState = 'PAUSED';
+      Coop.pauseOwner = N.Net.clientId || null;
+      Coop.readyPeers = [];
+      Coop._readySent = false;
+    }
+    Coop._pendingPause = true;
+    Coop.flushPendingControl();
     return true;
   };
 
   Coop.sendReady = function () {
     if (!Coop.active) return false;
     if (Coop.pauseState !== 'PAUSED') return false;
-    if (Coop._readySent) return false;
-    Coop._readySent = true;
-    N.Net.sendControl({ t: 'ready_signal' });
-    if (N.UI && N.UI.updateCoopPause) N.UI.updateCoopPause({ owner: Coop.pauseOwner, ready: Coop.readyPeers, selfReady: true });
-    return true;
+    if (Coop._readySent && !Coop._pendingReady) return false;
+    Coop._pendingReady = true;
+    Coop._readySent = false;
+    return Coop.flushPendingControl();
   };
 
   Coop.applyGlobalPause = function (by) {
     if (!Coop.active) return;
+    Coop._countdownGeneration = (Coop._countdownGeneration || 0) + 1;
+    clearInterval(Coop._countdownTimer);
+    clearTimeout(Coop._countdownFallback);
+    Coop._countdownTimer = null;
+    Coop._countdownFallback = null;
+    Coop.countdownRemaining = 0;
     Coop.pauseState = 'PAUSED';
     Coop.pauseOwner = by || null;
     Coop.readyPeers = [];
@@ -1147,12 +1262,21 @@
     }
   };
 
+  Coop.requestPauseSync = function () {
+    if (!Coop.active || Coop.pauseState !== 'COUNTDOWN') return false;
+    if (N.UI && N.UI.showCoopSyncWait) N.UI.showCoopSyncWait();
+    return N.Net.sendControl({ t: 'pause_sync' });
+  };
+
   Coop.applyCountdownStart = function (seconds) {
     if (!Coop.active) return;
     const total = Math.max(1, finite(seconds, 3));
+    const generation = (Coop._countdownGeneration || 0) + 1;
+    Coop._countdownGeneration = generation;
     Coop.pauseState = 'COUNTDOWN';
     Coop.countdownRemaining = total;
     Coop._readySent = false;
+    Coop._pendingReady = false;
     Coop._applyingRemote = true;
     try {
       if (G.mode === 'playing') G.pauseGame();
@@ -1163,6 +1287,7 @@
     clearInterval(Coop._countdownTimer);
     clearTimeout(Coop._countdownFallback);
     Coop._countdownTimer = setInterval(function () {
+      if (generation !== Coop._countdownGeneration) return;
       Coop.countdownRemaining = Math.max(0, Coop.countdownRemaining - 1);
       if (N.UI && N.UI.updateCoopCountdown) N.UI.updateCoopCountdown(Coop.countdownRemaining);
       if (Coop.countdownRemaining <= 0) {
@@ -1170,9 +1295,12 @@
         Coop._countdownTimer = null;
       }
     }, 1000);
+    /* The server owns resume. A missed or cancelled countdown asks for the
+     * current room state instead of starting the local simulation. */
     Coop._countdownFallback = setTimeout(function () {
+      if (generation !== Coop._countdownGeneration) return;
       Coop._countdownFallback = null;
-      if (Coop.pauseState === 'COUNTDOWN') Coop.applyGlobalResume();
+      if (Coop.pauseState === 'COUNTDOWN') Coop.requestPauseSync();
     }, (total + 1.5) * 1000);
   };
 
@@ -1268,5 +1396,24 @@
     }
   };
 
+  Coop.captureHazards = function () {
+    return [
+      ...G.playerBullets.filter(item => !item.dead).map(item => ({ type: 'bullet', data: bulletPayload(item) })),
+      ...G.enemyBullets.filter(item => !item.dead).map(item => ({ type: 'ebullet', data: bulletPayload(item) })),
+      ...G.mines.filter(item => !item.dead).map(item => ({ type: 'mine', data: minePayload(item) })),
+      ...G.strikes.filter(item => !item.dead).map(item => ({ type: 'strike', data: strikePayload(item) }))
+    ];
+  };
+  Coop.applyHazards = function (entries) {
+    G.playerBullets.length = 0;
+    G.enemyBullets.length = 0;
+    G.mines.length = 0;
+    G.strikes.length = 0;
+    const apply = { bullet: applyBulletBatch, ebullet: applyEnemyBulletBatch, mine: applyMineBatch, strike: applyStrikeBatch };
+    for (const entry of entries) {
+      if (entry && Object.hasOwn(apply, entry.type)) apply[entry.type]([entry.data]);
+    }
+  };
+  Coop.makeRemotePlayer = makeRemotePlayer;
   Coop.init();
 })();

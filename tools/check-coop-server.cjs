@@ -2,6 +2,7 @@
 'use strict';
 
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 const WebSocket = require('ws');
 const { createCoopServer } = require('../server/coop-server.cjs');
 
@@ -11,6 +12,7 @@ function client(url) {
   const waiters = [];
   socket.on('message', (raw) => {
     const message = JSON.parse(String(raw));
+    if (message.t === 'lobby_state') return;
     const waiter = waiters.shift();
     if (waiter) waiter(message);
     else queue.push(message);
@@ -42,7 +44,64 @@ function client(url) {
   };
 }
 
-(async () => {
+async function runRoomlessProbe() {
+  const server = createCoopServer();
+  const address = await server.listen(0, '127.0.0.1');
+  const url = 'ws://127.0.0.1:' + address.port;
+  const stray = client(url);
+  await stray.open();
+  stray.send({ t: 'ready_signal', note: 'TOKEN_SHOULD_NOT_LOG' });
+  stray.send({ t: 'pause_request', note: 'TOKEN_SHOULD_NOT_LOG' });
+  stray.send({ t: 'pause_sync', note: 'TOKEN_SHOULD_NOT_LOG' });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  const host = client(url);
+  await host.open();
+  host.send({ t: 'host', clientId: 'probe-host', profile: { name: 'PLAYER 1' } });
+  const hosted = await host.next();
+  assert.equal(hosted.t, 'hosted');
+  const guest = client(url);
+  await guest.open();
+  guest.send({ t: 'join', code: hosted.code, clientId: 'probe-guest', profile: {} });
+  const joined = await guest.next();
+  assert.equal(joined.t, 'joined');
+  const peer = await host.next();
+  assert.equal(peer.t, 'peer');
+  host.send({ t: 'pause_request' });
+  const hostPause = await host.next();
+  const guestPause = await guest.next();
+  assert.equal(hostPause.t, 'global_pause');
+  assert.equal(guestPause.t, 'global_pause');
+
+  guest.send({ t: 'leave' });
+  const left = await host.next();
+  assert.equal(left.t, 'peer-left');
+  guest.send({ t: 'ready_signal', note: 'TOKEN_SHOULD_NOT_LOG' });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  host.send({ t: 'pause_request' });
+  const pausedAgain = await host.next();
+  assert.equal(pausedAgain.t, 'global_pause');
+
+  stray.close();
+  host.close();
+  guest.close();
+  server.close();
+  console.log('PROBE_OK');
+}
+
+if (process.argv[2] === '--roomless-probe') {
+  runRoomlessProbe().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+} else (async () => {
+  const probe = spawnSync(process.execPath, [__filename, '--roomless-probe'], { encoding: 'utf8' });
+  assert.equal(probe.status, 0, (probe.stderr || '') + (probe.stdout || ''));
+  assert.match(probe.stdout, /PROBE_OK/);
+  assert.equal(String(probe.stderr || '').includes('TOKEN_SHOULD_NOT_LOG'), false);
+  assert.equal(String(probe.stdout || '').includes('TOKEN_SHOULD_NOT_LOG'), false);
+  assert.equal(String(probe.stderr || '').includes('TypeError'), false);
+
   const server = createCoopServer();
   const address = await server.listen(0, '127.0.0.1');
   const url = 'ws://127.0.0.1:' + address.port;
@@ -131,10 +190,35 @@ function client(url) {
   assert.equal(guestCountdown.seconds, 3);
   checks += 6;
 
+  guest.send({ t: 'pause_sync' });
+  const guestSyncCountdown = await guest.next();
+  assert.equal(guestSyncCountdown.t, 'countdown_start');
+  assert.ok(guestSyncCountdown.seconds >= 1 && guestSyncCountdown.seconds <= 3);
+  checks += 2;
+
   const hostResume = await host.next(5000);
   const guestResume = await guest.next(5000);
   assert.equal(hostResume.t, 'global_resume');
   assert.equal(guestResume.t, 'global_resume');
+  checks += 2;
+
+  host.send({ t: 'pause_sync' });
+  const hostSyncPlay = await host.next();
+  assert.equal(hostSyncPlay.t, 'global_resume');
+  checks += 1;
+
+  guest.send({ t: 'pause_request' });
+  const hostPauseAgain = await host.next();
+  const guestPauseAgain = await guest.next();
+  assert.equal(hostPauseAgain.t, 'global_pause');
+  assert.equal(guestPauseAgain.t, 'global_pause');
+  assert.equal(guestPauseAgain.by, 'guest-id');
+  checks += 3;
+
+  host.send({ t: 'pause_sync' });
+  const hostSyncPaused = await host.next();
+  assert.equal(hostSyncPaused.t, 'global_pause');
+  assert.equal(hostSyncPaused.by, 'guest-id');
   checks += 2;
 
   guest.send({ t: 'leave' });
@@ -144,6 +228,103 @@ function client(url) {
 
   host.close();
   guest.close();
+
+  const liveHost = client(url);
+  await liveHost.open();
+  liveHost.send({ t: 'host', clientId: 'live-host', profile: {} });
+  const liveHosted = await liveHost.next();
+  const liveGuest = client(url);
+  await liveGuest.open();
+  liveGuest.send({ t: 'join', code: liveHosted.code, clientId: 'live-guest', profile: {} });
+  await liveGuest.next();
+  await liveHost.next();
+  const liveRoom = server.rooms.get(liveHosted.code);
+  liveRoom.updatedAt = Date.now() - (5 * 60 * 1000 + 1);
+  liveRoom.pauseState = 'PAUSED';
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(liveHosted.code), true);
+  assert.equal(liveRoom.pauseState, 'PAUSED');
+  assert.equal(liveRoom.host.room, liveRoom);
+  assert.equal(liveRoom.guest.room, liveRoom);
+  assert.equal(liveHost.socket.readyState, WebSocket.OPEN);
+  assert.equal(liveGuest.socket.readyState, WebSocket.OPEN);
+  liveRoom.host.socket.emit('pong');
+  liveRoom.guest.socket.emit('pong');
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(liveHosted.code), true);
+  assert.equal(liveHost.socket.readyState, WebSocket.OPEN);
+  assert.equal(liveGuest.socket.readyState, WebSocket.OPEN);
+  checks += 8;
+
+  liveGuest.close();
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  liveRoom.updatedAt = Date.now() - (60 * 1000 + 5);
+  liveRoom.host.socket.isAlive = true;
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(liveHosted.code), true);
+  assert.equal(liveRoom.guest, null);
+  assert.equal(liveRoom.host.room, liveRoom);
+  const guestLeft = await liveHost.next();
+  assert.equal(guestLeft.t, 'peer-left');
+  liveRoom.updatedAt = Date.now() - (5 * 60 * 1000 + 5);
+  liveRoom.host.socket.isAlive = true;
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(liveHosted.code), true);
+  assert.equal(liveRoom.host.room, liveRoom);
+  checks += 6;
+  liveHost.close();
+
+  const doomedHost = client(url);
+  await doomedHost.open();
+  doomedHost.send({ t: 'host', clientId: 'doomed-host', profile: {} });
+  const doomedHosted = await doomedHost.next();
+  const doomedGuest = client(url);
+  await doomedGuest.open();
+  doomedGuest.send({ t: 'join', code: doomedHosted.code, clientId: 'doomed-guest', profile: {} });
+  await doomedGuest.next();
+  await doomedHost.next();
+  const doomedRoom = server.rooms.get(doomedHosted.code);
+  doomedHost.close();
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  doomedRoom.updatedAt = Date.now() - (60 * 1000 + 5);
+  doomedRoom.guest.socket.isAlive = true;
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(doomedHosted.code), false);
+  assert.equal(doomedRoom.guest.room, null);
+  assert.equal(doomedRoom.host.room, null);
+  const hostGone = await doomedGuest.next();
+  assert.equal(hostGone.t, 'peer-left');
+  checks += 4;
+  doomedGuest.close();
+
+  const idle = client(url);
+  await idle.open();
+  idle.send({ t: 'host', clientId: 'idle-host', profile: {} });
+  const idleHosted = await idle.next();
+  assert.equal(idleHosted.t, 'hosted');
+  const idleRoom = server.rooms.get(idleHosted.code);
+  idleRoom.updatedAt = Date.now() - (5 * 60 * 1000 + 5);
+  server.sweep(Date.now());
+  assert.equal(server.rooms.has(idleHosted.code), true);
+  assert.equal(idleRoom.host.room, idleRoom);
+  checks += 2;
+
+  const marked = client(url);
+  await marked.open();
+  marked.send({ t: 'host', clientId: 'marked-host', profile: {} });
+  const markedHosted = await marked.next();
+  assert.equal(markedHosted.t, 'hosted');
+  server.sweep(Date.now());
+  marked.socket.isAlive = false;
+  marked.send({ t: 'ping' });
+  const markedPong = await marked.next();
+  assert.equal(markedPong.t, 'pong');
+  server.sweep(Date.now());
+  assert.equal(marked.socket.readyState, WebSocket.OPEN);
+  checks += 3;
+  marked.close();
+
+  idle.close();
   server.close();
   console.log('Co-op signaling checks passed (' + checks + ' assertions).');
 })().catch((error) => {

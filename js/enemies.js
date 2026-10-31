@@ -34,7 +34,7 @@ G.pickStyle=function(){
   return set[set.length-1];
 };
 G.safeSpawnPos=function(minD=480,maxD=860){
-  const p=G.player,l=G.level;
+  const p=G.player.dead&&N.Coop?.isHost()?N.Coop.nearestPlayer(G.player.x,G.player.y):G.player,l=G.level;
   if(l.layout){
     const valid=l.layout.cells.filter(c=>N.World.free(l.layout,c.x,c.y,70)&&N.dist(c.x,c.y,p.x,p.y)>=minD&&N.dist(c.x,c.y,p.x,p.y)<=maxD);
     if(valid.length){const at=valid[Math.floor(Math.random()*valid.length)];return {x:at.x,y:at.y};}
@@ -124,7 +124,7 @@ G.spawnSurge=function(){
   const size=Math.min(18,9+Math.floor(G.run.level*.8));
   for(let i=0;i<size;i++){
     if(G.enemies.length>=G.enemyPopulationCap())break;
-    const p=G.player;
+    const p=G.player.dead&&N.Coop?.isHost()?N.Coop.nearestPlayer(G.player.x,G.player.y):G.player;
     const a=i/size*TAU+Math.random()*.2,d=420+Math.random()*220;
     const pos={x:clamp(p.x+Math.cos(a)*d,70,G.level.width-70),y:clamp(p.y+Math.sin(a)*d,70,G.level.height-70)};
     G.spawnEnemy(G.pickStyle(),pos.x,pos.y);

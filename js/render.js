@@ -430,7 +430,7 @@ function drawEnemy(c,e,theme){
   }
 }
 function drawPlayer(c,p,theme){
-  if(!p)return;
+  if(!p||(p.dead&&N.Coop?.isActive()))return;
   const alpha=p.invuln>0?.55+Math.sin(G.time*32)*.35:1;
   c.save();c.translate(p.x,p.y);c.rotate(N.Driving.angle(p)+Math.PI/2);
   glow(c,0,0,32,p.shipColor,.22);

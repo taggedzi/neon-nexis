@@ -119,7 +119,13 @@ UI.init=function(){
   $('btn-coop-join').addEventListener('click',joinCoopRoom);
   $('btn-coop-copy').addEventListener('click',copyCoopCode);
   $('btn-coop-start').addEventListener('click',()=>{
-    if(N.Coop&&N.Coop.startHostRun()) UI.hideAll();
+    if(N.Coop) N.Coop.readyLobby();
+  });
+  $('coop-respawns').addEventListener('input',()=>N.Net.sendControl({t:'lobby_respawns',count:Number($('coop-respawns').value)}));
+  $('btn-coop-stats').addEventListener('click',()=>{
+    const el=$('coop-last-stats'),data=N.Coop.lastGame;
+    el.textContent=data?'SECTOR '+data.sector+' // KILLS '+data.kills+' // PILOT LEVEL '+data.level:'NO GAMES PLAYED IN THIS LOBBY';
+    el.hidden=!el.hidden;
   });
   $('coop-code-input').addEventListener('input',()=>{
     const input=$('coop-code-input');
@@ -297,19 +303,20 @@ function buildCoopChoices(){
   for(const type of N.Ships.types){
     const button=document.createElement('button');
     button.type='button';button.textContent=type.name;button.dataset.shipType=type.id;
-    button.addEventListener('click',()=>{coopSelection.shipType=type.id;refreshCoopSelection();});
+    button.addEventListener('click',()=>{coopSelection.shipType=type.id;refreshCoopSelection();N.Coop.setLobbyProfile(coopSelection);});
     types.appendChild(button);
   }
   for(const color of N.Ships.palette){
     const button=document.createElement('button');
     button.type='button';button.textContent=color.name;button.dataset.shipColor=color.color;
     button.style.setProperty('--choice-color',color.color);
-    button.addEventListener('click',()=>{coopSelection.shipColor=color.color;refreshCoopSelection();});
+    button.addEventListener('click',()=>{coopSelection.shipColor=color.color;refreshCoopSelection();N.Coop.setLobbyProfile(coopSelection);});
     colors.appendChild(button);
   }
 }
 UI.showCoop=function(reason){
   if(N.Coop&&N.Coop.isActive())return;
+  $('coop-last-stats').hidden=true;
   if(!coopSelection){
     const saved=N.readSave()?.player;
     coopSelection=N.Ships.selection(saved||{});
@@ -325,7 +332,7 @@ UI.showCoop=function(reason){
   showScreen('coop');
 };
 UI.closeCoop=function(){
-  if(N.Coop&&N.Coop.isActive()){N.Coop.leaveToMenu();return;}
+  if(N.Coop&&(N.Coop.isActive()||N.Net?.code)){N.Coop.leaveToMenu();return;}
   if(N.Net&&N.Net.state!=='idle'&&N.Net.state!=='closed')N.Net.leave();
   UI.showMenu();
 };
@@ -368,9 +375,31 @@ UI.updateCoopStatus=function(status){
   const guestWaiting=state==='waiting'&&status&&status.role==='guest';
   $('btn-coop-host').disabled=busy||hosting;
   $('btn-coop-join').disabled=busy||hosting||(guestWaiting&&!!(status&&status.peer));
-  const canStart=state==='connected'&&status&&status.role==='host'&&!!status.peer;
+  const canStart=!!code&&(state==='connected'||hosting);
   $('btn-coop-start').hidden=!canStart;
   $('btn-coop-start').disabled=!canStart;
+};
+UI.updateLobby=function(){
+  const c=N.Coop,lobby=c.lobby;
+  if(lobby&&N.Net.code){
+    const ready=lobby.ready.includes(N.Net.clientId);
+    $('coop-members').textContent=lobby.members.map(m=>m.profile.name+' // '+m.profile.shipType+' // '+m.profile.shipColor+' // '+(lobby.ready.includes(m.clientId)?'READY':'CHOOSING')).join(' | ');
+    $('coop-respawn-count').textContent=String(lobby.respawns);
+    $('coop-respawns').value=String(lobby.respawns);
+    $('coop-respawns').disabled=N.Net.role!=='host'||lobby.phase!=='lobby';
+    const button=$('btn-coop-start');
+    button.hidden=lobby.phase!=='lobby';
+    button.disabled=lobby.phase!=='lobby';
+    button.textContent=lobby.launchAt?'CANCEL LAUNCH // '+Math.max(0,Math.ceil((lobby.launchAt-Date.now())/1000)):(ready?'NOT READY':'READY');
+  }
+  const life=$('coop-life-status');
+  if(life){
+    life.hidden=!c.active;
+    if(c.active&&G.player){
+      const p=G.player;
+      life.textContent='TEAM RESPAWNS '+c.remainingRespawns+' / '+(lobby?lobby.respawns:4)+(p.dead?(p.respawnSeconds!=null?' // REPLACEMENT IN '+Math.ceil(p.respawnSeconds)+'s':' // SPECTATING TEAMMATE'):'');
+    }
+  }
 };
 UI.updateCoopPeer=function(peer){
   if(!$('screen-coop'))return;
@@ -630,6 +659,26 @@ function renderSettings(){
 }
 UI.switchSettingsTab=function(tab){settingsTab=tab;renderSettings();};
 
+function finiteStat(value,fallback,min,max){
+  const number=Number(value);
+  if(!Number.isFinite(number)) return fallback;
+  return Math.min(max,Math.max(min,number));
+}
+function fillStatGrid(el,cells,accentFirst){
+  if(!el) return;
+  el.replaceChildren();
+  cells.forEach(([label,value],index)=>{
+    const row=document.createElement('div');
+    if(accentFirst&&index===0) row.className='accent';
+    const name=document.createElement('b');
+    name.textContent=String(label);
+    const amount=document.createElement('span');
+    amount.textContent=String(value);
+    row.append(name,amount);
+    el.append(row);
+  });
+}
+
 // ——— pause / inventory / overflow ———
 UI.showPause=function(data){
   if(!data)return;
@@ -642,7 +691,7 @@ UI.showPause=function(data){
     ['PILOT LEVEL',data.level],
     ['ANCHORS',data.anchorsLeft+' / '+data.anchorsTotal]
   ];
-  $('pause-stats').innerHTML=cells.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('pause-stats'),cells,false);
   $('btn-save-quit').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & QUIT';
   if(N.Coop&&N.Coop.isActive()){
     UI.showCoopPause({owner:N.Coop.pauseOwner,ready:N.Coop.readyPeers,selfReady:N.Coop._readySent});
@@ -711,6 +760,10 @@ UI.showCoopCountdown=function(seconds){
   if(micro)micro.textContent='ALL PLAYERS READY // RESUMING IN '+seconds;
   UI.updateCoopCountdown(seconds);
   showScreen('pause');
+};
+UI.showCoopSyncWait=function(){
+  const micro=$('pause-micro');
+  if(micro)micro.textContent='WAITING FOR SIGNAL CONFIRMATION';
 };
 UI.updateCoopCountdown=function(seconds){
   const countdownEl=$('pause-coop-countdown');
@@ -868,23 +921,28 @@ UI.showLevelUp=function(player,choices,milestone){
   showScreen('levelup');
 };
 UI.showComplete=function(summary){
-  if(!summary)return;
-  $('complete-title').textContent=summary.reason==='timer'?'SURVIVAL PROTOCOL COMPLETE':'SECTOR CLEARED';
-  $('complete-badge').textContent=summary.reason==='timer'?'SURVIVE':'CLEAR';
+  if(!summary||typeof summary!=='object')return;
+  const timed=summary.reason==='timer';
+  const sector=Math.floor(finiteStat(summary.sector,1,0,9999));
+  const nextLevel=Math.floor(finiteStat(summary.nextLevel,1,1,9999));
+  const anchors=Math.floor(finiteStat(summary.anchors,0,0,999));
+  const anchorsTotal=Math.floor(finiteStat(summary.anchorsTotal,0,0,999));
+  $('complete-title').textContent=timed?'SURVIVAL PROTOCOL COMPLETE':'SECTOR CLEARED';
+  $('complete-badge').textContent=timed?'SURVIVE':'CLEAR';
   const cells=[
-    ['SECTOR',String(summary.sector).padStart(2,'0')],
-    ['TIME',N.formatTime(summary.time)],
-    ['KILLS',summary.kills],
-    ['DAMAGE',N.formatNum(summary.damage)],
-    ['PILOT LV',summary.level],
-    ['ANCHORS LEFT',summary.anchors+' / '+summary.anchorsTotal]
+    ['SECTOR',String(sector).padStart(2,'0')],
+    ['TIME',N.formatTime(finiteStat(summary.time,0,0,1e7))],
+    ['KILLS',Math.floor(finiteStat(summary.kills,0,0,1e7))],
+    ['DAMAGE',N.formatNum(finiteStat(summary.damage,0,0,1e12))],
+    ['PILOT LV',Math.floor(finiteStat(summary.level,1,1,9999))],
+    ['ANCHORS LEFT',anchors+' / '+anchorsTotal]
   ];
-  $('complete-stats').innerHTML=cells.map(([a,b],i)=>`<div class="${i===0?'accent':''}"><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('complete-stats'),cells,true);
   const guest=N.Coop&&N.Coop.isGuest();
   const advance=$('btn-advance');
   advance.hidden=guest;
   advance.disabled=guest;
-  advance.textContent=guest?'WAITING FOR PLAYER 1':'DESCEND TO SECTOR '+String(summary.nextLevel).padStart(2,'0');
+  advance.textContent=guest?'WAITING FOR PLAYER 1':'DESCEND TO SECTOR '+String(nextLevel).padStart(2,'0');
   $('btn-complete-menu').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & RETURN TO MENU';
   showScreen('complete');
 };
@@ -900,7 +958,7 @@ UI.showGameOver=function(data){
     ['SECTOR TIME',N.formatTime(data.sectorTime)],
     ['DAMAGE DEALT',N.formatNum(data.damage)]
   ];
-  $('gameover-stats').innerHTML=cells.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('');
+  fillStatGrid($('gameover-stats'),cells,false);
   const coop=N.Coop&&N.Coop.isActive();
   $('btn-restore').disabled=coop?true:!data.hasCheckpoint;
   $('btn-gameover-menu').textContent=coop?'LEAVE CO-OP':'RETURN TO MAIN MENU';

@@ -398,3 +398,7 @@ body.controller-nav #ui .screen :is(button,input,select,[tabindex]):focus{
   box-shadow:inset 0 0 20px rgba(0,240,255,.22),0 0 14px rgba(0,240,255,.35)!important;
 }
 #controller-monitor{overflow-wrap:anywhere;color:var(--lime)}
+
+.coop-life-status{position:absolute;bottom:80px;left:16px;z-index:5;color:var(--cyan,#00f0ff);font-size:14px;pointer-events:none;}
+
+.coop-panel [hidden],.coop-life-status[hidden]{display:none;}

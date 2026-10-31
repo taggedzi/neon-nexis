@@ -1,6 +1,6 @@
 # 014 — Persistent co-op lobby, revival, and rejoining
 
-Status: Planned
+Status: Implemented — needs validation
 
 ## Feature summary
 
@@ -214,23 +214,23 @@ The owner's answers resolve the previously listed gameplay decisions. Countdown
 duration for launching a new run remains a routine implementation choice. The
 implementation proposals above are still labeled separately from owner decisions.
 
-The planned 0–8 range uses the current two-player lobby capacity, including when
-only the host is connected; this capacity-based interpretation should be confirmed
-before implementing the count selector if the owner intended the maximum to track
-the number of connected players instead. Joining does not itself replenish lives.
+The implemented 0–8 range uses the supported two-player lobby capacity, including
+when only the host is connected. This follows the planned range as an agent
+implementation choice under the owner's implementation request. Joining does not
+itself replenish lives or change the configured ceiling.
 
 ## Acceptance criteria
 
 - [ ] Two players join one lobby and see synchronized ship/color selections and
   ready states through supported menu controls.
-- [ ] All required players must be ready before a run starts, exactly once, with
+- [x] All required players must be ready before a run starts, exactly once, with
   their confirmed selections and a countdown. A lone host can start. Selection,
   respawn-setting, or membership changes cannot launch stale state.
-- [ ] The host can set the shared respawn count in the lobby, initially defaulting
+- [x] The host can set the shared respawn count in the lobby, initially defaulting
   to 4. Both players see the setting and remaining respawns; either player's
   respawn consumes exactly one shared charge. The selector accepts whole numbers
   from 0 through the 4-per-player ceiling (planned maximum 8 at current capacity).
-- [ ] Either player can die without being disconnected or immediately ending a
+- [x] Either player can die without being disconnected or immediately ending a
   recoverable team run. The living player can continue, including a living guest
   while the host ship is dead.
 - [ ] The agreed revival mechanic works for both players, shows recovery progress
@@ -243,32 +243,32 @@ the number of connected players instead. Joining does not itself replenish lives
 - [ ] Death scatters stored items around the death position exactly once, even
   if no respawn is available. The items can be collected again without duplication
   or automatic restoration through respawn/rejoin.
-- [ ] With no respawns available, a dead player can follow a living teammate as a
+- [x] With no respawns available, a dead player can follow a living teammate as a
   spectator without leaving the session.
-- [ ] Reaching the next level brings all connected players back alive and resets
+- [x] Reaching the next level brings all connected players back alive and resets
   shared respawns to the host-configured count exactly once. Previously dead
   players can continue without spending that fresh pool on level entry.
 - [ ] Dead players advancing to a new level retain their installed loadout and
   upgrades. Uncollected storage drops are lost with the previous level and cannot
   be recovered through stale messages or retained ship records.
-- [ ] All active players being dead ends the mission immediately, including a
+- [x] All active players being dead ends the mission immediately, including a
   lone host or simultaneous two-player deaths, regardless of remaining charges
   or pending timers. No delayed timer revives a player after game over.
-- [ ] Contested simultaneous respawns prioritize higher player level, subject to
+- [x] Contested simultaneous respawns prioritize higher player level, subject to
   a surviving teammate, with random selection among equally highest-level players.
   All clients apply the same selected outcome. Future larger-party
   priority rules do not expand this feature's two-player active limit.
-- [ ] Game over returns connected players to the same lobby and code, resets
+- [x] Game over returns connected players to the same lobby and code, resets
   readiness, permits reselection, and starts another fresh run without reconnecting.
-- [ ] The lobby exposes last-game statistics through a button or link, with an
+- [x] The lobby exposes last-game statistics through a button or link, with an
   empty view before the first game. Previous-run loadouts do not leak into new runs.
-- [ ] A guest disconnect or explicit leave lets the host keep playing in hosted
+- [x] A guest disconnect or explicit leave lets the host keep playing in hosted
   mode without a guest. The lobby/code stays available until the host ends the
   session; the old connection-grace and idle-room expiry do not terminate it.
 - [ ] New and returning guests can join an ongoing run when space is available.
   Joining pauses the run until both players ready and the shared resume countdown
   finishes. A guest dropping during setup/readiness cannot strand the host.
-- [ ] A stored matching ID restores its retained ship and run details after a
+- [x] A stored matching ID restores its retained ship and run details after a
   disconnect or explicit leave, provided the ship is unused and a slot is free.
   Unmatched IDs choose a ship/color and enter with fresh equipment/progression.
   Replaced players' retained records do not occupy active slots or get overwritten
@@ -351,19 +351,134 @@ the number of connected players instead. Joining does not itself replenish lives
 
 ## Implementation and validation
 
-- Changed files: this proposal and the backlog index.
-- Documentation only. Status remains Planned; no gameplay implementation started.
-- Follow-up: Updated requirements, acceptance criteria, and decision record with
-  the owner's successive 2026-10-30 answers, including replacement ships, storage
-  drops/loss, invincibility, random ties, and respawn limits. No acceptance boxes
-  checked by design approval.
-- Validation: static source review of the paths listed above. Documentation links
-  and `git diff --check` are checked at handoff. No runtime tests, browser crash
-  experiments, or player validation are claimed.
-- Remaining work: resolve the noted count-capacity interpretation before the
-  selector implementation, implement the feature, automated lifecycle and
-  recovery checks, two-browser testing over both transports, controller/menu checks,
-  and owner playtesting. Record browser versions and environments when run.
-- Delivery: Owner authorized committing this plan on 2026-10-30. Task branch:
-  `codex/docs-coop-lobby`; the plan commit is recorded in branch history. No push,
-  pull request, merge, or deployment performed.
+Status: Implemented — needs validation. Code is implemented; owner playtesting,
+physical-controller checks, and the extended real-network scenarios below remain.
+
+### Implementation decisions and scope — 2026-10-30 / 2026-10-31
+
+- Approval source: Owner explicitly requested implementation and then instructed
+  the agent to continue on the existing `codex/docs-coop-lobby` branch after the
+  plan was committed. This supersedes the earlier documentation-only scope.
+- Agent implementation choice: use 0–8 shared respawns, based on the supported
+  two-player capacity, including a lone host; default 4. Joining never refills
+  the pool. Rationale: implement the plan's documented range without changing
+  the budget when membership changes.
+- Agent implementation choice: storage means banked equipment in the reward tray,
+  including an open replacement choice. Installed equipment and pending protocol
+  choices are retained separately. This maps the owner's storage rule to the
+  current inventory model.
+- Agent implementation choice: use gameplay time for replacement delay and
+  invincibility. Reserve one shared charge when the replacement timer starts;
+  retain that reservation/timer across disconnects. All-dead defeat takes priority.
+- Agent implementation choice: use the existing three-second server countdown.
+  Initial launch and normal sector advancement synchronize and automatically
+  enter the resume countdown; a mid-run join or replacement ship requires manual
+  readiness from both connected players. Rationale: do not ask players to ready
+  twice for the same initial launch, while preserving orientation and join setup.
+- Agent implementation choice: recovery uses the last host-acknowledged state.
+  Changes that never reached the host before a browser crash cannot be recovered.
+  No persistent co-op saves, host migration, or server-restart recovery were added.
+- Relevant co-op production-readiness fixes were incorporated as working-tree
+  changes from `fix/production-readiness`: membership validation, room lifetime,
+  safe result rendering, pause retry/server countdown confirmation, grant receipts,
+  and signaling liveness. Sources include `366f4ab`, `1ac0e47`, `275a261`,
+  `3b7c435`, `ddd7b7e`, `3992bfb`, `e378d88`, `a9779b8`, and the grant portion
+  of `e25bc09`. The WebSocket dependency/lockfile now match the installed and
+  tested `ws` 8.22.0 from that reviewed branch. Unrelated save/security changes
+  were not merged.
+
+### Changed files and behavior
+
+- `js/coop-session.js` (new): persistent lobby lifecycle, host participant registry,
+  setup synchronization, run/sector/life scoping, acknowledged damage/reward retries,
+  death/storage drops, shared replacement allocation, spectator camera selection,
+  and sector revival. Setup also transfers existing bullets/mines/strikes in
+  bounded chunks before permitting readiness. Participants remain distinct from occupied connection slots.
+- `package.json`, `package-lock.json`: align the declared/locked WebSocket
+  dependency with the tested 8.22.0 prerequisite.
+- `server/coop-server.cjs`, `js/net.js`: lobby profiles/readiness/countdown revisions,
+  host-only respawn configuration, stored random browser identity, duplicate-slot
+  rejection, continued lone-host lifetime, membership changes and pause epochs.
+- `js/coop.js`: existing co-op prerequisite fixes and integration with the session
+  layer; host runs may start without a guest.
+- `js/game.js`, `js/sim.js`, `js/main.js`: dead-player simulation/resume handling,
+  death interception, defeat precedence over sector completion, and session ticks.
+- `js/camera.js`, `js/enemies.js`, `js/render.js`: death-position/spectator following,
+  survivor-relative spawning, and hiding a dead co-op ship. Existing neon effects
+  and default graphics quality remain; no performance improvement is claimed.
+- `index.html`, `js/ui.js`, `css/style.css`: synchronized lobby selections/readiness,
+  count control, optional empty/last-game statistics, remaining-life HUD, and
+  inherited keyboard/controller menu navigation with proper hidden states.
+- `tools/check-coop-lobby.cjs` (new), `tools/check-coop-server.cjs`,
+  `tools/check-grants.cjs` (imported), `tools/ci/coop-smoke.spec.cjs`: lifecycle,
+  coordination, grant, recovery, relay, and regression coverage.
+- `docs/coop-protocol.md` and this issue/index: current contracts and evidence.
+
+### Automated verification
+
+- `npm run check`: the completed 70-test run passed syntax, ESLint, unit checks,
+  and the Chromium/Firefox browser suite. Its persisted Playwright result was
+  `passed` with no failed tests when work resumed on 2026-10-31. An earlier run
+  had one sector-resume failure; that failure was fixed before the passing run.
+- Subsequent final review fixed lone-host late-join readiness and preservation
+  of the sector-complete screen when a guest leaves. Syntax and ESLint passed
+  again. A follow-up co-op run passed 33/34 checks and exposed a launch race:
+  setup acknowledgment could precede the server pause echo. Automatic readiness
+  now remains pending until server confirmation, with a deterministic delayed-echo
+  regression. The final targeted run passed **18/18** Chromium/Firefox checks
+  on 2026-10-31, including the previously failing rewards-menu setup, delayed
+  pause-notification ordering, existing-hazard recovery, every new lifecycle
+  scenario, relay replacement, and compact lobby controls. Final syntax, ESLint,
+  and `git diff --check` also passed. These focused reruns followed code changes;
+  a second full 74-test run was not performed.
+- Signaling tests verify host-only integer bounds, readiness revision invalidation,
+  exactly-once launch, repeated runs, stale run/pause controls, duplicate active
+  identity rejection, replacements, and hosted lifetime beyond the old expiry.
+  Expiry is tested by advancing the server's sweep clock, not an hours-long soak.
+- Browser lifecycle checks cover guest death/drop/replacement/protection, host
+  spectator simulation, next-sector revival/pool reset, all-dead defeat, fresh
+  runs in the same code, page reload with retained health/equipment, and both-player
+  readiness. Lost reward receipts are injected across reload to check replay safety.
+- Forced-relay browser checks cover distinct replacement records, fresh unmatched
+  ships, explicit leave/rejoin, and dead-player recovery without replenishing lives.
+- Lobby UI checks cover selection invalidation, keyboard adjustment to zero,
+  empty statistics, compact viewport overflow, and highest-level/random-tie
+  allocation. Shared pause, inventory/rewards menus, grant retries, transport
+  reconnects, save/continue, settings, and existing synthetic-controller checks
+  also ran in the full suite.
+- Environment: Windows, Node 24.14.1; Playwright Chromium 156.0.8078.4 and Firefox
+  157.0, headless browser contexts. Standard viewport 1280×720; compact lobby
+  960×720. These are the actual automation binaries, not claims about separately
+  installed stable Google Chrome/Firefox or real-player frame-time performance.
+- Owner browser storage was not cleared; tests use isolated browser contexts.
+
+### Agent visual review and remaining validation
+
+- Reviewed the saved compact-lobby Chromium and Firefox captures: existing neon treatment,
+  visible ship/color choices, ready button, count slider, and statistics view.
+  The existing panel scrolls when its footer extends below the compact viewport;
+  focus navigation uses the existing scroll-into-view path. Changed-file UTF-8,
+  LF, final-newline checks and local documentation link checks also passed. No baseline-matched
+  gameplay visual comparison or real GPU performance measurement is claimed.
+- Still required: owner assessment of revival pacing, spectator experience,
+  orientation pauses, and waiting time; physical-controller navigation and device
+  disconnect testing; real two-machine/WAN sessions with delayed/reordered traffic;
+  forced process-crash recovery and long-duration multi-sector/replacement soak.
+  Playtesting must use both the updated browser game and updated signaling server;
+  the new lobby protocol is not supported by the old server.
+  Page reload tests exercise stored identity recovery but are not browser-process
+  crash experiments. Unsupported host/server shutdown recovery remains out of scope.
+- Acceptance boxes above remain unchecked where the full criterion still needs
+  that broader verification. Implemented behavior is not marked Done by inference.
+
+### Delivery
+
+- Branch: `codex/docs-coop-lobby`, retained at the owner's explicit instruction.
+- Implementation changes are uncommitted. No push, PR, merge, publication, or
+  deployment was performed. Existing plan commits remain in branch history.
+- Suggested PR title: `feat(coop): persist lobbies, revive players, and recover guests`.
+- Suggested PR description: Preserve one co-op lobby/code across runs, add shared
+  respawns and recoverable storage drops, and restore returning participants from
+  the host registry. Add server-owned lobby readiness, late-join synchronization,
+  stale-message guards, and browser/server regressions. Owner playtesting and
+  physical-controller/WAN validation remain pending.
