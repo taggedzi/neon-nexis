@@ -482,3 +482,13 @@ physical-controller checks, and the extended real-network scenarios below remain
   the host registry. Add server-owned lobby readiness, late-join synchronization,
   stale-message guards, and browser/server regressions. Owner playtesting and
   physical-controller/WAN validation remain pending.
+
+### PR #15 base-branch conflict resolution — 2026-10-31
+
+- Merged `origin/main` at `44b61ef` into the task branch at the owner's request.
+- Retained issue 014 lobby lifecycle, dead-player pickup exclusion, hosted room
+  lifetime, protocol documentation, and lifecycle tests in overlapping sections.
+- Preserved the save/settings fixes and validation coverage introduced on main.
+- Validation: syntax, ESLint, lobby coordination, signaling (61 assertions),
+  grant ownership, save restoration, and settings-load checks passed. The browser
+  suite was not repeated for this merge; co-op runtime files match the PR head.

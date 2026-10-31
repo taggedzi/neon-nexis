@@ -37,6 +37,8 @@ for(let seed=0;seed<128;seed++)for(const sector of [1,2,6]){
 assert.equal(Object.keys(families).length,3);assert(sizes.size>20);
 G.run={seed:42,mapVersion:0,level:1};const legacy=G.generateLevel(1,null);assert.equal(legacy.layout,null);assert.equal(legacy.width,3000);assert.equal(legacy.height,2100);
 assert.equal(G.loadFromSave({version:1,run:{mapVersion:999},player:{}}),false,'unsupported map version rejected without overwriting');
+assert.equal(G.canLoadSave({version:1,run:{mapVersion:0},player:{}}),true,'legacy map version remains loadable');
+assert.equal(G.canLoadSave({version:1,run:{seed:1,level:1},player:{}}),true,'omitted map version and weapon list remain loadable');
 const fixture={cols:12,rows:10,width:1200,height:1000,floor:new Uint8Array(120),cells:[],nav:new Map()};
 for(let y=1;y<9;y++)for(let x=1;x<11;x++)if(!(x===5&&y>=2&&y<=6)){fixture.floor[y*12+x]=1;fixture.cells.push({index:y*12+x,x:x*100+50,y:y*100+50});}
 G.level={layout:fixture};

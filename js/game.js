@@ -527,11 +527,39 @@ G.restoreCheckpoint=function(){
   if(!save){G.notify('NO CHECKPOINT SIGNAL FOUND','danger');return false;}
   return G.loadFromSave(save,true);
 };
+function finiteField(value){
+  return value==null || Number.isFinite(Number(value));
+}
+function sectorNumber(value,min){
+  return Number.isInteger(value)&&value>=min&&value<=Number.MAX_SAFE_INTEGER;
+}
+function listField(value){
+  return value==null || Array.isArray(value);
+}
 G.canLoadSave=function(save){
-  return !!(save && save.version===SAVE_VERSION && save.run &&
-    typeof save.run==='object' && !Array.isArray(save.run) && save.player &&
-    typeof save.player==='object' && !Array.isArray(save.player) &&
-    (save.run.mapVersion==null || save.run.mapVersion===0 || save.run.mapVersion===1));
+  if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
+  if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
+  const run=save.run, player=save.player;
+  if(!(run.mapVersion==null || run.mapVersion===0 || run.mapVersion===1)) return false;
+  if(!finiteField(run.seed)||!finiteField(run.kills)||!finiteField(run.totalTime)||!finiteField(run.damage)) return false;
+  // Sector identity is the current level and the completed-sector count. A null,
+  // fractional, or negative value passes a finite check, then level generation
+  // throws after the live run has already been replaced.
+  if('level' in run && !sectorNumber(run.level,1)) return false;
+  if('sectors' in run && !sectorNumber(run.sectors,0)) return false;
+  if(!listField(player.weapons)||!listField(player.passives)||!listField(player.core)) return false;
+  for(const key of ['x','y','hp','shield','level','xp','xpNext','heading','aim','activeWeapon','weaponSlots','passiveSlots','dashCharges','dashTimer']){
+    if(!finiteField(player[key])) return false;
+  }
+  const level=save.level;
+  if(level!=null){
+    if(typeof level!=='object' || Array.isArray(level)) return false;
+    if(!finiteField(level.elapsed)||!finiteField(level.kills)||!finiteField(level.damage)) return false;
+    if(!listField(level.destroyedAnchors)||!listField(level.destroyedCaches)) return false;
+    if(!listField(level.groundItems)) return false;
+    if(Array.isArray(level.groundItems) && level.groundItems.some(item=>!item || typeof item!=='object' || Array.isArray(item))) return false;
+  }
+  return true;
 };
 G.loadFromSave=function(save,fromDeath=false){
   if(!G.canLoadSave(save)) return false;

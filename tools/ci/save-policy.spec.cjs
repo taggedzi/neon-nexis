@@ -11,7 +11,13 @@ async function openOldSave(page, raw) {
   await expect(page.locator('#screen-oldsave')).toHaveClass(/active/);
 }
 
-for (const raw of ['{"version":0,"run":{},"player":{}}', '{broken json', '{"version":1,"run":{"mapVersion":999},"player":{}}']) {
+for (const raw of [
+  '{"version":0,"run":{},"player":{}}',
+  '{broken json',
+  '{"version":1,"run":{"mapVersion":999},"player":{}}',
+  '{"version":1,"run":{"seed":1,"mapVersion":1,"level":1},"player":{"weapons":{}},"level":{}}',
+  '{"version":1,"run":{"seed":1,"mapVersion":1,"level":1},"player":{},"level":{"groundItems":{},"destroyedAnchors":{}}}'
+]) {
   test('decline export removes only incompatible checkpoint: ' + raw, async ({ page }) => {
     await openOldSave(page, raw);
     await page.keyboard.press('Escape');
@@ -59,6 +65,25 @@ test('automatic checkpoint cannot overwrite an incompatible save', async ({ page
   await openOldSave(page, raw);
   await page.evaluate(() => window.NEON.Game.newRun());
   expect(await page.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(raw);
+});
+
+test('legacy current-version checkpoint continues', async ({ page }) => {
+  const raw = JSON.stringify({ version: 1, run: { seed: 3, mapVersion: 0, level: 2 }, player: { level: 4, hp: 20 } });
+  await page.addInitScript(value => {
+    localStorage.setItem('neon_nexus_save_v1', value);
+    localStorage.setItem('unrelated-data', 'keep');
+  }, raw);
+  await page.goto('/');
+  await page.locator('#btn-boot').click();
+  await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+  await page.locator('#btn-continue').click();
+  await expect.poll(() => page.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+  expect(await page.evaluate(() => window.NEON.Game.run.level)).toBe(2);
+  expect(await page.evaluate(() => window.NEON.Game.run.mapVersion)).toBe(0);
+  expect(await page.evaluate(() => window.NEON.Game.player.level)).toBe(4);
+  expect(await page.evaluate(() => window.NEON.Game.player.weapons.length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(raw);
+  expect(await page.evaluate(() => localStorage.getItem('unrelated-data'))).toBe('keep');
 });
 
 test('storage removal failure preserves checkpoint and reports failure', async ({ page }) => {
