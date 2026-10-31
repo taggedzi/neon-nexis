@@ -1,0 +1,9 @@
+Require all denied
+
+<Files "coop.php">
+  Require all granted
+</Files>
+
+<Files "coop-config.sample.php">
+  Require all granted
+</Files>

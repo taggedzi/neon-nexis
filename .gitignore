@@ -40,3 +40,11 @@ docs/private-production-review
 
 # Public release staging
 /dist/
+
+# Co-op admin secrets and the lobby database. The sample config is tracked.
+/php/coop-config.php
+/php/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
