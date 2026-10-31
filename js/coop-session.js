@@ -470,7 +470,9 @@
       }
       receivedSync = message.syncId;
       launchSetup = !!message.autoReady;
-      if (message.epoch !== undefined) C.pauseEpoch = message.epoch;
+      // The host can stamp this sync before it applies its own pause echo.
+      // A newer pause message already on this guest must keep its epoch.
+      if (message.epoch !== undefined && message.epoch > (C.pauseEpoch || 0)) C.pauseEpoch = message.epoch;
       if (!C.active) C.startGuestRun(message);
       else if (G.level.number !== message.level) C.startNextGuestLevel(message);
       if (!restore(G.player, message.player, true)) { C.endSession('INVALID RECOVERY STATE'); return; }
