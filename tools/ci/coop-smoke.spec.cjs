@@ -749,6 +749,15 @@ test('014 guest death drops storage once, revives with protection, and preserves
   test.setTimeout(90000);
   const { host, guest, code, errors } = await startCoopRun(browser);
   await quietWorld(host);
+  // Random death drops may land within the survivor's normal pickup radius.
+  // Keep them on the floor until the drop assertion, then verify collection.
+  const pickupRadius = await host.evaluate(() => {
+    const player = window.NEON.Game.player;
+    const radius = player.stats.pickupRadius;
+    player.stats.pickupRadius = 0;
+    player.buffs.magnet = 0;
+    return radius;
+  });
   const before = await guest.evaluate(() => {
     const G = window.NEON.Game;
     G.player.invuln = 999;
@@ -769,6 +778,16 @@ test('014 guest death drops storage once, revives with protection, and preserves
   expect(restored).toMatchObject({...before,level:3,storage:0,pool:3});
   expect(restored.hp).toBe(restored.max);
   expect(restored.invuln).toBe(3);
+  await host.evaluate(radius => {
+    const G = window.NEON.Game;
+    const item = G.groundItems.find(item => item.itemId === 'vector');
+    G.player.stats.pickupRadius = radius;
+    G.player.x = item.x;
+    G.player.y = item.y;
+    G.updateGroundItems(0);
+  }, pickupRadius);
+  expect(await host.evaluate(() => window.NEON.Game.groundItems.filter(item => item.itemId === 'vector').length)).toBe(0);
+  expect(await host.evaluate(() => window.NEON.Rewards.state().pending.filter(item => item.itemId === 'vector').length)).toBe(1);
   await readyPair(host,guest);
   // End both lives in the same simulation batch, before any replacement timer.
   await host.evaluate(() => {

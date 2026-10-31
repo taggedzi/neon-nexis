@@ -492,3 +492,14 @@ physical-controller checks, and the extended real-network scenarios below remain
 - Validation: syntax, ESLint, lobby coordination, signaling (61 assertions),
   grant ownership, save restoration, and settings-load checks passed. The browser
   suite was not repeated for this merge; co-op runtime files match the PR head.
+
+### PR #15 CI death-drop assertion — 2026-10-31
+
+- The death-drop test allowed the living host to collect randomly scattered loot
+  before asserting its presence on the floor. A zero floor count therefore did
+  not establish that the drop was missing.
+- The test temporarily disables host pickup until the drop/revival assertions,
+  then restores pickup, moves to the drop, and verifies exactly one stored item
+  and removal from the floor. Gameplay code is unchanged.
+- Validation: the affected test passed three repetitions each in Chromium and
+  Firefox (6/6); ESLint and `git diff --check` passed. The full suite was not rerun.
