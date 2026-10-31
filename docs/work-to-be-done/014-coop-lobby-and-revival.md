@@ -431,6 +431,14 @@ physical-controller checks, and the extended real-network scenarios below remain
   scenario, relay replacement, and compact lobby controls. Final syntax, ESLint,
   and `git diff --check` also passed. These focused reruns followed code changes;
   a second full 74-test run was not performed.
+- GitHub Actions then failed one Chromium check: `014 relay replacement retains
+  separate records and a dead return does not refill respawns`. The original
+  guest's return stayed at `Coop.active === false` until the default 5-second
+  poll expired. Firefox completed that file. The replacement join and the
+  original guest's return now use the same 30-second foreground budget as
+  initial room setup. On 2026-10-31 that single test passed locally in headless
+  Chromium (22.8s) and Firefox (28.7s). ESLint and `git diff --check` passed
+  for the spec. The full browser suite was not rerun.
 - Signaling tests verify host-only integer bounds, readiness revision invalidation,
   exactly-once launch, repeated runs, stale run/pause controls, duplicate active
   identity rejection, replacements, and hosted lifetime beyond the old expiry.

@@ -725,6 +725,28 @@ test('guest pickups stay until the grant is accepted', async ({ browser }) => {
 });
 
 
+async function waitForGuestSetup(host, guest) {
+  await expect.poll(async () => {
+    const [hostState, guestState] = await Promise.all([
+      host.evaluate(() => ({ peer: window.NEON.Net.peerId, state: window.NEON.Net.state })),
+      guest.evaluate(() => ({ id: window.NEON.Net.clientId, active: window.NEON.Coop.active,
+        state: window.NEON.Net.state, role: window.NEON.Net.role, phase: window.NEON.Coop.lobby?.phase,
+        detail: window.NEON.Coop.status?.detail, mode: window.NEON.Game.mode,
+        status: document.querySelector('#coop-status')?.textContent || '' }))
+    ]);
+    const hostLinked = hostState.peer === guestState.id;
+    // Background browser pages may defer applying peer/setup messages in CI.
+    // Use the same foreground handling and budget as the initial room setup.
+    if (!hostLinked) await host.bringToFront();
+    else if (!guestState.active) await guest.bringToFront();
+    return { hostLinked, guestActive: guestState.active,
+      hostState: hostState.state, guestState: guestState.state,
+      role: guestState.role, phase: guestState.phase, detail: guestState.detail,
+      mode: guestState.mode, status: guestState.status };
+  }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] })
+    .toMatchObject({ hostLinked: true, guestActive: true });
+}
+
 async function readyPair(host, guest) {
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
   await expect.poll(() => guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
@@ -891,7 +913,7 @@ test('014 lone host starts and death ends the mission despite spare respawns', a
 
 
 test('014 relay replacement retains separate records and a dead return does not refill respawns', async ({browser}) => {
-  test.setTimeout(90000);
+  test.setTimeout(150000);
   const {host,guest,code,errors}=await startCoopRun(browser,true);
   await quietWorld(host);
   expect(await guest.evaluate(() => window.NEON.Net.label())).toBe('RELAY');
@@ -914,7 +936,7 @@ test('014 relay replacement retains separate records and a dead return does not 
   await replacement.locator('#btn-coop').click();
   await replacement.locator('#coop-code-input').fill(code);
   await replacement.locator('#btn-coop-join').click();
-  await expect.poll(() => replacement.evaluate(() => window.NEON.Coop.active)).toBe(true);
+  await waitForGuestSetup(host, replacement);
   expect(await replacement.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
   await readyPair(host,replacement);
   await replacement.evaluate(() => window.NEON.Coop.leaveToMenu());
@@ -922,7 +944,7 @@ test('014 relay replacement retains separate records and a dead return does not 
   await guest.locator('#btn-coop').click();
   await guest.locator('#coop-code-input').fill(code);
   await guest.locator('#btn-coop-join').click();
-  await expect.poll(() => guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
+  await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(originalId);
   expect(await guest.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
   expect(await guest.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(4);
