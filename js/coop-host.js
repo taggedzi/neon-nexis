@@ -172,16 +172,29 @@
       onGuestCleared();
     }
 
-    function markOffline(clientId) {
-      if (!room.guest || room.guest.clientId !== clientId) return;
-      const guest = room.guest;
-      guest.online = false;
-      if (room.pauseState === 'COUNTDOWN') startGlobalPause(null);
+    function armOfflineTimer(guest) {
       if (guest.offlineTimer) clearTimeout(guest.offlineTimer);
       guest.offlineTimer = setTimeout(function () {
         guest.offlineTimer = null;
         if (room.guest === guest && !guest.online) clearGuest();
       }, graceMs);
+    }
+
+    function markOffline(clientId) {
+      if (!room.guest || room.guest.clientId !== clientId) return;
+      const guest = room.guest;
+      guest.online = false;
+      if (room.pauseState === 'COUNTDOWN') startGlobalPause(null);
+      armOfflineTimer(guest);
+    }
+
+    function holdOfflineGrace(clientId) {
+      const guest = room.guest;
+      if (!guest || guest.clientId !== clientId || guest.online) return;
+      if (guest.offlineTimer) {
+        clearTimeout(guest.offlineTimer);
+        guest.offlineTimer = null;
+      }
     }
 
     function setHost(clientId, profile) {
@@ -205,6 +218,7 @@
         room.guest.offlineTimer = null;
       }
       broadcastLobby();
+      if (same && room.pauseState !== 'PLAY') handlePauseSync(room.guest);
       return true;
     }
 
@@ -296,6 +310,7 @@
       setHost: setHost,
       setGuest: setGuest,
       markOffline: markOffline,
+      holdOfflineGrace: holdOfflineGrace,
       clearGuest: clearGuest,
       handle: handle,
       close: close

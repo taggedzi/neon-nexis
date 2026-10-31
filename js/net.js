@@ -48,6 +48,7 @@
   let localSession = '';
   let remoteCard = null;
   let seenPeerRev = 0;
+  let negotiatedGuestId = '';
   let pollTimer = null;
   let checkinTimer = null;
   let cardTimer = null;
@@ -247,6 +248,7 @@
 
   function attachChannel(nextChannel) {
     channel = nextChannel;
+    receiveSequence = 0;
     nextChannel.onopen = function () {
       if (channel !== nextChannel) return;
       onLinkOpen();
@@ -312,6 +314,7 @@
     closePeerConnection();
     appliedCandidates = 0;
     const connection = ensurePeerConnection();
+    if (authority && card.clientId) authority.holdOfflineGrace(card.clientId);
     connection.setRemoteDescription(card.sdp).then(function () {
       syncCandidates(card);
       return connection.createAnswer();
@@ -326,6 +329,8 @@
 
   function handleAnswer(card) {
     if (Net.role !== 'guest' || !peerConnection || !card || !card.sdp) return;
+    // A reload can poll the host's previous answer before this offer is exchanged.
+    if (!localSession || card.session !== localSession) return;
     peerConnection.setRemoteDescription(card.sdp).then(function () {
       syncCandidates(card);
     }).catch(function () {});
@@ -352,11 +357,17 @@
         if (body && body.error === 'notfound') fail(Net.role === 'guest' ? 'JOIN CODE NOT FOUND' : 'LOBBY CLOSED');
         return;
       }
-      if (Net.role === 'host' && authority && !body.guestId && authority.room.guest) {
-        authority.clearGuest();
-        if (Net.peer) setPeer(null);
-        remoteCard = null;
-        seenPeerRev = 0;
+      if (Net.role === 'host') {
+        const guestId = body.guestId || '';
+        if (guestId !== negotiatedGuestId) {
+          negotiatedGuestId = guestId;
+          remoteCard = null;
+          seenPeerRev = 0;
+          if (!guestId && authority && authority.room.guest) {
+            authority.clearGuest();
+            if (Net.peer) setPeer(null);
+          }
+        }
       }
       if (body.peerCard) applyCard(body.peerCard);
     }).catch(function () {});
@@ -451,6 +462,7 @@
     linkUp = false;
     remoteCard = null;
     seenPeerRev = 0;
+    negotiatedGuestId = '';
     intent = { role: 'host', code: '', profile: normalizeProfile(profile) };
     Net.role = 'host';
     Net.code = '';
@@ -498,6 +510,7 @@
     linkUp = false;
     remoteCard = null;
     seenPeerRev = 0;
+    negotiatedGuestId = '';
     intent = { role: 'guest', code: clean, profile: normalizeProfile(profile) };
     Net.role = 'guest';
     Net.code = clean;
@@ -576,6 +589,7 @@
     closePeerConnection();
     stopTimers();
     intent = null;
+    negotiatedGuestId = '';
     Net.role = 'solo';
     Net.code = '';
     Net.transport = 'none';

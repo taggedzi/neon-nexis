@@ -122,7 +122,8 @@
     lastSyncAt = now;
     N.Net.send({ t: 'session_sync', syncId: syncSerial, seed: G.run.seed, level: G.level.number,
       host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
-      autoReady: launchSetup, run: copy(G.run), pool: C.remainingRespawns, complete: G.mode === 'complete', summary: G.lastSummary });
+      autoReady: launchSetup, run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
+      complete: G.mode === 'complete', summary: G.lastSummary });
     C.sendWorld();
     const hazards = C.captureHazards();
     const total = Math.max(1, Math.ceil(hazards.length / 24));
@@ -469,6 +470,7 @@
       }
       receivedSync = message.syncId;
       launchSetup = !!message.autoReady;
+      if (message.epoch !== undefined) C.pauseEpoch = message.epoch;
       if (!C.active) C.startGuestRun(message);
       else if (G.level.number !== message.level) C.startNextGuestLevel(message);
       if (!restore(G.player, message.player, true)) { C.endSession('INVALID RECOVERY STATE'); return; }
