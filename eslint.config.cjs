@@ -11,7 +11,7 @@ module.exports = [
     languageOptions: { sourceType: 'commonjs', globals: globals.node }
   },
   {
-    files: ['tools/ci/*.spec.cjs'],
+    files: ['tools/ci/*.spec.cjs', 'tools/check-coop-gate.cjs'],
     languageOptions: { globals: globals.browser }
   },
   {

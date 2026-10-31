@@ -217,6 +217,10 @@ UI.init=function(){
   refreshSaveMeta();
   showScreen('boot');
   document.body.classList.remove('playing');
+  if(N.Net){
+    N.Net.onAvailability=applyCoopAvailability;
+    if(N.Net.statusKnown)applyCoopAvailability(N.Net.available);
+  }
 };
 UI.showBoot=function(){
   bootReady=false;
@@ -350,6 +354,13 @@ function joinCoopRoom(){
     if(input)input.focus();
   }
 }
+function applyCoopAvailability(info){
+  const available=info&&typeof info==='object'?!!info.available:!!info;
+  const button=$('btn-coop');
+  const note=$('coop-unavailable');
+  if(button)button.disabled=!available;
+  if(note)note.hidden=available;
+}
 function copyCoopCode(){
   const code=($('coop-code').textContent||'').trim();
   if(!code||code==='-----'){UI.toast('NO ROOM CODE YET','warn');return;}
@@ -361,7 +372,7 @@ function copyCoopCode(){
 UI.updateCoopStatus=function(status){
   const el=$('coop-status');if(!el)return;
   const state=status&&status.state||'idle';
-  const labels={idle:'OFFLINE // NO UPLINK',closed:'OFFLINE // NO UPLINK',connecting:'CONTACTING SIGNAL SERVER...',waiting:'WAITING',connected:'LINK STABLE',reconnecting:'SIGNAL LOST // RECONNECTING...',error:'UPLINK ERROR'};
+  const labels={idle:'OFFLINE // NO UPLINK',closed:'OFFLINE // NO UPLINK',connecting:'OPENING DIRECT LINK...',waiting:'WAITING',connected:'LINK STABLE',reconnecting:'DIRECT LINK LOST // REINTRODUCING...',error:'UPLINK ERROR'};
   let text=labels[state]||'OFFLINE // NO UPLINK';
   if(status&&status.detail)text+=' // '+status.detail;
   el.textContent=text;

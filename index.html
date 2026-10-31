@@ -43,6 +43,7 @@
               </button>
               <button class="neon-btn" id="btn-new-run" type="button">NEW RUN</button>
               <button class="neon-btn" id="btn-coop" type="button">CO-OP UPLINK</button>
+              <p class="micro" id="coop-unavailable" hidden>Co-op is unavailable until the site admin enables it.</p>
               <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
               <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
               <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
@@ -197,7 +198,7 @@
             </div>
           </div>
           <div class="panel-footer">
-            <div class="micro">SHARED SEED · HOST-AUTHORITATIVE WORLD · P2P WITH RELAY FALLBACK · NO CO-OP SAVES</div>
+            <div class="micro">SHARED SEED · HOST-AUTHORITATIVE WORLD · DIRECT LINK ONLY · NO CO-OP SAVES</div>
             <button class="neon-btn primary" id="btn-coop-back" type="button">BACK</button>
           </div>
         </div>
@@ -348,6 +349,7 @@
 
   <script src="js/util.js"></script>
   <script src="js/net.js"></script>
+  <script src="js/coop-host.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/assets.js"></script>
   <script src="js/content.js"></script>

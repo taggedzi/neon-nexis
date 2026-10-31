@@ -1,101 +1,127 @@
 'use strict';
-const assert = require('node:assert/strict');
-const { setTimeout: delay } = require('node:timers/promises');
-const WebSocket = require('ws');
-const { createCoopServer } = require('../server/coop-server.cjs');
 
-async function connect(url) {
-  const socket = new WebSocket(url);
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { setTimeout: delay } = require('node:timers/promises');
+
+const sandbox = { setTimeout, clearTimeout };
+sandbox.window = sandbox;
+sandbox.NEON = {};
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'coop-host.js'), 'utf8'), sandbox, { filename: 'js/coop-host.js' });
+
+const CoopHost = sandbox.NEON.CoopHost;
+assert.equal(typeof CoopHost.createAuthority, 'function');
+
+function harness(graceMs) {
   const messages = [];
-  socket.on('message', raw => messages.push(JSON.parse(String(raw))));
-  await new Promise((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); });
-  return { socket, messages, send: data => socket.send(JSON.stringify(data)) };
+  const authority = CoopHost.createAuthority({ peerOfflineGraceMs: graceMs });
+  authority.setDeliver((member, message) => messages.push({ clientId: member.clientId, message }));
+  return { authority, messages, room: authority.room };
 }
+
 async function until(predicate) {
-  for (let i = 0; i < 250; i++) { if (predicate()) return; await delay(20); }
+  for (let i = 0; i < 250; i++) {
+    if (predicate()) return;
+    await delay(20);
+  }
   assert.fail('Lobby transition timed out');
 }
 
 (async () => {
-  const server = createCoopServer({ peerOfflineGraceMs: 20 });
-  const address = await server.listen(0, '127.0.0.1');
-  const url = 'ws://127.0.0.1:' + address.port;
+  const { authority, messages, room } = harness(20);
   try {
-    const host = await connect(url);
-    host.send({ t: 'host', clientId: 'host', profile: { shipType: 'dart' } });
-    await until(() => host.messages.some(m => m.t === 'hosted'));
-    const code = host.messages.find(m => m.t === 'hosted').code;
-    const room = server.rooms.get(code);
+    authority.setHost('host', { shipType: 'dart' });
     assert.equal(room.respawns, 4);
-    host.send({ t: 'lobby_respawns', count: 8 });
+    assert.equal(room.host.clientId, 'host');
+    authority.handle('host', { t: 'lobby_respawns', count: 8 });
     await until(() => room.respawns === 8);
-    for (const count of [-1, 9, 1.5, '4']) host.send({ t: 'lobby_respawns', count });
+    for (const count of [-1, 9, 1.5, '4']) authority.handle('host', { t: 'lobby_respawns', count });
     await delay(50);
     assert.equal(room.respawns, 8);
-    host.send({ t: 'lobby_ready', revision: room.lobbyRevision });
+
+    authority.handle('host', { t: 'lobby_ready', revision: room.lobbyRevision });
     await until(() => !!room.launchTimer);
     const revision = room.lobbyRevision;
-    host.send({ t: 'lobby_profile', profile: { shipType: 'kite' } });
+    authority.handle('host', { t: 'lobby_profile', profile: { shipType: 'kite' } });
     await until(() => !room.launchTimer);
-    host.send({ t: 'lobby_ready', revision });
+    authority.handle('host', { t: 'lobby_ready', revision });
     await delay(50);
     assert.equal(room.lobbyReady.size, 0);
     assert.equal(room.phase, 'lobby');
 
-    const guest = await connect(url);
-    guest.send({ t: 'join', code, clientId: 'guest', profile: {} });
-    await until(() => room.guest);
-    guest.send({ t: 'lobby_respawns', count: 0 });
-    host.send({ t: 'lobby_ready', revision: room.lobbyRevision });
+    assert.equal(authority.setGuest('guest', {}), true);
+    await until(() => room.guest && room.guest.clientId === 'guest');
+    authority.handle('guest', { t: 'lobby_respawns', count: 0 });
+    authority.handle('host', { t: 'lobby_ready', revision: room.lobbyRevision });
     await until(() => room.lobbyReady.size === 1);
     assert.equal(room.launchTimer, null);
     assert.equal(room.respawns, 8);
-    guest.send({ t: 'lobby_ready', revision: room.lobbyRevision });
+    authority.handle('guest', { t: 'lobby_ready', revision: room.lobbyRevision });
     await until(() => room.phase === 'run');
     assert.equal(room.runId, 1);
-    await until(() => host.messages.some(m => m.t === 'launch'));
-    assert.equal(host.messages.filter(m => m.t === 'launch').length, 1);
-
-    const duplicate = await connect(url);
-    duplicate.send({ t: 'join', code, clientId: 'guest', profile: {} });
-    await until(() => duplicate.messages.some(m => m.t === 'full'));
+    assert.equal(messages.filter(entry => entry.clientId === 'host' && entry.message.t === 'launch').length, 1);
+    assert.equal(authority.setGuest('guest', {}), false);
     assert.equal(room.guest.clientId, 'guest');
-    duplicate.socket.close();
 
-    guest.send({ t: 'leave' });
-    await until(() => !room.guest);
-    room.updatedAt = Date.now() - 3600000;
-    room.host.socket.isAlive = true;
-    server.sweep(Date.now());
-    assert.equal(server.rooms.get(code), room);
-    assert.equal(room.pauseState, 'PLAY');
-    const replacement = await connect(url);
-    replacement.send({ t: 'join', code, clientId: 'replacement', profile: {} });
-    await until(() => room.guest && room.guest.clientId === 'replacement');
+    authority.handle('host', { t: 'pause_request', runId: room.runId });
     assert.equal(room.pauseState, 'PAUSED');
-    replacement.send({ t: 'ready_signal', runId: 0, epoch: room.pauseEpoch });
+    const epoch = room.pauseEpoch;
+    authority.handle('guest', { t: 'ready_signal', runId: 0, epoch });
     await delay(50);
     assert.equal(room.readyPeers.size, 0);
-    replacement.send({ t: 'ready_signal', runId: 1, epoch: room.pauseEpoch });
+    authority.handle('guest', { t: 'ready_signal', runId: room.runId, epoch });
     await until(() => room.readyPeers.size === 1);
     assert.equal(room.pauseState, 'PAUSED');
-    replacement.socket.close();
+    authority.handle('host', { t: 'ready_signal', runId: room.runId, epoch });
+    assert.equal(room.pauseState, 'COUNTDOWN');
+    assert.equal(messages.filter(entry => entry.clientId === 'host' && entry.message.t === 'countdown_start').length, 1);
+    await until(() => room.pauseState === 'PLAY');
+    assert.ok(messages.some(entry => entry.clientId === 'host' && entry.message.t === 'global_resume'));
+
+    authority.markOffline('guest');
+    assert.equal(room.guest.online, false);
+    assert.equal(room.pauseState, 'PLAY');
+    assert.equal(authority.setGuest('guest', { shipType: 'kite' }), true);
+    assert.equal(room.pauseState, 'PLAY');
+    assert.equal(room.guest.online, true);
+
+    authority.handle('guest', { t: 'leave' });
+    await until(() => !room.guest);
+    assert.equal(room.host.clientId, 'host');
+    assert.equal(room.pauseState, 'PLAY');
+    assert.equal(authority.setGuest('replacement', {}), true);
+    await until(() => room.guest && room.guest.clientId === 'replacement');
+    assert.equal(room.pauseState, 'PAUSED');
+    authority.handle('replacement', { t: 'ready_signal', runId: 0, epoch: room.pauseEpoch });
+    await delay(50);
+    assert.equal(room.readyPeers.size, 0);
+    authority.handle('replacement', { t: 'ready_signal', runId: 1, epoch: room.pauseEpoch });
+    await until(() => room.readyPeers.size === 1);
+    assert.equal(room.pauseState, 'PAUSED');
+    authority.markOffline('replacement');
     await until(() => !room.guest);
     assert.equal(room.pauseState, 'PLAY');
-    host.send({ t: 'return_lobby', runId: 1 });
+    assert.equal(room.host.clientId, 'host');
+
+    authority.handle('host', { t: 'return_lobby', runId: 1 });
     await until(() => room.phase === 'lobby');
-    assert.equal(room.code, code);
     assert.equal(room.lobbyReady.size, 0);
-    host.send({ t: 'lobby_respawns', count: 0 });
+    authority.handle('host', { t: 'lobby_respawns', count: 0 });
     await until(() => room.respawns === 0);
-    host.send({ t: 'lobby_ready', revision: room.lobbyRevision });
+    authority.handle('host', { t: 'lobby_ready', revision: room.lobbyRevision });
     await until(() => room.runId === 2);
     assert.equal(room.phase, 'run');
-    host.send({ t: 'return_lobby', runId: 1 });
+    authority.handle('host', { t: 'return_lobby', runId: 1 });
     await delay(50);
     assert.equal(room.phase, 'run');
     console.log('Lobby checks passed: readiness revisions, count bounds, repeated runs, stale controls, replacement, duplicate identity, and hosted lifetime.');
   } finally {
-    server.close();
+    authority.close();
   }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

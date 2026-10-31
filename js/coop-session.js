@@ -450,12 +450,12 @@
       originalMessage(message);
       if (message.t === 'ready_state' && Array.isArray(message.ready) && message.ready.includes(N.Net.clientId)) launchSetup = false;
       if (message.t === 'countdown_start' || message.t === 'global_resume') launchSetup = false;
-      // A peer setup acknowledgment can arrive before our WebSocket pause echo.
-      // Keep automatic readiness pending until the server confirms it.
+      // A peer setup acknowledgment can arrive before the host's pause echo.
+      // Keep automatic readiness pending until the host confirms it.
       if (message.t === 'global_pause' && launchSetup && !syncPending && !awaitingWorld) C.sendReady();
       return;
     }
-    if (message.t === 'bye') return; // Membership comes from the signaling server.
+    if (message.t === 'bye') return; // Membership comes from the host browser.
     if (message._run !== C.runId) return;
     if (message.t === 'mission_end' && N.Net.role === 'guest') {
       returnToLobby(message.summary);
