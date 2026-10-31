@@ -16,6 +16,5 @@ function check(directory) {
   }
 }
 check('js');
-check('server');
 check('tools');
 console.log('JavaScript syntax checks passed.');

@@ -15,19 +15,31 @@ function trackContext(context) {
   return context;
 }
 
-async function forceRelay(context) {
+async function watchChannels(context) {
   await context.addInitScript(() => {
-    window.RTCPeerConnection = class {
-      createDataChannel() { return { readyState: 'connecting', close() {} }; }
-      createOffer() { return Promise.reject(new Error('Test: direct transport unavailable')); }
-      close() {}
-    };
+    const Native = window.RTCPeerConnection;
+    function Wrapped(config) {
+      const connection = new Native(config);
+      const original = connection.createDataChannel.bind(connection);
+      connection.createDataChannel = function () {
+        const channel = original.apply(connection, arguments);
+        window.__coopChannels = window.__coopChannels || [];
+        window.__coopChannels.push(channel);
+        return channel;
+      };
+      connection.addEventListener('datachannel', event => {
+        window.__coopChannels = window.__coopChannels || [];
+        window.__coopChannels.push(event.channel);
+      });
+      return connection;
+    }
+    Wrapped.prototype = Native.prototype;
+    window.RTCPeerConnection = Wrapped;
   });
 }
 
-async function startCoopRun(browser, relay = false, delayInitialPause = false) {
+async function startCoopRun(browser, delayInitialPause = false) {
   const hostContext = trackContext(await browser.newContext());
-  if (relay) await forceRelay(hostContext);
   const host = await hostContext.newPage();
   const errors = [];
   watchPage(host, 'host', errors);
@@ -53,7 +65,6 @@ async function startCoopRun(browser, relay = false, delayInitialPause = false) {
   // the host in the background, and Firefox may not apply a later peer message
   // until that page is in front again.
   const guestContext = trackContext(await browser.newContext());
-  if (relay) await forceRelay(guestContext);
   const guest = await guestContext.newPage();
   watchPage(guest, 'guest', errors);
 
@@ -189,27 +200,13 @@ test('guest fires and host spawns a bullet owned by the guest mirror', async ({ 
   }
 });
 
-test('session survives a brief signaling drop inside the grace window', async ({ browser }) => {
+test('session survives a brief direct-link drop inside the grace window', async ({ browser }) => {
   test.setTimeout(120000);
 
   const hostContext = await browser.newContext();
   const host = await hostContext.newPage();
   const guestContext = await browser.newContext();
-  await guestContext.addInitScript(() => {
-    const Original = window.WebSocket;
-    window.__coopSockets = [];
-    const Wrapped = function (...args) {
-      const socket = new Original(...args);
-      window.__coopSockets.push(socket);
-      return socket;
-    };
-    Wrapped.prototype = Original.prototype;
-    for (const key of Object.getOwnPropertyNames(Original)) {
-      if (key === 'prototype' || key === 'length' || key === 'name') continue;
-      try { Wrapped[key] = Original[key]; } catch (error) { /* ignore */ }
-    }
-    window.WebSocket = Wrapped;
-  });
+  await watchChannels(guestContext);
   const guest = await guestContext.newPage();
 
   const errors = [];
@@ -247,9 +244,9 @@ test('session survives a brief signaling drop inside the grace window', async ({
     expect(await guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
 
     const closed = await guest.evaluate(() => {
-      const socket = (window.__coopSockets || []).find(item => String(item.url || '').includes('8787'));
-      if (!socket) return false;
-      socket.close();
+      const channel = (window.__coopChannels || []).find(item => item.readyState === 'open');
+      if (!channel) return false;
+      channel.close();
       return true;
     });
     expect(closed).toBe(true);
@@ -259,8 +256,7 @@ test('session survives a brief signaling drop inside the grace window', async ({
       { timeout: 5000, intervals: [100, 200, 300] }
     ).toMatch(/reconnecting|connecting|connected|waiting/);
 
-    // The server delays peer-left by 10s; Net retries after 1.8s. Give the retry
-    // time to land, then confirm neither side dropped the session.
+    // The host keeps the guest for about 10s. The guest offers again after 1.5s.
     await guest.waitForTimeout(4000);
 
     expect(await guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
@@ -451,26 +447,12 @@ test('peer completion summary is shown as text', async ({ browser }) => {
   }
 });
 
-test('pause and ready are retried after a signaling outage', async ({ browser }) => {
+test('pause and ready are retried after a direct-link outage', async ({ browser }) => {
   test.setTimeout(120000);
   const hostContext = await browser.newContext();
   const host = await hostContext.newPage();
   const guestContext = await browser.newContext();
-  await guestContext.addInitScript(() => {
-    const Original = window.WebSocket;
-    window.__coopSockets = [];
-    const Wrapped = function (...args) {
-      const socket = new Original(...args);
-      window.__coopSockets.push(socket);
-      return socket;
-    };
-    Wrapped.prototype = Original.prototype;
-    for (const key of Object.getOwnPropertyNames(Original)) {
-      if (key === 'prototype' || key === 'length' || key === 'name') continue;
-      try { Wrapped[key] = Original[key]; } catch (error) { /* ignore */ }
-    }
-    window.WebSocket = Wrapped;
-  });
+  await watchChannels(guestContext);
   const guest = await guestContext.newPage();
   const errors = [];
   for (const [label, page] of [['host', host], ['guest', guest]]) {
@@ -512,9 +494,9 @@ test('pause and ready are retried after a signaling outage', async ({ browser })
     const closed = await guest.evaluate(() => {
       const net = window.NEON.Net;
       net.sendControl = net.__sendControl;
-      const socket = (window.__coopSockets || []).filter((item) => item.readyState === 1).pop();
-      if (!socket) return false;
-      socket.close();
+      const channel = (window.__coopChannels || []).filter(item => item.readyState === 'open').pop();
+      if (!channel) return false;
+      channel.close();
       return true;
     });
     expect(closed).toBe(true);
@@ -574,7 +556,7 @@ test('countdown fallback waits for the server before resuming', async ({ browser
     await guest.waitForTimeout(5500);
     expect(await guest.evaluate(() => window.NEON.Game.mode)).not.toBe('playing');
     expect(await guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('COUNTDOWN');
-    await expect(guest.locator('#pause-micro')).toHaveText('WAITING FOR SIGNAL CONFIRMATION');
+    await expect(guest.locator('#pause-micro')).toHaveText('WAITING FOR HOST CONFIRMATION');
 
     await guest.evaluate(() => {
       window.NEON.Net.onMessage = window.NEON.Net.__resumeHandler;
@@ -912,11 +894,11 @@ test('014 lone host starts and death ends the mission despite spare respawns', a
 });
 
 
-test('014 relay replacement retains separate records and a dead return does not refill respawns', async ({browser}) => {
+test('014 direct-link replacement retains separate records and a dead return does not refill respawns', async ({browser}) => {
   test.setTimeout(150000);
-  const {host,guest,code,errors}=await startCoopRun(browser,true);
+  const {host,guest,code,errors}=await startCoopRun(browser);
   await quietWorld(host);
-  expect(await guest.evaluate(() => window.NEON.Net.label())).toBe('RELAY');
+  expect(await guest.evaluate(() => window.NEON.Net.label())).toBe('P2P');
   await host.evaluate(() => {window.NEON.Coop.remainingRespawns=0;});
   const originalId=await guest.evaluate(() => {
     window.NEON.Game.player.weapons[0].level=4;
@@ -927,8 +909,9 @@ test('014 relay replacement retains separate records and a dead return does not 
   await guest.evaluate(() => window.NEON.Coop.leaveToMenu());
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
   expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+  expect(await host.evaluate(() => window.NEON.Net.code)).toBe(code);
+  expect(await host.evaluate(() => window.NEON.Net.state)).not.toBe('error');
   const replacementContext=trackContext(await browser.newContext());
-  await forceRelay(replacementContext);
   const replacement=await replacementContext.newPage();
   watchPage(replacement,'replacement',errors);
   await replacement.goto('/');
@@ -1023,9 +1006,106 @@ test('014 a lone host admits a guest with manual readiness and guest departure p
 });
 
 
-test('014 launch tolerates setup acknowledgment before the server pause notification', async ({browser}) => {
-  const {host,guest,errors}=await startCoopRun(browser,false,true);
+test('014 launch tolerates setup acknowledgment before the host pause notification', async ({browser}) => {
+  const {host,guest,errors}=await startCoopRun(browser,true);
   expect(await host.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
   expect(await guest.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
   expect(errors).toEqual([]);
+});
+
+test('sample config keeps CO-OP UPLINK visible and disabled while solo play works', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await page.goto('http://127.0.0.1:4174/');
+  await page.locator('#btn-boot').click();
+  await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+  await expect(page.locator('#btn-coop')).toBeVisible();
+  await expect(page.locator('#btn-coop')).toBeDisabled();
+  await expect(page.locator('#coop-unavailable')).toContainText('Co-op is unavailable until the site admin enables it.');
+  await expect(page.locator('#btn-new-run')).toBeEnabled();
+  await page.locator('#btn-new-run').click();
+  await expect(page.locator('#screen-ship')).toHaveClass(/active/);
+  const fill = await page.evaluate(() => {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let painted = 0;
+    const colors = [];
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        const px = Math.min(canvas.width - 1, Math.floor((x + 0.5) * canvas.width / 8));
+        const py = Math.min(canvas.height - 1, Math.floor((y + 0.5) * canvas.height / 8));
+        const data = ctx.getImageData(px, py, 1, 1).data;
+        colors.push(data[0] + ',' + data[1] + ',' + data[2]);
+        if (data[0] + data[1] + data[2] > 0) painted += 1;
+      }
+    }
+    return { width: canvas.width, height: canvas.height, painted, distinct: new Set(colors).size };
+  });
+  expect(fill.width).toBe(1280);
+  expect(fill.height).toBe(720);
+  expect(fill.painted).toBeGreaterThanOrEqual(48);
+  expect(fill.distinct).toBeGreaterThanOrEqual(3);
+  expect(errors).toEqual([]);
+});
+
+test('a direct link that never opens stays on the co-op screen', async ({ browser }) => {
+  test.setTimeout(60000);
+  const script = () => {
+    function FakePeer() { this.localDescription = null; this.connectionState = 'new'; }
+    FakePeer.prototype.createDataChannel = function () {
+      return { readyState: 'connecting', send() {}, close() {} };
+    };
+    FakePeer.prototype.createOffer = function () { return Promise.resolve({ type: 'offer', sdp: 'v=0\r\n' }); };
+    FakePeer.prototype.createAnswer = function () { return Promise.resolve({ type: 'answer', sdp: 'v=0\r\n' }); };
+    FakePeer.prototype.setLocalDescription = function (description) {
+      this.localDescription = description;
+      if (typeof this.onicecandidate === 'function') this.onicecandidate({ candidate: null });
+      return Promise.resolve();
+    };
+    FakePeer.prototype.setRemoteDescription = function (description) {
+      this.remoteDescription = description;
+      return Promise.resolve();
+    };
+    FakePeer.prototype.addIceCandidate = function () { return Promise.resolve(); };
+    FakePeer.prototype.close = function () {};
+    window.RTCPeerConnection = FakePeer;
+  };
+  const hostContext = trackContext(await browser.newContext());
+  await hostContext.addInitScript(script);
+  const host = await hostContext.newPage();
+  const guestContext = trackContext(await browser.newContext());
+  await guestContext.addInitScript(script);
+  const guest = await guestContext.newPage();
+  const bodies = [];
+  for (const page of [host, guest]) {
+    page.on('response', async response => {
+      if (!response.url().includes('coop.php')) return;
+      try { bodies.push(await response.json()); } catch (error) { bodies.push(null); }
+    });
+  }
+  await host.goto('/');
+  await host.locator('#btn-boot').click();
+  await host.locator('#btn-coop').click();
+  await host.locator('#btn-coop-host').click();
+  await expect.poll(() => host.evaluate(() => window.NEON.Net.code || '')).not.toBe('');
+  const code = await host.evaluate(() => window.NEON.Net.code);
+  await guest.goto('/');
+  await guest.locator('#btn-boot').click();
+  await guest.locator('#btn-coop').click();
+  await guest.locator('#coop-code-input').fill(code);
+  await guest.locator('#btn-coop-join').click();
+  await guest.waitForTimeout(2500);
+  await expect(host.locator('#screen-coop')).toHaveClass(/active/);
+  await expect(guest.locator('#screen-coop')).toHaveClass(/active/);
+  expect(await host.evaluate(() => window.NEON.Game.mode)).not.toBe('playing');
+  expect(await guest.evaluate(() => window.NEON.Net.state)).toBe('connecting');
+  expect(bodies.length).toBeGreaterThan(0);
+  for (const body of bodies) {
+    expect(body).toBeTruthy();
+    expect(JSON.stringify(body)).not.toContain('global_pause');
+    expect(JSON.stringify(body)).not.toContain('playerBullets');
+  }
 });

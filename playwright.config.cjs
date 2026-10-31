@@ -18,13 +18,13 @@ module.exports = defineConfig({
   ],
   webServer: [
     {
-      command: 'node tools/ci/server.cjs',
+      command: 'node tools/ci/serve-php.cjs enabled',
       url: 'http://127.0.0.1:4173',
       reuseExistingServer: false
     },
     {
-      command: 'node server/coop-server.cjs',
-      url: 'http://127.0.0.1:8787',
+      command: 'node tools/ci/serve-php.cjs sample',
+      url: 'http://127.0.0.1:4174',
       reuseExistingServer: false
     }
   ]

@@ -774,7 +774,7 @@ UI.showCoopCountdown=function(seconds){
 };
 UI.showCoopSyncWait=function(){
   const micro=$('pause-micro');
-  if(micro)micro.textContent='WAITING FOR SIGNAL CONFIRMATION';
+  if(micro)micro.textContent='WAITING FOR HOST CONFIRMATION';
 };
 UI.updateCoopCountdown=function(seconds){
   const countdownEl=$('pause-coop-countdown');
