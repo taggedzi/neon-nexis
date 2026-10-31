@@ -878,7 +878,7 @@ test('014 page reload restores participant equipment and health; both players mu
   await guest.locator('#btn-coop').click();
   await guest.locator('#coop-code-input').fill(code);
   await guest.locator('#btn-coop-join').click();
-  await expect.poll(() => guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
+  await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(id);
   expect(await guest.evaluate(() => window.NEON.Game.player.hp)).toBe(37);
   expect(await guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);

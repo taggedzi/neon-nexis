@@ -439,6 +439,12 @@ physical-controller checks, and the extended real-network scenarios below remain
   initial room setup. On 2026-10-31 that single test passed locally in headless
   Chromium (22.8s) and Firefox (28.7s). ESLint and `git diff --check` passed
   for the spec. The full browser suite was not rerun.
+- GitHub Actions run 41182565171 then passed the relay return and failed Firefox
+  on `014 page reload restores participant equipment and health`. After reload,
+  `Coop.active` stayed false for the default 5-second poll. Chromium passed
+  that test. The reload rejoin now uses the same foreground budget. On
+  2026-10-31 that single test passed locally in headless Chromium (17.6s) and
+  Firefox (21.4s). The full browser suite was not rerun.
 - Signaling tests verify host-only integer bounds, readiness revision invalidation,
   exactly-once launch, repeated runs, stale run/pause controls, duplicate active
   identity rejection, replacements, and hosted lifetime beyond the old expiry.
