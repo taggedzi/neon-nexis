@@ -119,7 +119,13 @@ UI.init=function(){
   $('btn-coop-join').addEventListener('click',joinCoopRoom);
   $('btn-coop-copy').addEventListener('click',copyCoopCode);
   $('btn-coop-start').addEventListener('click',()=>{
-    if(N.Coop&&N.Coop.startHostRun()) UI.hideAll();
+    if(N.Coop) N.Coop.readyLobby();
+  });
+  $('coop-respawns').addEventListener('input',()=>N.Net.sendControl({t:'lobby_respawns',count:Number($('coop-respawns').value)}));
+  $('btn-coop-stats').addEventListener('click',()=>{
+    const el=$('coop-last-stats'),data=N.Coop.lastGame;
+    el.textContent=data?'SECTOR '+data.sector+' // KILLS '+data.kills+' // PILOT LEVEL '+data.level:'NO GAMES PLAYED IN THIS LOBBY';
+    el.hidden=!el.hidden;
   });
   $('coop-code-input').addEventListener('input',()=>{
     const input=$('coop-code-input');
@@ -297,19 +303,20 @@ function buildCoopChoices(){
   for(const type of N.Ships.types){
     const button=document.createElement('button');
     button.type='button';button.textContent=type.name;button.dataset.shipType=type.id;
-    button.addEventListener('click',()=>{coopSelection.shipType=type.id;refreshCoopSelection();});
+    button.addEventListener('click',()=>{coopSelection.shipType=type.id;refreshCoopSelection();N.Coop.setLobbyProfile(coopSelection);});
     types.appendChild(button);
   }
   for(const color of N.Ships.palette){
     const button=document.createElement('button');
     button.type='button';button.textContent=color.name;button.dataset.shipColor=color.color;
     button.style.setProperty('--choice-color',color.color);
-    button.addEventListener('click',()=>{coopSelection.shipColor=color.color;refreshCoopSelection();});
+    button.addEventListener('click',()=>{coopSelection.shipColor=color.color;refreshCoopSelection();N.Coop.setLobbyProfile(coopSelection);});
     colors.appendChild(button);
   }
 }
 UI.showCoop=function(reason){
   if(N.Coop&&N.Coop.isActive())return;
+  $('coop-last-stats').hidden=true;
   if(!coopSelection){
     const saved=N.readSave()?.player;
     coopSelection=N.Ships.selection(saved||{});
@@ -325,7 +332,7 @@ UI.showCoop=function(reason){
   showScreen('coop');
 };
 UI.closeCoop=function(){
-  if(N.Coop&&N.Coop.isActive()){N.Coop.leaveToMenu();return;}
+  if(N.Coop&&(N.Coop.isActive()||N.Net?.code)){N.Coop.leaveToMenu();return;}
   if(N.Net&&N.Net.state!=='idle'&&N.Net.state!=='closed')N.Net.leave();
   UI.showMenu();
 };
@@ -368,9 +375,31 @@ UI.updateCoopStatus=function(status){
   const guestWaiting=state==='waiting'&&status&&status.role==='guest';
   $('btn-coop-host').disabled=busy||hosting;
   $('btn-coop-join').disabled=busy||hosting||(guestWaiting&&!!(status&&status.peer));
-  const canStart=state==='connected'&&status&&status.role==='host'&&!!status.peer;
+  const canStart=!!code&&(state==='connected'||hosting);
   $('btn-coop-start').hidden=!canStart;
   $('btn-coop-start').disabled=!canStart;
+};
+UI.updateLobby=function(){
+  const c=N.Coop,lobby=c.lobby;
+  if(lobby&&N.Net.code){
+    const ready=lobby.ready.includes(N.Net.clientId);
+    $('coop-members').textContent=lobby.members.map(m=>m.profile.name+' // '+m.profile.shipType+' // '+m.profile.shipColor+' // '+(lobby.ready.includes(m.clientId)?'READY':'CHOOSING')).join(' | ');
+    $('coop-respawn-count').textContent=String(lobby.respawns);
+    $('coop-respawns').value=String(lobby.respawns);
+    $('coop-respawns').disabled=N.Net.role!=='host'||lobby.phase!=='lobby';
+    const button=$('btn-coop-start');
+    button.hidden=lobby.phase!=='lobby';
+    button.disabled=lobby.phase!=='lobby';
+    button.textContent=lobby.launchAt?'CANCEL LAUNCH // '+Math.max(0,Math.ceil((lobby.launchAt-Date.now())/1000)):(ready?'NOT READY':'READY');
+  }
+  const life=$('coop-life-status');
+  if(life){
+    life.hidden=!c.active;
+    if(c.active&&G.player){
+      const p=G.player;
+      life.textContent='TEAM RESPAWNS '+c.remainingRespawns+' / '+(lobby?lobby.respawns:4)+(p.dead?(p.respawnSeconds!=null?' // REPLACEMENT IN '+Math.ceil(p.respawnSeconds)+'s':' // SPECTATING TEAMMATE'):'');
+    }
+  }
 };
 UI.updateCoopPeer=function(peer){
   if(!$('screen-coop'))return;

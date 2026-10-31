@@ -15,14 +15,35 @@ function trackContext(context) {
   return context;
 }
 
-async function startCoopRun(browser) {
+async function forceRelay(context) {
+  await context.addInitScript(() => {
+    window.RTCPeerConnection = class {
+      createDataChannel() { return { readyState: 'connecting', close() {} }; }
+      createOffer() { return Promise.reject(new Error('Test: direct transport unavailable')); }
+      close() {}
+    };
+  });
+}
+
+async function startCoopRun(browser, relay = false, delayInitialPause = false) {
   const hostContext = trackContext(await browser.newContext());
+  if (relay) await forceRelay(hostContext);
   const host = await hostContext.newPage();
   const errors = [];
   watchPage(host, 'host', errors);
 
   await host.goto('/');
   await host.locator('#btn-boot').click();
+  if (delayInitialPause) await host.evaluate(() => {
+    const net=window.NEON.Net, receive=net.onMessage;
+    let delayed=false;
+    net.onMessage=message=>{
+      if (!delayed&&message.t==='global_pause') {
+        delayed=true;
+        setTimeout(()=>receive(message),500);
+      } else receive(message);
+    };
+  });
   await host.locator('#btn-coop').click();
   await host.locator('#btn-coop-host').click();
   await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
@@ -32,6 +53,7 @@ async function startCoopRun(browser) {
   // the host in the background, and Firefox may not apply a later peer message
   // until that page is in front again.
   const guestContext = trackContext(await browser.newContext());
+  if (relay) await forceRelay(guestContext);
   const guest = await guestContext.newPage();
   watchPage(guest, 'guest', errors);
 
@@ -76,6 +98,7 @@ async function startCoopRun(browser) {
 
   await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
   await host.locator('#btn-coop-start').click();
+  await guest.locator('#btn-coop-start').click();
 
   await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
   await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
@@ -216,6 +239,7 @@ test('session survives a brief signaling drop inside the grace window', async ({
 
     await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
     await host.locator('#btn-coop-start').click();
+  await guest.locator('#btn-coop-start').click();
     await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
     await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
 
@@ -359,6 +383,7 @@ test('peer completion summary is shown as text', async ({ browser }) => {
     const direct = await guest.evaluate((kills) => {
       window.coopSummaryMarker = false;
       window.NEON.Coop.onMessage({
+        _run: window.NEON.Coop.runId, _sector: window.NEON.Game.level.number,
         t: 'complete',
         summary: {
           sector: 1,
@@ -469,6 +494,7 @@ test('pause and ready are retried after a signaling outage', async ({ browser })
     await expect.poll(() => host.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
     await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
     await host.locator('#btn-coop-start').click();
+  await guest.locator('#btn-coop-start').click();
     await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: ROOM_SETUP_TIMEOUT }).toBe('playing');
 
     await guest.evaluate(() => {
@@ -696,4 +722,310 @@ test('guest pickups stay until the grant is accepted', async ({ browser }) => {
   } finally {
     await closeAll(ctx);
   }
+});
+
+
+async function waitForGuestSetup(host, guest) {
+  await expect.poll(async () => {
+    const [hostState, guestState] = await Promise.all([
+      host.evaluate(() => ({ peer: window.NEON.Net.peerId, state: window.NEON.Net.state })),
+      guest.evaluate(() => ({ id: window.NEON.Net.clientId, active: window.NEON.Coop.active,
+        state: window.NEON.Net.state, role: window.NEON.Net.role, phase: window.NEON.Coop.lobby?.phase,
+        detail: window.NEON.Coop.status?.detail, mode: window.NEON.Game.mode,
+        status: document.querySelector('#coop-status')?.textContent || '' }))
+    ]);
+    const hostLinked = hostState.peer === guestState.id;
+    // Background browser pages may defer applying peer/setup messages in CI.
+    // Use the same foreground handling and budget as the initial room setup.
+    if (!hostLinked) await host.bringToFront();
+    else if (!guestState.active) await guest.bringToFront();
+    return { hostLinked, guestActive: guestState.active,
+      hostState: hostState.state, guestState: guestState.state,
+      role: guestState.role, phase: guestState.phase, detail: guestState.detail,
+      mode: guestState.mode, status: guestState.status };
+  }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] })
+    .toMatchObject({ hostLinked: true, guestActive: true });
+}
+
+async function readyPair(host, guest) {
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+  await expect.poll(() => guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+  await host.evaluate(() => window.NEON.Coop.sendReady());
+  await guest.evaluate(() => window.NEON.Coop.sendReady());
+  await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: 10000 }).toBe('playing');
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 10000 }).toBe('playing');
+}
+
+async function quietWorld(host) {
+  await host.evaluate(() => {
+    const G = window.NEON.Game;
+    G.enemies.length = 0;
+    G.enemyBullets.length = 0;
+    G.updateSpawning = () => {};
+    G.updateAnchors = () => {};
+    G.player.invuln = 999;
+  });
+}
+
+test('014 guest death drops storage once, revives with protection, and preserves the lobby across runs', async ({ browser }) => {
+  test.setTimeout(90000);
+  const { host, guest, code, errors } = await startCoopRun(browser);
+  await quietWorld(host);
+  // Random death drops may land within the survivor's normal pickup radius.
+  // Keep them on the floor until the drop assertion, then verify collection.
+  const pickupRadius = await host.evaluate(() => {
+    const player = window.NEON.Game.player;
+    const radius = player.stats.pickupRadius;
+    player.stats.pickupRadius = 0;
+    player.buffs.magnet = 0;
+    return radius;
+  });
+  const before = await guest.evaluate(() => {
+    const G = window.NEON.Game;
+    G.player.invuln = 999;
+    G.player.weapons[0].level = 3;
+    window.NEON.Rewards.bank({kind:'mod',itemId:'vector',tier:1});
+    const before = {x:G.player.x,y:G.player.y,weapon:G.player.weapons[0].id};
+    G.gameOver();
+    return before;
+  });
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
+  await expect.poll(() => host.evaluate(() => window.NEON.Game.groundItems.filter(i=>i.itemId==='vector').length)).toBe(1);
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.dead), {timeout:12000}).toBe(false);
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+  const restored = await guest.evaluate(() => ({x:window.NEON.Game.player.x,y:window.NEON.Game.player.y,
+    hp:window.NEON.Game.player.hp,max:window.NEON.Game.player.stats.maxHp,invuln:window.NEON.Game.player.invuln,
+    storage:window.NEON.Rewards.state().pending.length,weapon:window.NEON.Game.player.weapons[0].id,
+    level:window.NEON.Game.player.weapons[0].level,pool:window.NEON.Coop.remainingRespawns}));
+  expect(restored).toMatchObject({...before,level:3,storage:0,pool:3});
+  expect(restored.hp).toBe(restored.max);
+  expect(restored.invuln).toBe(3);
+  await host.evaluate(radius => {
+    const G = window.NEON.Game;
+    const item = G.groundItems.find(item => item.itemId === 'vector');
+    G.player.stats.pickupRadius = radius;
+    G.player.x = item.x;
+    G.player.y = item.y;
+    G.updateGroundItems(0);
+  }, pickupRadius);
+  expect(await host.evaluate(() => window.NEON.Game.groundItems.filter(item => item.itemId === 'vector').length)).toBe(0);
+  expect(await host.evaluate(() => window.NEON.Rewards.state().pending.filter(item => item.itemId === 'vector').length)).toBe(1);
+  await readyPair(host,guest);
+  // End both lives in the same simulation batch, before any replacement timer.
+  await host.evaluate(() => {
+    window.NEON.Coop.remotePlayers[0].dead=true;
+    window.NEON.Game.gameOver();
+    window.NEON.Game.completeLevel('timer');
+  });
+  await expect(host.locator('#screen-coop')).toHaveClass(/active/);
+  await expect(guest.locator('#screen-coop')).toHaveClass(/active/);
+  expect(await host.evaluate(() => window.NEON.Net.code)).toBe(code);
+  expect(await guest.evaluate(() => window.NEON.Net.code)).toBe(code);
+  await host.locator('#btn-coop-stats').click();
+  await expect(host.locator('#coop-last-stats')).toContainText('KILLS');
+  const runId = await host.evaluate(() => window.NEON.Coop.runId);
+  await host.locator('#btn-coop-start').click();
+  await guest.locator('#btn-coop-start').click();
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), {timeout:15000}).toBe('playing');
+  expect(await host.evaluate(() => window.NEON.Coop.runId)).toBe(runId+1);
+  expect(await guest.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('014 host death keeps simulation running; sector advancement revives spectators and resets the pool', async ({ browser }) => {
+  test.setTimeout(60000);
+  const {host,guest,errors}=await startCoopRun(browser);
+  await quietWorld(host);
+  await host.evaluate(() => {window.NEON.Coop.remainingRespawns=0;window.NEON.Game.gameOver();});
+  const elapsed=await host.evaluate(() => window.NEON.Game.level.elapsed);
+  await expect.poll(() => host.evaluate(() => window.NEON.Game.level.elapsed)).toBeGreaterThan(elapsed+0.2);
+  expect(await host.evaluate(() => window.NEON.Coop.cameraTarget()===window.NEON.Coop.remotePlayers[0])).toBe(true);
+  await host.evaluate(() => window.NEON.Game.completeLevel('timer'));
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode)).toBe('complete');
+  await host.locator('#btn-advance').click();
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.level.number)).toBe(2);
+  expect(await host.evaluate(() => window.NEON.Game.player.dead)).toBe(false);
+  expect(await host.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(4);
+  expect(await host.evaluate(() => window.NEON.Game.groundItems.length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('014 page reload restores participant equipment and health; both players must ready', async ({browser}) => {
+  test.setTimeout(90000);
+  const {host,guest,code,errors}=await startCoopRun(browser);
+  await quietWorld(host);
+  await guest.evaluate(() => {
+    const send=window.NEON.Net.send;
+    window.NEON.Net.send=message=>message.t==='event_ack'?false:send(message);
+  });
+  await host.evaluate(() => window.NEON.Net.send({t:'xp',amount:7}));
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);
+  const id=await guest.evaluate(() => {
+    window.NEON.Game.player.hp=37;
+    window.NEON.Game.player.invuln=999;
+    window.NEON.Game.player.weapons[0].level=4;
+    window.NEON.Game.saveCheckpoint();
+    return window.NEON.Net.clientId;
+  });
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers[0].weapons[0].level)).toBe(4);
+  await host.evaluate(() => {
+    const G=window.NEON.Game;
+    G.pauseGame();
+    G.spawnEnemyBullet({x:G.player.x+300,y:G.player.y,angle:0,speed:40,size:5,life:20,color:'#ff335c',damage:1});
+  });
+  await guest.reload();
+  await guest.locator('#btn-boot').click();
+  await guest.locator('#btn-coop').click();
+  await guest.locator('#coop-code-input').fill(code);
+  await guest.locator('#btn-coop-join').click();
+  await waitForGuestSetup(host, guest);
+  expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(id);
+  expect(await guest.evaluate(() => window.NEON.Game.player.hp)).toBe(37);
+  expect(await guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.enemyBullets.some(b=>b.life===20))).toBe(true);
+  expect(await guest.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(4);
+  await guest.evaluate(() => window.NEON.Coop.sendReady());
+  expect(await host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+  await host.evaluate(() => window.NEON.Coop.sendReady());
+  await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode),{timeout:10000}).toBe('playing');
+  expect(await guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);
+  expect(errors).toEqual([]);
+});
+
+test('014 lone host starts and death ends the mission despite spare respawns', async ({browser}) => {
+  const context=trackContext(await browser.newContext());
+  const page=await context.newPage();
+  await page.goto('/');
+  await page.locator('#btn-boot').click();
+  await page.locator('#btn-coop').click();
+  await page.locator('#btn-coop-stats').click();
+  await expect(page.locator('#coop-last-stats')).toContainText('NO GAMES');
+  await page.locator('#btn-coop-host').click();
+  await expect(page.locator('#btn-coop-start')).toBeVisible();
+  await page.locator('#btn-coop-start').click();
+  await expect.poll(() => page.evaluate(() => window.NEON.Game.mode),{timeout:10000}).toBe('playing');
+  const code=await page.evaluate(() => window.NEON.Net.code);
+  await page.evaluate(() => window.NEON.Game.gameOver());
+  await expect(page.locator('#screen-coop')).toHaveClass(/active/);
+  expect(await page.evaluate(() => window.NEON.Net.code)).toBe(code);
+  expect(await page.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(4);
+});
+
+
+test('014 relay replacement retains separate records and a dead return does not refill respawns', async ({browser}) => {
+  test.setTimeout(150000);
+  const {host,guest,code,errors}=await startCoopRun(browser,true);
+  await quietWorld(host);
+  expect(await guest.evaluate(() => window.NEON.Net.label())).toBe('RELAY');
+  await host.evaluate(() => {window.NEON.Coop.remainingRespawns=0;});
+  const originalId=await guest.evaluate(() => {
+    window.NEON.Game.player.weapons[0].level=4;
+    window.NEON.Game.gameOver();
+    return window.NEON.Net.clientId;
+  });
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
+  await guest.evaluate(() => window.NEON.Coop.leaveToMenu());
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
+  expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+  const replacementContext=trackContext(await browser.newContext());
+  await forceRelay(replacementContext);
+  const replacement=await replacementContext.newPage();
+  watchPage(replacement,'replacement',errors);
+  await replacement.goto('/');
+  await replacement.locator('#btn-boot').click();
+  await replacement.locator('#btn-coop').click();
+  await replacement.locator('#coop-code-input').fill(code);
+  await replacement.locator('#btn-coop-join').click();
+  await waitForGuestSetup(host, replacement);
+  expect(await replacement.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
+  await readyPair(host,replacement);
+  await replacement.evaluate(() => window.NEON.Coop.leaveToMenu());
+  await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
+  await guest.locator('#btn-coop').click();
+  await guest.locator('#coop-code-input').fill(code);
+  await guest.locator('#btn-coop-join').click();
+  await waitForGuestSetup(host, guest);
+  expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(originalId);
+  expect(await guest.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
+  expect(await guest.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(4);
+  expect(await host.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(0);
+  expect(await host.evaluate(() => window.NEON.Coop.records.size)).toBe(2);
+  await readyPair(host,guest);
+  expect(await guest.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('014 lobby selections invalidate readiness and controls fit a compact viewport', async ({browser},testInfo) => {
+  const context=trackContext(await browser.newContext({viewport:{width:960,height:720}}));
+  const page=await context.newPage();
+  await page.goto('/');
+  await page.locator('#btn-boot').click();
+  await page.locator('#btn-coop').click();
+  await page.locator('#btn-coop-host').click();
+  await expect(page.locator('#btn-coop-start')).toBeVisible();
+  await page.locator('#btn-coop-start').click();
+  await expect(page.locator('#btn-coop-start')).toContainText('CANCEL');
+  await page.locator('#coop-ship-types [data-ship-type="kite"]').click();
+  await expect(page.locator('#btn-coop-start')).toHaveText('READY');
+  await page.locator('#coop-respawns').focus();
+  await page.keyboard.press('Home');
+  await expect(page.locator('#coop-respawn-count')).toHaveText('0');
+  await page.locator('#btn-coop-stats').click();
+  await expect(page.locator('#coop-last-stats')).toContainText('NO GAMES');
+  await page.screenshot({path:testInfo.outputPath('lobby.png')});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const priority=await page.evaluate(() => {
+    const choose=window.NEON.Coop.chooseRespawn;
+    const p=[{level:2,id:1},{level:8,id:2},{level:8,id:3}];
+    return [choose(p,()=>0).id,choose(p,()=>0.99).id];
+  });
+  expect(priority).toEqual([2,3]);
+});
+
+
+test('014 a lone host admits a guest with manual readiness and guest departure preserves sector completion', async ({browser}) => {
+  test.setTimeout(60000);
+  const hostContext=trackContext(await browser.newContext());
+  const host=await hostContext.newPage();
+  const errors=[];
+  watchPage(host,'host',errors);
+  await host.goto('/');
+  await host.locator('#btn-boot').click();
+  await host.locator('#btn-coop').click();
+  await host.locator('#btn-coop-host').click();
+  await expect(host.locator('#btn-coop-start')).toBeVisible();
+  await host.locator('#btn-coop-start').click();
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Game.mode),{timeout:10000}).toBe('playing');
+  await quietWorld(host);
+  const code=await host.evaluate(()=>window.NEON.Net.code);
+  const guestContext=trackContext(await browser.newContext());
+  const guest=await guestContext.newPage();
+  watchPage(guest,'guest',errors);
+  await guest.goto('/');
+  await guest.locator('#btn-boot').click();
+  await guest.locator('#btn-coop').click();
+  await guest.locator('#coop-code-input').fill(code);
+  await guest.locator('#btn-coop-join').click();
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Coop.active)).toBe(true);
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.pauseState)).toBe('PAUSED');
+  await expect(host.locator('#btn-resume')).toHaveText('READY');
+  await expect(guest.locator('#btn-resume')).toHaveText('READY');
+  await readyPair(host,guest);
+  await host.evaluate(()=>window.NEON.Game.completeLevel('timer'));
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode)).toBe('complete');
+  await guest.evaluate(()=>window.NEON.Coop.leaveToMenu());
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.remotePlayers.length)).toBe(0);
+  expect(await host.evaluate(()=>window.NEON.Game.mode)).toBe('complete');
+  await host.locator('#btn-advance').click();
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
+  expect(await host.evaluate(()=>window.NEON.Coop.remainingRespawns)).toBe(4);
+  expect(errors).toEqual([]);
+});
+
+
+test('014 launch tolerates setup acknowledgment before the server pause notification', async ({browser}) => {
+  const {host,guest,errors}=await startCoopRun(browser,false,true);
+  expect(await host.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
+  expect(await guest.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
+  expect(errors).toEqual([]);
 });

@@ -32,6 +32,9 @@ venv/
 Thumbs.db
 Desktop.ini
 
+# Security Documents
+docs/private-production-review
+
 # Keep source assets, shared editor/agent configuration, and intentional
 # validation evidence (including tools/performance/results-*.json) trackable.
 

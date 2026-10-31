@@ -45,7 +45,17 @@
   Net.clientId = clientId;
 
   function makeClientId() {
-    return 'nn_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    const key = 'neon-coop-identity-v1';
+    try {
+      const saved = localStorage.getItem(key);
+      if (/^nn_[a-f0-9]{32}$/.test(saved || '')) { Net.identityPersistent = true; return saved; }
+    } catch (error) { /* Storage may be unavailable; this session still works. */ }
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const id = 'nn_' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    Net.identityPersistent = false;
+    try { localStorage.setItem(key, id); Net.identityPersistent = localStorage.getItem(key) === id; } catch (error) { /* Recovery is unavailable without storage. */ }
+    return id;
   }
 
   function makeSessionId() {
@@ -121,7 +131,7 @@
     const changed = !Net.peer || !peer || Net.peer.clientId !== peer.clientId;
     Net.peer = peer || null;
     Net.peerId = peer ? peer.clientId : null;
-    if (changed) receiveSequence = 0;
+    if (changed) { receiveSequence = 0; closePeerConnection(); }
     if (typeof Net.onPeer === 'function') Net.onPeer(Net.peer);
   }
 
@@ -201,12 +211,14 @@
       case 'joined':
         Net.code = message.code;
         reconnectAttempts = 0;
+        receiveSequence = 0;
         setPeer(message.host);
         setState('connected', 'LINKED TO HOST');
         startOffer();
         break;
       case 'peer':
         reconnectAttempts = 0;
+        receiveSequence = 0;
         setPeer(message.peer);
         setState('connected', 'PEER LINKED');
         if (Net.role === 'guest') {
@@ -224,6 +236,8 @@
         }
         break;
       /* Server-owned pause protocol messages are forwarded to the co-op layer. */
+      case 'lobby_state':
+      case 'launch':
       case 'global_pause':
       case 'ready_state':
       case 'countdown_start':
@@ -433,6 +447,7 @@
 
   Net.send = function (message) {
     if (!Net.peerId || !message || typeof message !== 'object') return false;
+    if (N.Coop && N.Coop.stampMessage) N.Coop.stampMessage(message);
     message._s = ++sendSequence;
     const text = JSON.stringify(message);
     if (channel && channel.readyState === 'open') {
@@ -451,6 +466,11 @@
   };
 
   Net.sendControl = function (message) {
+    if (message && message.t === 'lobby_profile' && intent) intent.profile = normalizeProfile(message.profile);
+    if (message && N.Coop && ['pause_request', 'ready_signal', 'pause_sync'].includes(message.t)) {
+      message.runId = N.Coop.runId;
+      message.epoch = N.Coop.pauseEpoch || 0;
+    }
     if (!message || typeof message !== 'object') return false;
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));

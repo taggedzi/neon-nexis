@@ -35,7 +35,9 @@ function loop(now){
   }
   N.Input.update();
   try{
+    if (N.Coop) N.Coop.tickSession(dt);
     N.Game.update(dt);
+    if (N.Coop) N.Coop.tickLives(dt);
     N.UI.updateRewards();
     if(N.UI.overlayOpen())N.UI.handleGamepad();
   }catch(err){console.error('update error',err);}

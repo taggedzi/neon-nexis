@@ -187,7 +187,12 @@
                   <button class="neon-btn primary" id="btn-coop-join" type="button">JOIN ROOM</button>
                 </div>
               </div>
-              <button class="neon-btn" id="btn-coop-start" type="button" hidden>START CO-OP RUN</button>
+              <button class="neon-btn" id="btn-coop-start" type="button" hidden>READY</button>
+              <div id="coop-members" class="coop-note"></div>
+              <label class="coop-label" for="coop-respawns">SHARED RESPAWNS: <span id="coop-respawn-count">4</span></label>
+              <input id="coop-respawns" type="range" min="0" max="8" step="1" value="4">
+              <button class="neon-btn subtle" id="btn-coop-stats" type="button">LAST GAME STATISTICS</button>
+              <div id="coop-last-stats" class="coop-note" hidden></div>
               <div class="coop-note" id="coop-note">SYNC: PENDING // TRANSPORT: OFFLINE</div>
             </div>
           </div>
@@ -336,6 +341,7 @@
     </div>
 
     <button id="btn-rewards-hud" class="neon-btn reward-hud" type="button" hidden>REWARDS</button>
+    <div id="coop-life-status" class="coop-life-status" hidden></div>
     <div id="toasts" aria-live="polite"></div>
     <div id="gamepad-status" class="gamepad-status" aria-hidden="true"></div>
   </div>
@@ -358,6 +364,7 @@
   <script src="js/sim.js"></script>
   <script src="js/enemies.js"></script>
   <script src="js/coop.js"></script>
+  <script src="js/coop-session.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>

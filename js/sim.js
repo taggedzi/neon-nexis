@@ -664,8 +664,8 @@ G.updateGroundItems=function(dt){
       it.grantHold-=dt;
       if(it.grantHold>0) continue;
     }
-    let collector=p,collectorRadius=radius;
-    let d=N.dist(it.x,it.y,p.x,p.y);
+    let collector=p.dead?null:p,collectorRadius=radius;
+    let d=p.dead?Infinity:N.dist(it.x,it.y,p.x,p.y);
     if(coopHost){
       const guest=N.Coop.remotePlayers[0];
       if(guest&&!guest.dead){
@@ -680,7 +680,7 @@ G.updateGroundItems=function(dt){
       it.x+=(p.x-it.x)*f;it.y+=(p.y-it.y)*f;
       N.World.move(it,oldX,oldY,12);
     }
-    if(d<collectorRadius&&N.World.clear(collector.x,collector.y,it.x,it.y)){
+    if(collector&&d<collectorRadius&&N.World.clear(collector.x,collector.y,it.x,it.y)){
       if(collector===p){
         G.collectGroundItem(it,false);
         // Banked/consumed items leave the floor; a full reward tray retains gear.
@@ -698,6 +698,7 @@ G.updateGroundItems=function(dt){
 
 // ——— player death ———
 G.gameOver=function(){
+  if (N.Coop && N.Coop.isActive()) { N.Coop.onLocalDeath(); return; }
   if(G.mode==='gameover'||G.mode==='complete')return;
   const p=G.player;if(!p)return;
   p.dead=true;p.hp=0;
@@ -717,6 +718,10 @@ G.gameOver=function(){
 // ——— level completion ———
 G.completeLevel=function(reason){
   if(G.mode!=='playing')return;
+  if (N.Coop?.isHost() && N.Coop.players().every(player => player.dead)) {
+    N.Coop.tickLives(0);
+    return;
+  }
   const p=G.player;
   const summary={
     sector:G.run.level,reason:reason||'anchors',time:G.level.elapsed,kills:G.level.kills,
@@ -734,7 +739,7 @@ G.completeLevel=function(reason){
   p.shield=p.stats.maxShield;
   p.shieldDelay=0;
   p.dashCharges=p.maxDashCharges;
-  p.buffs.overclock=0;p.buffs.speed=0;p.buffs.magnet=0;
+  if (!p.dead || !G.coopRun) { p.buffs.overclock=0;p.buffs.speed=0;p.buffs.magnet=0; }
   G.overflow=null;
   G.level=G.generateLevel(G.run.level,null);
   p.x=G.level.layout?.spawn.x||G.level.cx;p.y=G.level.layout?.spawn.y||G.level.cy;p.vx=0;p.vy=0;
@@ -772,7 +777,7 @@ G.update=function(dt){
     return;
   }
   if(N.Coop&&N.Coop.isActive()&&N.Coop.pauseState!=='PLAY')return;
-  if(!G.player||G.player.dead)return;
+  if(!G.player||(G.player.dead&&!(N.Coop&&N.Coop.isActive())))return;
   if(N.Input.actionPressed('pause')||N.Input.padActionPressed('pause')){G.pauseGame();return;}
   if(N.Input.actionPressed('inventory')||N.Input.padActionPressed('inventory')){G.openInventory();return;}
   if(N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards')){G.openRewards();return;}
@@ -783,6 +788,7 @@ G.update=function(dt){
   if(!(N.Coop&&N.Coop.isGuest()))G.level.elapsed=Math.min(DURATION,G.level.elapsed+dt);
   if(N.Coop&&N.Coop.isGuest()){N.Coop.updateGuest(dt);return;}
   G.updatePlayer(dt);
+  if(G.player.dead)G.updateCamera(dt);
   if(G.mode!=='playing')return;
   G.updateEnemies(dt);
   if(G.mode!=='playing')return;

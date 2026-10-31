@@ -63,6 +63,9 @@ function createCoopServer(options = {}) {
 
   function send(client, message) {
     if (client && client.socket && client.socket.readyState === WebSocket.OPEN) {
+      if (client.room && ['global_pause', 'ready_state', 'countdown_start', 'global_resume'].includes(message.t)) {
+        message = { ...message, runId: client.room.runId, epoch: client.room.pauseEpoch || 0 };
+      }
       client.socket.send(JSON.stringify(message));
     }
   }
@@ -108,7 +111,8 @@ function createCoopServer(options = {}) {
     client.offlineTimer = setTimeout(function () {
       client.offlineTimer = null;
       if (client.socket || client.room !== room) return;
-      notifyPeerLeft(client, room);
+      if (client.role === 'guest') leave(client, true);
+      else notifyPeerLeft(client, room);
       touch(room);
     }, peerOfflineGraceMs);
     if (client.offlineTimer.unref) client.offlineTimer.unref();
@@ -124,6 +128,7 @@ function createCoopServer(options = {}) {
     else room.guest = client;
     touch(room);
     ensureRoomState(room);
+    invalidateLobby(room);
     if (room.pauseState !== 'PLAY') {
       clearCountdown(room);
       room.pauseState = 'PAUSED';
@@ -134,13 +139,17 @@ function createCoopServer(options = {}) {
 
   function ensureRoomState(room) {
     if (!room.pauseState) room.pauseState = 'PLAY';
+    if (!room.phase) room.phase = 'lobby';
+    if (!room.lobbyReady) room.lobbyReady = new Set();
+    if (!room.runId) room.runId = 0;
+    if (room.respawns === undefined) room.respawns = 4;
     if (!room.readyPeers) room.readyPeers = new Set();
     if (room.pauseOwner === undefined) room.pauseOwner = null;
     if (room.countdownTimer === undefined) room.countdownTimer = null;
   }
 
   function roomMembers(room) {
-    return [room.host, room.guest].filter(function (member) { return !!member; });
+    return [room.host, room.guest].filter(function (member) { return open(member); });
   }
 
   function broadcastRoom(room, message) {
@@ -161,6 +170,7 @@ function createCoopServer(options = {}) {
     ensureRoomState(room);
     clearCountdown(room);
     room.pauseState = 'PAUSED';
+    room.pauseEpoch = (room.pauseEpoch || 0) + 1;
     room.pauseOwner = initiator && initiator.clientId ? initiator.clientId : null;
     room.readyPeers.clear();
     broadcastRoom(room, { t: 'global_pause', by: room.pauseOwner });
@@ -174,7 +184,7 @@ function createCoopServer(options = {}) {
     room.readyPeers.add(client.clientId);
     broadcastRoom(room, { t: 'ready_state', ready: Array.from(room.readyPeers) });
     const members = roomMembers(room);
-    if (members.length >= 2 && room.readyPeers.size >= members.length) {
+    if (members.length >= 1 && room.readyPeers.size >= members.length) {
       room.pauseState = 'COUNTDOWN';
       broadcastRoom(room, { t: 'countdown_start', seconds: 3 });
       clearCountdown(room);
@@ -245,12 +255,17 @@ function createCoopServer(options = {}) {
       rooms.set(room.code, room);
     }
 
+    if (room.host && open(room.host) && room.host !== client) {
+      send(client, { t: 'error', message: 'HOST ALREADY CONNECTED' });
+      return;
+    }
     attach(client, room, 'host');
     send(client, {
       t: 'hosted',
       code: room.code,
       peer: open(room.guest) ? publicPeer(room.guest) : null
     });
+    broadcastLobby(room);
 
     if (open(room.guest)) {
       send(client, { t: 'peer', peer: publicPeer(room.guest) });
@@ -271,17 +286,17 @@ function createCoopServer(options = {}) {
     client.profile = cleanProfile(message.profile);
 
     if (room.guest) {
-      const sameGuest = room.guest.clientId === clientId;
-      if (!sameGuest || open(room.guest)) {
+      if (open(room.guest)) {
         send(client, { t: 'full' });
         return;
       }
     }
-    if (!room.host) {
+    if (!open(room.host) || room.host.clientId === clientId) {
       send(client, { t: 'notfound' });
       return;
     }
 
+    if (room.guest) leave(room.guest, true);
     attach(client, room, 'guest');
     send(client, {
       t: 'joined',
@@ -291,6 +306,8 @@ function createCoopServer(options = {}) {
       self: clientId
     });
     if (open(room.host)) send(room.host, { t: 'peer', peer: publicPeer(client) });
+    broadcastLobby(room);
+    if (room.phase === 'run') startGlobalPause(room, client);
   }
 
   function forward(client, message) {
@@ -312,6 +329,7 @@ function createCoopServer(options = {}) {
     }
     clearOfflineTimer(client);
     clearCountdown(room);
+    invalidateLobby(room);
     room.pauseState = 'PLAY';
     if (room.readyPeers) room.readyPeers.clear();
     const wasHost = client.role === 'host';
@@ -325,6 +343,9 @@ function createCoopServer(options = {}) {
       }
     } else {
       room.guest = null;
+      invalidateLobby(room);
+      broadcastLobby(room);
+      if (room.phase === 'run') broadcastRoom(room, { t: 'global_resume' });
       touch(room);
     }
     client.room = null;
@@ -339,8 +360,87 @@ function createCoopServer(options = {}) {
     console.error('Co-op signaling ignored an invalid control message');
   }
 
+  function lobbyState(room) {
+    return { t: 'lobby_state', phase: room.phase, runId: room.runId,
+      revision: room.lobbyRevision || 0, respawns: room.respawns,
+      members: roomMembers(room).map(publicPeer), ready: Array.from(room.lobbyReady),
+      launchAt: room.launchAt || 0 };
+  }
+
+  function broadcastLobby(room) {
+    broadcastRoom(room, lobbyState(room));
+  }
+
+  function invalidateLobby(room) {
+    clearTimeout(room.launchTimer);
+    room.launchTimer = null;
+    room.launchAt = 0;
+    room.lobbyReady.clear();
+    room.lobbyRevision = (room.lobbyRevision || 0) + 1;
+  }
+
+  function handleLobby(client, message) {
+    const room = memberRoom(client);
+    if (!room) return;
+    ensureRoomState(room);
+    if (message.t === 'lobby_sync') {
+      send(client, lobbyState(room));
+      return;
+    }
+    if (message.t === 'return_lobby') {
+      if (client.role !== 'host' || message.runId !== room.runId) return;
+      if (room.phase === 'lobby') { send(client, lobbyState(room)); return; }
+      room.phase = 'lobby';
+      clearCountdown(room);
+      room.pauseState = 'PLAY';
+      room.readyPeers.clear();
+      invalidateLobby(room);
+    } else {
+      if (room.phase !== 'lobby') return;
+      if (message.t === 'lobby_profile') {
+        client.profile = cleanProfile(message.profile);
+        invalidateLobby(room);
+      } else if (message.t === 'lobby_respawns') {
+        if (client.role !== 'host' || !Number.isInteger(message.count) || message.count < 0 || message.count > 8) return;
+        room.respawns = message.count;
+        invalidateLobby(room);
+      } else if (message.t === 'lobby_ready') {
+        if (message.revision !== room.lobbyRevision) return;
+        if (message.ready === false) invalidateLobby(room);
+        else room.lobbyReady.add(client.clientId);
+        const members = roomMembers(room);
+        if (!room.launchTimer && members.length && members.every(member => room.lobbyReady.has(member.clientId))) {
+          const revision = room.lobbyRevision;
+          room.launchAt = Date.now() + 3000;
+          room.launchTimer = setTimeout(() => {
+            room.launchTimer = null;
+            if (!rooms.has(room.code) || room.phase !== 'lobby' || room.lobbyRevision !== revision) return;
+            if (!roomMembers(room).every(member => room.lobbyReady.has(member.clientId))) return;
+            room.phase = 'run';
+            room.runId++;
+            invalidateLobby(room);
+            broadcastLobby(room);
+            broadcastRoom(room, { t: 'launch', runId: room.runId });
+          }, 3000);
+          room.launchTimer.unref();
+        }
+      }
+    }
+    broadcastLobby(room);
+  }
+
   function handle(client, message) {
+    const room = memberRoom(client);
+    if (room && ['pause_request', 'ready_signal', 'pause_sync'].includes(message.t)) {
+      if (message.runId !== undefined && message.runId !== room.runId) return;
+      if (message.t === 'ready_signal' && message.epoch !== undefined && message.epoch !== (room.pauseEpoch || 0)) return;
+    }
     switch (message.t) {
+      case 'lobby_sync':
+      case 'lobby_profile':
+      case 'lobby_respawns':
+      case 'lobby_ready':
+      case 'return_lobby': handleLobby(client, message); break;
       case 'host': hostRoom(client, message); break;
       case 'join': joinRoom(client, message); break;
       case 'signal':
@@ -358,6 +458,9 @@ function createCoopServer(options = {}) {
     const room = client.room;
     if (!room) return;
     client.socket = null;
+    invalidateLobby(room);
+    broadcastLobby(room);
+    if (room.pauseState === 'COUNTDOWN') startGlobalPause(room, null);
     touch(room);
     schedulePeerLeft(client, room);
   }
@@ -437,7 +540,7 @@ function createCoopServer(options = {}) {
        * Rooms that are not a live pair still expire, and the grace checks
        * above still bound a disconnected peer. */
       const pairLive = open(room.host) && open(room.guest);
-      if (!pairLive && now - room.updatedAt > ROOM_TTL_MS) {
+      if (hostDown && !pairLive && now - room.updatedAt > ROOM_TTL_MS) {
         rooms.delete(code);
         clearCountdown(room);
         for (const member of [room.host, room.guest]) {
@@ -475,6 +578,11 @@ function createCoopServer(options = {}) {
 
   function close() {
     clearInterval(sweeper);
+    for (const room of rooms.values()) {
+      clearCountdown(room);
+      clearTimeout(room.launchTimer);
+      for (const member of [room.host, room.guest]) clearOfflineTimer(member);
+    }
     for (const socket of wss.clients) socket.terminate();
     wss.close();
     if (ownsHttpServer && httpServer.listening) httpServer.close();

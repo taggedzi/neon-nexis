@@ -11,7 +11,7 @@ peer-to-peer channel is unavailable.
 | Role | Simulation | Authority |
 | --- | --- | --- |
 | Host (`PLAYER 1`) | Full game simulation | World seed, enemies, destructibles, loot drops, sector flow |
-| Guest (`PLAYER 2`) | Own ship and local UI | Own movement, aim, inventory, health, shots |
+| Guest (`PLAYER 2`) | Own ship and local UI | Own movement, aim, inventory, damage mitigation, shots; acknowledged state retained by host |
 
 Both clients generate the sector from the host's run seed, so the static map is
 identical without sending map geometry.
@@ -60,12 +60,16 @@ the data channel is not open, so a failed WebRTC attempt does not end the run.
 
 Every gameplay message has a `t` type. Gameplay messages are JSON. `_s` is a
 sender sequence number; receivers drop duplicates and out-of-order messages.
+`_run`, `_sector`, and `_life` scope gameplay to the current mission, sector, and
+sender life. Host damage/reward messages also carry `_targetLife`. A stale packet
+cannot revive a previous life or change a later mission. Connection setup uses a
+monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
 
 ### Host → guest
 
 | Type | Payload | Rate |
 | --- | --- | --- |
-| `start` | `seed`, `level`, `host` profile | once |
+| `session_sync` | `syncId`, seed/sector, retained player, host player, run, pool, phase | until setup acknowledgment |
 | `state` | Host ship position, aim, hull, health | 20 Hz |
 | `world` | Enemies, anchors, caches, ground items, elapsed, kills | 5 Hz |
 | `bullet` / `ebullet` | Projectile spawn parameters for cosmetic guest simulation | batched at 20 Hz |
@@ -75,7 +79,8 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `xp` | XP earned by a guest kill | on kill |
 | `kill` | Shared kill count and reward pacing tick | on kill |
 | `level` | Next run seed/sector, or sector-complete state | on change |
-| `complete` / `gameover` / `bye` | Session flow | on change |
+| `complete` / `mission_end` | Sector completion / return to persistent lobby | on change |
+| `revive` / `lives` | Replacement ship state / shared pool and death timers | on revival with acknowledgment / 4 Hz |
 
 ### Guest → host
 
@@ -84,7 +89,10 @@ sender sequence number; receivers drop duplicates and out-of-order messages.
 | `state` | Guest ship position, velocity, aim, hull, health, magnet | 20 Hz |
 | `loadout` | Weapons, passives, protocols, derived stats | on change |
 | `fire` | Weapon index, aim angle, origin | per shot |
-| `hit-ack` | Reserved for future rewind checks | unused |
+| `participant` | Full player/reward recovery snapshot | 4 Hz, on changes, and included in state/grant acknowledgments |
+| `death` / `death_ack` | Death snapshot and confirmation | retried until acknowledged |
+| `session_ack` / `revive_ack` | Setup or life transition confirmation | on application |
+| `event_ack` | Accepted damage/reward event and resulting player snapshot | on application or retry |
 | `grant_ack` | `grantId` and `ok` after the guest accepts or rejects a grant | on each `grant` |
 | `bye` | Leaving | once |
 
@@ -110,7 +118,9 @@ path, because only the server can decide when every participant is ready.
 
 If a member's socket drops during the countdown, the server cancels the resume
 and broadcasts `global_pause` again. A reconnecting member receives the current
-pause state when it reattaches.
+pause state when it reattaches. Controls carry the current run ID and pause epoch;
+ready signals from earlier pauses are rejected. A departing guest is removed from
+the required membership, and the remaining host can continue alone.
 
 ## Ownership rules
 
@@ -143,8 +153,12 @@ pause state when it reattaches.
   pair still expires after five minutes without signaling activity.
 - If the data channel drops, gameplay continues over the server relay. The
   transport status indicator reports `RELAY` instead of `P2P`.
-- When a peer leaves, the remaining player is returned to the co-op screen with
-  a clear status message. The host can reopen the room and wait for a new guest.
+- When a guest leaves, the host keeps the room/code and continues playing. Brief
+  socket drops retain the existing transport grace window; after departure is
+  confirmed, an absent record does not count as an active teammate. Open host
+  sockets keep rooms alive past both the old idle expiry and guest grace period.
+- Host departure closes the lobby for guests. Host migration, server-restart
+  recovery, and persisted co-op saves are not implemented.
 
 ## Non-goals
 
@@ -152,3 +166,81 @@ pause state when it reattaches.
 - More than two players.
 - Server-side physics, rendering, or procedural generation.
 - Persisted co-op sessions or cross-device saves.
+
+
+## Persistent lobby and participant recovery (issue 014)
+
+The signaling server owns lobby phase (`lobby` / `run`), membership, profiles,
+readiness, the configured shared respawn count, and a monotonically increasing
+run ID. The browser host owns the world, participant registry, shared remaining
+respawns, and life transitions. `js/coop-session.js` implements that lifecycle
+separately from avatar/world transport in `js/coop.js`.
+
+| Client control | Effect |
+| --- | --- |
+| `lobby_profile` | Update ship/color; invalidate readiness and launch countdown |
+| `lobby_respawns` | Host-only integer 0–8; default 4; invalidate readiness |
+| `lobby_ready` | Ready/unready against the current lobby revision |
+| `lobby_sync` | Request current lobby state |
+| `return_lobby` | Host-only, matching run ID; end mission without closing room |
+
+The server broadcasts `lobby_state` (members, profiles, readiness, revision,
+respawns, phase, run ID, launch time). All connected members, including a lone
+host, must ready before a three-second launch countdown. Membership or selection
+changes cancel stale launches. `launch` authorizes the host to initialize exactly
+one fresh run. New runs discard old retained equipment/progression.
+
+Each browser generates a cryptographically random 128-bit ID before connecting,
+stored as `neon-coop-identity-v1`. Explicit leave retains it. Storage failure is
+reported; reload recovery then cannot be promised. An occupied active slot cannot
+be claimed by another connection with the same ID. Inactive records occupy no
+connection slots, and different returning/replacement IDs retain separate ships.
+
+The host retains player position, health, equipment, progression, buffs, pending
+protocol choices, stored rewards, life number, and pending respawn timer. Guest
+state updates and acknowledgments include snapshots; no browser save is used.
+Damage and reward events have stable IDs and retry until acknowledged. The guest
+retains accepted IDs with its snapshot to avoid replaying already applied rewards
+when a receipt is lost. Ground-item grants stay reserved to their original
+participant until accepted or rejected, including while that participant is absent.
+
+A new/returning guest triggers setup pause. The host sends the current sector and
+world plus that ID's retained ship, or a fresh ship for an unmatched ID. Setup is
+acknowledged after world synchronization, before accepting guest gameplay. Existing
+bullets, mines, and strikes are transferred in bounded `sync_entities` chunks;
+readiness stays blocked until the world and every chunk arrive. Setup retries are
+throttled and duplicate chunks do not create extra hazards. Both
+players must ready to resume. Initial launch and normal sector advancement reuse
+the server countdown automatically after synchronization; they do not require a
+second manual ready click. A guest leaving during setup releases the host.
+
+## Shared life transitions
+
+- Individual deaths leave membership intact. The host processes deaths before
+  checking for all-dead defeat and before completing replacement timers.
+- Stored equipment is the reward tray, including an open replacement choice.
+  Death removes and scatters it exactly once; installed equipment and pending
+  protocol choices remain. Drops use normal world placement/pickup rules.
+- A living teammate permits an automatic replacement after three gameplay
+  seconds. The shared charge is reserved when its timer starts; disconnecting
+  cannot refund it or restart a free timer. Highest player level wins contested
+  allocation, with a single host-side random choice among equal highest levels.
+- A replacement retains installed loadout/upgrades/buffs, gets full health and
+  shields and three gameplay seconds of invincibility, and starts with empty
+  storage. Its life number advances; old life messages are rejected. The whole
+  game pauses for manual orientation readiness before the server resume countdown.
+- While awaiting replacement the camera stays at death position. With no pending
+  replacement it follows the living teammate. The dead host continues world
+  simulation; new routine waves use a living player's position.
+- All active ships dead means immediate mission defeat, even with spare charges
+  or timers. Connected players return directly to the existing lobby/code, with
+  optional last-game statistics and cleared readiness.
+- Advancing to the next sector revives connected dead players and refills the
+  shared pool exactly once. Installed equipment is retained; old ground drops and
+  old-sector packets cannot restore lost storage. Rejoining the same sector never
+  refills the pool.
+
+Recovery restores the last host-acknowledged state of the live session. It does
+not recover browser-local changes that never reached the host before a crash.
+Transport and simulation remain two-player and client-side; the existing service
+coordinates rooms and relays data, without server-side physics.

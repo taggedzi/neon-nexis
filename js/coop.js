@@ -213,18 +213,14 @@
   };
 
   Coop.startHostRun = function () {
-    if (!N.Net.peer) {
-      if (N.UI) N.UI.toast('WAITING FOR PLAYER 2', 'warn');
-      return false;
-    }
     if (Coop.active) return false;
     Coop.active = true;
     Coop.role = 'host';
     Coop.host = true;
     Coop.guest = false;
     Coop._ending = false;
-    Coop.peerProfile = N.Net.peer.profile;
-    Coop._peerId = N.Net.peer.clientId || null;
+    Coop.peerProfile = N.Net.peer ? N.Net.peer.profile : null;
+    Coop._peerId = N.Net.peer ? N.Net.peer.clientId : null;
     Coop._bulletQueue = [];
     Coop._enemyBulletQueue = [];
     Coop._mineQueue = [];
@@ -234,7 +230,7 @@
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     G.newRun(Coop.localProfile, { seed: seed, coop: true, name: 'PLAYER 1' });
     const mirror = makeRemotePlayer(Coop.peerProfile || { name: 'PLAYER 2' }, G.level, 1);
-    Coop.remotePlayers = [mirror];
+    Coop.remotePlayers = N.Net.peer ? [mirror] : [];
     Coop.started = true;
     Coop._stateAt = 0;
     Coop._worldAt = 0;
@@ -1400,5 +1396,24 @@
     }
   };
 
+  Coop.captureHazards = function () {
+    return [
+      ...G.playerBullets.filter(item => !item.dead).map(item => ({ type: 'bullet', data: bulletPayload(item) })),
+      ...G.enemyBullets.filter(item => !item.dead).map(item => ({ type: 'ebullet', data: bulletPayload(item) })),
+      ...G.mines.filter(item => !item.dead).map(item => ({ type: 'mine', data: minePayload(item) })),
+      ...G.strikes.filter(item => !item.dead).map(item => ({ type: 'strike', data: strikePayload(item) }))
+    ];
+  };
+  Coop.applyHazards = function (entries) {
+    G.playerBullets.length = 0;
+    G.enemyBullets.length = 0;
+    G.mines.length = 0;
+    G.strikes.length = 0;
+    const apply = { bullet: applyBulletBatch, ebullet: applyEnemyBulletBatch, mine: applyMineBatch, strike: applyStrikeBatch };
+    for (const entry of entries) {
+      if (entry && Object.hasOwn(apply, entry.type)) apply[entry.type]([entry.data]);
+    }
+  };
+  Coop.makeRemotePlayer = makeRemotePlayer;
   Coop.init();
 })();
