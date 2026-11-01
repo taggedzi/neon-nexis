@@ -132,6 +132,8 @@ Implementation notes:
   resume clear movement and fire. Resume requires a neutral stick again.
 - Co-op focus loss uses `G.pauseGame`, which already requests the shared pause.
 
+Implementation commit: `244c144`.
+
 Checks and results, 2026-11-01, Windows, Node from `npm run check`:
 
 - `npm run check` passed. Browser step: 102 passed, about 4.6 minutes.
