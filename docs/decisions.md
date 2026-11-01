@@ -211,3 +211,23 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: The part of the 2026-10-29 CI/CD decision that ran the check suite
   on pull requests and pushes to main. Pages publication, the manual release
   dispatch, versions, and the save policy stay in effect.
+
+## 2026-11-01 — One current branch, rebased on main
+
+- Decision: Keep one task branch and one open pull request in flight. Fetch and
+  fast-forward local `main` before starting a new branch. Rebase the task
+  branch onto `origin/main` before pushing and before merging. Do not merge
+  `origin/main` into a task branch. The pre-push hook rejects a branch push
+  that is behind `origin/main` or that adds a merge commit.
+- Rationale: The owner works alone, with one AI at a time, on one issue at a
+  time. Branches still conflicted because a second branch was cut from a stale
+  `main`, and because merging `main` into a task branch made GitHub unable to
+  rebase the pull request. The shared conflict file has been the backlog index.
+- Approval: Owner instruction on 2026-11-01.
+- Consequences: [AGENTS.md](../AGENTS.md#stay-current-with-main) is the
+  procedure. A blocked issue is recorded and left; it does not authorize a
+  second branch. `--force-with-lease` is allowed only on the task branch after
+  a rebase. `main` is never force-pushed.
+- Supersedes: The allowance, in the 2026-10-29 task-branch workflow, to start
+  from a local `main` whose remote freshness is unknown, and the allowance to
+  continue a different issue while blocked.

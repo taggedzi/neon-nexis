@@ -39,8 +39,10 @@ decisions belong in [the decision log](docs/decisions.md); task-specific decisio
 belong in the relevant issue. Small maintenance tasks need no new local issue.
 
 For agent-assisted owner work, every task uses a branch. The owner pushes it,
-creates the PR, arranges review, and merges unless explicitly delegated. See
-[AGENTS.md](AGENTS.md#git-and-delivery) for the full handoff rules.
+creates the PR, arranges review, and merges unless explicitly delegated. Keep
+one open pull request, and rebase that branch onto current `main` instead of
+merging `main` into it. See [AGENTS.md](AGENTS.md#git-and-delivery) and
+[Stay current with main](AGENTS.md#stay-current-with-main).
 
 ## Validate your change
 
