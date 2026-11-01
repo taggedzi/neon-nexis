@@ -27,7 +27,7 @@ in [the decision log](../decisions.md).
 | 015 | [PHP co-op introduction with opt-in STUN](015-php-coop-introduction.md) | Implemented — needs validation |
 | 016 | [Pack co-op fight traffic as binary payloads](016-coop-binary-payloads.md) | Implemented — needs validation |
 | 017 | [Resolve the weak-cryptography scanning alert](017-weak-cryptography-alert.md) | Implemented — needs validation |
-| 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Implemented — needs validation |
+| 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Done |
 | 019 | [Lock the pointer and pause when focus leaves](019-pointer-lock-and-focus-pause.md) | Planned |
 | 020 | [Export and import all save data](020-save-export-import.md) | Planned |
 | 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Planned |
