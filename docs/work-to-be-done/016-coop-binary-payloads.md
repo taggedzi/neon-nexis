@@ -244,4 +244,4 @@ keeps. Projectile fields the sender already rounds stay exact. Fields the
 sender left unrounded, including size, area, curve, and crit chance, are
 stored on the codec's fixed-point grid. Guest bullets are cosmetic.
 
-Remaining: an owner playtest of a real match. No commit yet.
+Remaining: an owner playtest of a real match. Implementation commit: `5769e55`.
