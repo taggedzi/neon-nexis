@@ -205,18 +205,14 @@ test('session survives a brief direct-link drop inside the grace window', async 
 
   const hostContext = await browser.newContext();
   const host = await hostContext.newPage();
-  const guestContext = await browser.newContext();
-  await watchChannels(guestContext);
-  const guest = await guestContext.newPage();
-
   const errors = [];
-  for (const [label, page] of [['host', host], ['guest', guest]]) {
-    page.on('pageerror', error => errors.push(label + ' pageerror: ' + error.message));
-    page.on('console', message => {
-      if (message.type() === 'error') errors.push(label + ' console: ' + message.text());
-    });
-  }
+  host.on('pageerror', error => errors.push('host pageerror: ' + error.message));
+  host.on('console', message => {
+    if (message.type() === 'error') errors.push('host console: ' + message.text());
+  });
 
+  let guestContext = null;
+  let guest = null;
   try {
     await host.goto('/');
     await host.locator('#btn-boot').click();
@@ -225,14 +221,32 @@ test('session survives a brief direct-link drop inside the grace window', async 
     await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
     const code = await host.evaluate(() => window.NEON.Net.code);
 
+    // Open the guest after the host has a code. An earlier guest page leaves
+    // Firefox's host tab in the background, where the peer message may not apply.
+    guestContext = await browser.newContext();
+    await watchChannels(guestContext);
+    guest = await guestContext.newPage();
+    guest.on('pageerror', error => errors.push('guest pageerror: ' + error.message));
+    guest.on('console', message => {
+      if (message.type() === 'error') errors.push('guest console: ' + message.text());
+    });
     await guest.goto('/');
     await guest.locator('#btn-boot').click();
     await guest.locator('#btn-coop').click();
     await guest.locator('#coop-code-input').fill(code);
+    await expect(guest.locator('#coop-code-input')).toHaveValue(code);
     await guest.locator('#btn-coop-join').click();
 
-    await expect.poll(() => host.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
-    await expect.poll(() => guest.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
+    await expect.poll(async () => {
+      const linked = await host.evaluate(() => !!(window.NEON.Net.peer));
+      if (!linked) await host.bringToFront();
+      return linked;
+    }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] }).toBe(true);
+    await expect.poll(async () => {
+      const linked = await guest.evaluate(() => !!(window.NEON.Net.peer));
+      if (!linked) await guest.bringToFront();
+      return linked;
+    }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] }).toBe(true);
 
     await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
     await host.locator('#btn-coop-start').click();
