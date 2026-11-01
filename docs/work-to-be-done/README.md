@@ -26,6 +26,34 @@ in [the decision log](../decisions.md).
 | 014 | [Persistent co-op lobby, revival, and rejoining](014-coop-lobby-and-revival.md) | Implemented — needs validation |
 | 015 | [PHP co-op introduction with opt-in STUN](015-php-coop-introduction.md) | Implemented — needs validation |
 | 016 | [Pack co-op fight traffic as binary payloads](016-coop-binary-payloads.md) | Implemented — needs validation |
+| 017 | [Resolve the weak-cryptography scanning alert](017-weak-cryptography-alert.md) | Planned |
+| 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Planned |
+| 019 | [Lock the pointer and pause when focus leaves](019-pointer-lock-and-focus-pause.md) | Planned |
+| 020 | [Export and import all save data](020-save-export-import.md) | Planned |
+| 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Planned |
+| 022 | [Decide whether debug logging is required](022-debug-logging.md) | Planned |
+| 023 | [Add skill levels](023-skill-levels.md) | Planned |
+| 024 | [Save named ship loadouts](024-named-ship-loadouts.md) | Planned |
+| 025 | [Track player stats and an end-of-run tally](025-player-stats.md) | Planned |
+| 026 | [Add an enemy logbook](026-enemy-logbook.md) | Planned |
+| 027 | [Let enemy fire damage other enemies](027-enemy-friendly-fire.md) | Planned |
+| 028 | [Raise co-op capacity to 4](028-coop-four-players.md) | Planned |
+| 029 | [Give ships stats and decide what colors mean](029-ship-stats-and-colors.md) | Planned |
+| 030 | [Add an About page](030-about-page.md) | Planned |
+| 031 | [Add a README screenshot](031-readme-screenshot.md) | Planned |
+| 032 | [Minify the production package](032-production-minification.md) | Planned |
+| 033 | [Publish both release packages from one process](033-github-release-packages.md) | Planned |
+| 034 | [Optional crash reports](034-crash-reports.md) | Planned |
+| 035 | [Improve the music](035-music.md) | Planned |
+| 036 | [Optional extra visual detail](036-graphics-polish.md) | Planned |
+| 037 | [Investigate mobile play](037-mobile-play.md) | Planned |
+
+## Plans from the 2026-11-01 todo list
+
+Issues 017 through 037 are plans only. They do not change how the game plays.
+The numeric order is the proposed priority in [the todo list](../TODO.md).
+That order is waiting for owner review. Open questions in those documents are
+not approved design.
 
 ### 009 implementation and validation update
 

@@ -1,26 +1,33 @@
 # Items to be done
 
-- Fix Code Scanning error: Broken or weak cryptographic algorithm
-- Fix Vulnerabilities: minimatch has potential denial of service via globparts amplification
-- Add screen shot to the README.md file
-- Develop a new feature: Minification of the project for deployment on sites. Minify JS, CSS, HTML, and images. Remove unnessicary documents and files. Make package as small as possible to reduce web traffic. ALLOW deployment of site without minification, however minification is recommended for production, just to be a good stewart of resource usage. 
-- Develop a new feature: a release process that builds releases on github. It needs to be a single process that publishes both minified and non-minified packages available for download using the version naming system in documentation. (databased tagging)
-- Develop a new feature: add an "about" section somewhere in the site (location tbd) that explains what the site is, what it does, and how it works. This should be a static page that is accessible from the navigation menu, as well as providing links to the github project page. It also needs to list the current version of the software, and a list of contributors.
-- Increase co-op player count to 4 maximum, allow host to set count.
-- In single player and co-op mode, allow selection of skill level selection of easy, medium, hard, hard core (single life lose everything on death) change the quantity, strenght, spawn rates, and speed of enemies based on skill level. 
-- Add in game dev-mode to allow setting conditions on the server so specific scenarios can be tested.  This should require the input of a password or console command that would then allow a dev (or an ai) the ability to create a ship with specific settings, add specific enemies, and set the game to a specific state. so keys, controllers, weapons, etc can be tested.
-- Is debugging-logging required? If so, where should it be placed? If not, why not?
-- Crash reports? voluntary, if a client crashes, they can send a report to the server, which then sends it to the developers. This should be optional and not required for the game to function.
-- Allow the ability to SAVE a limited list of specific ship they have and name it. They should be able to select (load) from a limited list of saved ships when loading into a new game. This would allow them to get a good "loadout" that they like and save it for later use. As well as start them off at a higher level if they want to progress faster to get higher levels. They should be able to load a ship into single player or co-op so long as it is possible with the version of the game they are using. The game should attempt to keep compativility (or upgrade) so that users can keep ships they want.  Also the ability to export as a json file so they can take their ship/settings/loadout to other servers with the same game, or share with others. There does need to be some thought put into this to prevent people from building out the most awsome build and making the game un-interesting.  It is not as fun when you become invinsible for all intents and purposes, it gets boaring fast. But I do want people to feel like if they work hard for a ship, they should be able to save it and use it again.
-- Find a way to lock the mouse (or focus) to the screen if possible. This would allow for better control and less accidental clicks.  For example on my current pc I have multiple monitors, so if I accidentally click outside the browser game window it can do all sorts of things i'm not looking for, or open a bookmark, or even a menu system I have to get out of while the game is playing, IF the player's focus goes outside the browser/game I would like it to auto pause the game. I would also like it obvious how to unlock the mouse or focus so that a user can quickly and easily exit without feeling like they are fighting or struggling to get control of their mouse or focus on the screen. 
-- Add stats to the different ships, and possibly modifiers to specific colors. This should help facilitate a distinction between ships functions, and allow different play styles, bigger tankier ships, faster smaller, glass cannon, etc. also modifiers for specific colors could be interesting, for example taking damage from certain colors could more hurtful, or impervious to certain colors. This needs some thinking... or colors can be just that, decorative...
-- Allow enemey ships to damage each other with their fire. This could add an interesting layer of strategy and make the game more dynamic. (toggleable option) this way when things get really populated the enemies can hurt each other as well as the players.
-- Much improved music.  Currently the music sounds like the old Asteroids video game from the Atari 2600. Not Identical, but similar feel. I would like to include more energetic arcade style music, or trance, house, techno, chiptune. 
-- I LOVE the graphics so far, and I do not want to reduce performance for players, but I do want to add some more polish to the game. possibly rendering polygons to make some of the ships look more dimentional or more detailed? This could be a toggleable option.
-- Is there a way to make this playable on a mobile device?  Or could a mobile device just use a controller? Just a thought. 
-- I would like to add stats for players. I would like to keep track of things like shots fired, ships hit, ships killed, objectives destroyed, shots taken, items picked up, items dropped/lossed, etc. This could be a toggleable option. This would be kept client side with their ships and never tallied for other players, however I would like to display a tally board at the end of a game that shows players stats in that game for both single player and co-op.  In co-op the data would be loaded by the remote player's stats. 
-- I would also like to add a logbook type feature that shows all the enemies encountered, descriptions, and a count how many destroyed. 
-- I would like a player to be able to export all their save data to a file, that could be imported via the same or different browsers this way if they clear their storage/history/cookies/etc they don't lose their game data. AND the could move it to a new browser/device if they wanted too without starting over.
-- 
+Proposed priority order, recorded 2026-11-01. This order is not an approved
+decision. Each item has a plan in [work to be done](work-to-be-done/README.md).
+Those plans do not change how the game plays. Building each item is a later task.
 
+The first two items are open GitHub security alerts. Play reliability and save
+safety come next. Large co-op and presentation work comes later, after the
+decisions those features need.
 
+| Priority | Issue | Plan |
+| --- | --- | --- |
+| 1 | Fix the code-scanning alert for a broken or weak cryptographic algorithm | [017](work-to-be-done/017-weak-cryptography-alert.md) |
+| 2 | Fix the minimatch denial-of-service advisory | [018](work-to-be-done/018-minimatch-advisory.md) |
+| 3 | Lock the pointer to the game and pause when focus leaves | [019](work-to-be-done/019-pointer-lock-and-focus-pause.md) |
+| 4 | Export and import all save data | [020](work-to-be-done/020-save-export-import.md) |
+| 5 | Add an in-game dev mode for setting up test scenarios | [021](work-to-be-done/021-dev-mode.md) |
+| 6 | Decide whether debug logging is required | [022](work-to-be-done/022-debug-logging.md) |
+| 7 | Add easy, medium, hard, and hardcore skill levels | [023](work-to-be-done/023-skill-levels.md) |
+| 8 | Save a limited list of named ships and load them into a new run | [024](work-to-be-done/024-named-ship-loadouts.md) |
+| 9 | Track per-player stats and show a tally at the end of a run | [025](work-to-be-done/025-player-stats.md) |
+| 10 | Add a logbook of enemies encountered and destroyed | [026](work-to-be-done/026-enemy-logbook.md) |
+| 11 | Let enemy fire damage other enemies, behind a toggle | [027](work-to-be-done/027-enemy-friendly-fire.md) |
+| 12 | Raise co-op capacity to 4 and let the host set the count | [028](work-to-be-done/028-coop-four-players.md) |
+| 13 | Give ships different stats, and decide what colors mean | [029](work-to-be-done/029-ship-stats-and-colors.md) |
+| 14 | Add an About page with version, contributors, and a GitHub link | [030](work-to-be-done/030-about-page.md) |
+| 15 | Add a screenshot to the README | [031](work-to-be-done/031-readme-screenshot.md) |
+| 16 | Minify the production package, and still allow an unminified deploy | [032](work-to-be-done/032-production-minification.md) |
+| 17 | Publish minified and unminified downloads from one release process | [033](work-to-be-done/033-github-release-packages.md) |
+| 18 | Optional crash reports | [034](work-to-be-done/034-crash-reports.md) |
+| 19 | Replace the current music with a stronger arcade or electronic score | [035](work-to-be-done/035-music.md) |
+| 20 | Optional extra visual detail that does not change the default look | [036](work-to-be-done/036-graphics-polish.md) |
+| 21 | Find out whether mobile play is realistic | [037](work-to-be-done/037-mobile-play.md) |
