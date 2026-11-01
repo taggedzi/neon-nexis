@@ -57,6 +57,7 @@
   let linkUp = false;
   let sendSequence = 0;
   let receiveSequence = 0;
+  let wireRejected = false;
   let intent = null;
   let authority = null;
   let statusPromise = null;
@@ -246,9 +247,27 @@
     return connection;
   }
 
+  function decodeChannel(data) {
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch (error) { return null; }
+    }
+    if (!(data instanceof ArrayBuffer) || !N.Wire || !N.Wire.decode) return null;
+    const message = N.Wire.decode(data);
+    if (message && message.versionMismatch) {
+      if (!wireRejected) {
+        wireRejected = true;
+        onLinkLost();
+      }
+      return null;
+    }
+    return message;
+  }
+
   function attachChannel(nextChannel) {
     channel = nextChannel;
     receiveSequence = 0;
+    wireRejected = false;
+    nextChannel.binaryType = 'arraybuffer';
     nextChannel.onopen = function () {
       if (channel !== nextChannel) return;
       onLinkOpen();
@@ -259,8 +278,7 @@
       onLinkLost();
     };
     nextChannel.onmessage = function (event) {
-      let message;
-      try { message = JSON.parse(event.data); } catch (error) { return; }
+      const message = decodeChannel(event.data);
       if (!message || typeof message !== 'object') return;
       if (message.t === 'ctrl') {
         if (Net.role === 'host' && authority && message.body && Net.peerId) authority.handle(Net.peerId, message.body);
@@ -545,8 +563,9 @@
     if (N.Coop && N.Coop.stampMessage) N.Coop.stampMessage(message);
     message._s = ++sendSequence;
     if (channel && channel.readyState === 'open') {
+      const encoded = N.Wire && N.Wire.encode ? N.Wire.encode(message) : null;
       try {
-        channel.send(JSON.stringify(message));
+        channel.send(encoded || JSON.stringify(message));
         return true;
       } catch (error) { /* A dropped link has no relay. */ }
     }

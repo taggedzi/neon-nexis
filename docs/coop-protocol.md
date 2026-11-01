@@ -66,12 +66,27 @@ CDN dependency. Gameplay is not relayed. `NEON.Net.label()` is `P2P` or
 
 ## Gameplay messages
 
-Every gameplay message has a `t` type. Gameplay messages are JSON. `_s` is a
-sender sequence number; receivers drop duplicates and out-of-order messages.
-`_run`, `_sector`, and `_life` scope gameplay to the current mission, sector, and
-sender life. Host damage/reward messages also carry `_targetLife`. A stale packet
-cannot revive a previous life or change a later mission. Connection setup uses a
+Every gameplay message has a `t` type. `_s` is a sender sequence number;
+receivers drop duplicates and out-of-order messages. `_run`, `_sector`, and
+`_life` scope gameplay to the current mission, sector, and sender life. Host
+damage and reward messages also carry `_targetLife`. A stale packet cannot
+revive a previous life or change a later mission. Connection setup uses a
 monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
+
+Fight messages use binary version 1. The type order is `state`, `world`,
+`bullet`, `ebullet`, `mine`, `strike`, `fire`, `fx`, `loadout`, `hit`, `heal`,
+`kill`, `xp`, `grant`, `grant_ack`, `event_ack`, `participant`, and `lives`.
+Send rates are unchanged. An ordinary `state` carries ship motion, hull,
+magnet, and pickup radius. It does not carry the recovery snapshot. The
+snapshot still rides on the 4 Hz `participant` message, on damage and
+checkpoint updates, on `event_ack`, on `grant_ack`, and on `state` while a
+death is waiting for acknowledgment. Lobby, pause, and one-time setup stay
+JSON: `session_sync`, `sync_entities`, `session_ack`, `session_hello`, `death`,
+`death_ack`, `revive`, `revive_ack`, `start`, `complete`, `advance`,
+`gameover`, `mission_end`, `bye`, `peer-left`, and every `{t:'ctrl'}` message.
+A binary version other than 1 closes the link once. A truncated body is
+ignored. The field layout is in
+[issue 016](work-to-be-done/016-coop-binary-payloads.md).
 
 ### Host → guest
 
@@ -97,7 +112,7 @@ monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
 | `state` | Guest ship position, velocity, aim, hull, health, magnet | 20 Hz |
 | `loadout` | Weapons, passives, protocols, derived stats | on change |
 | `fire` | Weapon index, aim angle, origin | per shot |
-| `participant` | Full player/reward recovery snapshot | 4 Hz, on changes, and included in state/grant acknowledgments |
+| `participant` | Full player/reward recovery snapshot | 4 Hz, on damage and checkpoint, on `event_ack` and `grant_ack`, and on `state` only while a death is unacknowledged |
 | `death` / `death_ack` | Death snapshot and confirmation | retried until acknowledged |
 | `session_ack` / `revive_ack` | Setup or life transition confirmation | on application |
 | `event_ack` | Accepted damage/reward event and resulting player snapshot | on application or retry |

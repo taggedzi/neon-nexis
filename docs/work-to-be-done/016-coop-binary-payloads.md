@@ -1,10 +1,10 @@
 # 016 — Binary co-op payloads
 
-Status: Planned
+Status: Implemented — needs validation
 
-Implementation has not started. Do this work only after issue 015 is on `main`.
-The saved branch is `feat/coop-binary-payloads`, one commit ahead of
-`feat/php-coop-introduction`. It contains this plan and no codec.
+Issue 015 is on `main`. The codec is on `feat/coop-binary-payloads`. Automated
+checks, including the co-op browser smoke, have passed. An owner playtest of a
+real match is still open, so this is not Done.
 
 ## Feature summary
 
@@ -35,9 +35,8 @@ the data-channel bytes a TURN relay carries, and each player's upload.
 - Supersedes: Nothing. The 4 Hz `participant` message, damage and checkpoint
   snapshots, and `event_ack` remain.
 
-Record this same decision in `docs/decisions.md` when implementation starts.
-The entry on this branch is the task record; the project log still needs that
-entry beside the code.
+The same decision is in `docs/decisions.md`. That entry was updated when the
+codec landed. Do not add a second copy.
 
 ## Assumptions
 
@@ -183,5 +182,66 @@ rates are estimates from the message builders, not a live capture.
 
 ## Implementation and validation
 
-Not started. No codec files, no protocol edits, and no checks have been run
-for this issue.
+Changed files:
+
+- `js/coop-wire.js` encodes and decodes fight messages. `encode` returns `null`
+  for a non-fight message or a value that does not fit, and that message stays
+  JSON.
+- `index.html` loads it after `js/ships.js` and before `js/coop.js`.
+- `js/net.js` sets `binaryType` to `arraybuffer`, sends a buffer when `encode`
+  returns one, and decodes buffers on the fight channel. Lobby delivery,
+  `{t:'ctrl'}`, and `peer-left` stay JSON. A wrong version calls the existing
+  lost-link path once.
+- `js/coop-session.js` attaches the recovery snapshot to `state` only while a
+  death is unacknowledged. `grant_ack` still carries it.
+- `tools/check-coop-wire.cjs` round-trips every fight type.
+- `docs/coop-protocol.md` names the binary types and the unchanged rates.
+- `docs/decisions.md` records that the codec now exists.
+
+Field widths, where they narrow the plan's uint32 hull note:
+
+- Ship hull is uint16 tenths. A player cannot reach 6553.5 hull points, and
+  uint32 hull would push a 20-character `state` past 64 bytes.
+- Enemy hull is uint24 tenths. uint32 hull on 80 rows would pass 3,200 bytes.
+  A larger value keeps that one message on JSON.
+- Phase is int16 hundredths. A 420-second sector at 0.7 rad/s fits. The check
+  uses 300.28. Past ±327.67 the world message stays JSON.
+- Bullet `pull` is uint16. Content reaches 820, which does not fit in a uint8.
+- Snapshot event ids and grant serials are uint16. An id above 65535 keeps
+  that message on JSON. Hit, heal, kill, and xp event ids stay uint32.
+- Target life 255 means "absent". A real target life of 255 stays JSON.
+- Stats, buffs, snapshot motion, beam width and life, and the lives timers are
+  float32. A boolean stat keeps that loadout on JSON.
+- Bullets use a 24-bit presence mask stored in a uint32. Mines and strikes use
+  a uint8 mask. Zero fields take no payload.
+
+The 48-byte bullet ceiling is an ordinary pulse with the zero fields omitted.
+A bullet with every content maximum set still encodes and round-trips. It is
+larger than 48 bytes because every field is present.
+
+Checks run on 2026-11-01:
+
+- `node tools/check-coop-wire.cjs` passed. Measured sizes: ship `state` 64 B,
+  one pulse 36 B, eight pulses 204 B, world of 80 enemies plus three anchors,
+  two caches, and three items 2,789 B, participant with 500 event ids 1,304 B.
+  A rail bullet at the content speed, area, pull, and curve maximum
+  round-trips. Speed 8000 returns `null`. A lobby control returns `null`.
+  Version byte 2 returns `versionMismatch`. A truncated body returns `null`.
+- `npm run check:syntax` passed.
+- `npm run lint` passed.
+- `npm run test:unit` passed, including the wire check and the existing
+  object-level co-op checks.
+- `git diff --check` passed.
+- `npx playwright test tools/ci/coop-smoke.spec.cjs` passed 40 tests in 11.7
+  minutes on 2026-11-01. Playwright 1.64.1 drove headless Chromium 156.0.8078.4
+  and Firefox 157.0 against the PHP 8.4.13 development server. The run covers
+  firing, grants, death, pause, reload, and link recovery. It does not measure
+  bytes on a live relay.
+
+Limitations: the size figures are from the check's fixtures, not a live
+capture. Float32 stats are not bit-identical to the float64 values the game
+keeps. Projectile fields the sender already rounds stay exact. Fields the
+sender left unrounded, including size, area, curve, and crit chance, are
+stored on the codec's fixed-point grid. Guest bullets are cosmetic.
+
+Remaining: an owner playtest of a real match. No commit yet.

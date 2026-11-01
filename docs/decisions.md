@@ -186,7 +186,8 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Approval: Owner approved the plan on 2026-10-31. The field widths, type
   bytes, and size ceilings are agent implementation choices recorded in
   [issue 016](work-to-be-done/016-coop-binary-payloads.md).
-- Consequences: Implementation has not started. Both browsers must load the
-  same build. Four-player links, deflate, and delta worlds are out of scope.
-  Details are in issue 016.
+- Consequences: The codec is on `feat/coop-binary-payloads`. Both browsers
+  must load the same build. A version mismatch closes the link once.
+  Four-player links, deflate, and delta worlds are out of scope. Measured
+  sizes and the field-width choices are in issue 016.
 - Supersedes: Nothing.

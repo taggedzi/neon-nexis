@@ -152,7 +152,8 @@
       message.eventId = ++eventSerial;
       pendingEvents.set(message.eventId, { owner: C._peerId, message: copy(message) });
     }
-    if (C.isGuest() && G.player && ['state', 'grant_ack'].includes(message.t)) message.participant = deathPending || snapshot(G.player, true);
+    if (C.isGuest() && G.player && message.t === 'grant_ack') message.participant = deathPending || snapshot(G.player, true);
+    if (C.isGuest() && G.player && message.t === 'state' && deathPending) message.participant = deathPending;
   };
 
   C.setLobbyProfile = function (profile) {
