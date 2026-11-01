@@ -1,17 +1,18 @@
 # 018 — Update or dismiss the minimatch advisory
 
-Status: Implemented — needs validation
+Status: Done
 
-The override does not change how the game plays. Dependabot alert 3 stays
-open on main until this lockfile is merged.
+The override does not change how the game plays. Dependabot alert 3 is
+fixed. It closed at 2026-11-01T20:36:30Z, when main reached `9a00966`.
 
 Priority 2 of 21 in the proposed order in [the todo list](../TODO.md).
 
 ## Problem
 
-GitHub Dependabot alert 3 is open. `minimatch` 10.2.6 has a medium
-denial-of-service advisory, GHSA-g3hv-75wg-m249 / CVE-2026-118764. Versions
-below 11.0.1 are in range. The patched version is 11.0.1.
+GitHub Dependabot alert 3 tracked `minimatch` 10.2.6. That release has a
+medium denial-of-service advisory, GHSA-g3hv-75wg-m249 / CVE-2026-118764.
+Versions below 11.0.1 are in range. The patched version is 11.0.1. The
+alert closed on 2026-11-01 after main reached `9a00966`.
 
 Alert: <https://github.com/taggedzi/neon-nexis/security/dependabot/3>
 
@@ -83,9 +84,9 @@ After the decision:
 
 ## Acceptance criteria
 
-- [ ] Alert 3 is fixed by a patched `minimatch`, or dismissed with an owner
-      approved reason. The lockfile resolves 11.0.3. Alert 3 was still open
-      on main on 2026-11-01, because main does not contain this lockfile yet.
+- [x] Alert 3 is fixed by a patched `minimatch`, or dismissed with an owner
+      approved reason. Main `9a00966` resolves `minimatch` 11.0.3. Alert 3
+      state is `fixed` as of 2026-11-01T20:36:30Z.
 - [x] The game client shipped in `dist/` still does not include `minimatch`.
 - [x] If the dependency changed, `npm run check` passed on the new lockfile.
 
@@ -133,6 +134,9 @@ Limitations: lint success shows ESLint finished on this config. It does not
 compare the file list with `minimatch` 10.2.6. The config globs are
 `node_modules/**`, `dist/**`, `js/**/*.js`, `tools/**/*.js`, and `**/*.cjs`.
 
-Remaining: merge this lockfile to main, then confirm Dependabot alert 3
-closes. No main scan has run against 11.0.3. Browsers exercised in this run
-were headless Chromium 156.0.8078.4 and Firefox 157.0.
+Pull request 18 merged to main as `9a00966` at 2026-11-01T20:36:25Z. That
+commit is the rebase of `a53b962`. Dependabot alert 3 state is `fixed` as of
+2026-11-01T20:36:30Z. Browsers exercised before the merge were headless
+Chromium 156.0.8078.4 and Firefox 157.0.
+
+Remaining: none.
