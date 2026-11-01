@@ -918,6 +918,7 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await replacement.locator('#btn-boot').click();
   await replacement.locator('#btn-coop').click();
   await replacement.locator('#coop-code-input').fill(code);
+  await expect(replacement.locator('#coop-code-input')).toHaveValue(code);
   await replacement.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, replacement);
   expect(await replacement.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
@@ -926,6 +927,7 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
   await guest.locator('#btn-coop').click();
   await guest.locator('#coop-code-input').fill(code);
+  await expect(guest.locator('#coop-code-input')).toHaveValue(code);
   await guest.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(originalId);

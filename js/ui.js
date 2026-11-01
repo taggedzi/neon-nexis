@@ -129,7 +129,8 @@ UI.init=function(){
   });
   $('coop-code-input').addEventListener('input',()=>{
     const input=$('coop-code-input');
-    input.value=input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    const next=input.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(input.value!==next)input.value=next;
   });
   $('coop-code-input').addEventListener('keydown',(event)=>{
     if(event.key==='Enter'){event.preventDefault();joinCoopRoom();}
