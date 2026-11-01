@@ -2,9 +2,10 @@
 
 Status: Implemented — needs validation
 
-Issue 015 is on `main`. The codec is on `feat/coop-binary-payloads`. Automated
-checks, including the co-op browser smoke, have passed. An owner playtest of a
-real match is still open, so this is not Done.
+Issue 015 is on `main`. Automated checks, including the co-op browser smoke,
+have passed. On 2026-11-01 the owner played a local two-window room and
+reported that everything they tried worked. A live relay byte capture is still
+open, so this is not Done.
 
 ## Feature summary
 
@@ -244,4 +245,6 @@ keeps. Projectile fields the sender already rounds stay exact. Fields the
 sender left unrounded, including size, area, curve, and crit chance, are
 stored on the codec's fixed-point grid. Guest bullets are cosmetic.
 
-Remaining: an owner playtest of a real match. Implementation commit: `5769e55`.
+Remaining: a live relay byte capture. Owner playtest on 2026-11-01: one PC,
+two browser windows, a local PHP room, and a match that played successfully.
+Implementation commit: `5769e55`.
