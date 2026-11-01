@@ -173,3 +173,20 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: The 2026-10-30 decision that the signaling server owns shared
   pause. It also supersedes the issue 015 note that writing the PHP scripts was
   not approved by the original request.
+
+## 2026-10-31 — Fight messages will use a binary payload
+
+- Decision: Co-op fight messages will use a versioned binary layout. Lobby,
+  pause, and one-time setup stay JSON. An ordinary ship `state` will no longer
+  carry the full participant snapshot. A version mismatch closes the link.
+  Tick rates, positions, and host authority stay as they are.
+- Rationale: Free STUN and TURN relays have a low byte budget. The owner wants
+  room for up to four players later without paying for relay bandwidth. STUN
+  still only discovers addresses. The saved bytes are data-channel bytes.
+- Approval: Owner approved the plan on 2026-10-31. The field widths, type
+  bytes, and size ceilings are agent implementation choices recorded in
+  [issue 016](work-to-be-done/016-coop-binary-payloads.md).
+- Consequences: Implementation has not started. Both browsers must load the
+  same build. Four-player links, deflate, and delta worlds are out of scope.
+  Details are in issue 016.
+- Supersedes: Nothing.
