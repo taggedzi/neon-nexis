@@ -191,3 +191,23 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Four-player links, deflate, and delta worlds are out of scope. Measured
   sizes and the field-width choices are in issue 016.
 - Supersedes: Nothing.
+
+## 2026-11-01 — Local checks before push
+
+- Decision: Routine pushes do not run the check suite on GitHub Actions. A
+  pre-push hook runs `npm run check` on the developer machine and rejects the
+  push when it fails. The manual Publish game workflow still runs that suite
+  against the staged site before deploying.
+- Rationale: Actions minutes are shared across the owner's repositories. The
+  browser suite was about 14 minutes on every push to main and on pull requests.
+- Approval: Explicit owner instruction on 2026-11-01.
+- Consequences: `node tools/ci/install-hooks.cjs` points this clone at
+  `.githooks`. `npm ci --ignore-scripts` does not install the hook; the
+  development guide lists that command. `git push --no-verify` skips the hook.
+  A delete-only push skips the suite. Browser tests run fully parallel with at
+  most 4 workers, an agent choice so the single PHP test server is not flooded.
+  Issue 013 stays Implemented — needs validation because hosted publication is
+  still unvalidated.
+- Supersedes: The part of the 2026-10-29 CI/CD decision that ran the check suite
+  on pull requests and pushes to main. Pages publication, the manual release
+  dispatch, versions, and the save policy stay in effect.

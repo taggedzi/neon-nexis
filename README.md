@@ -72,12 +72,15 @@ Settings are kept. Export starts a browser download before removing the checkpoi
 
 ## Development and releases
 
-Run `npm ci --ignore-scripts`, install the Playwright browsers, then use
-`npm run check` for syntax, lint, regression and browser smoke tests. These are
-development tools; playing locally still requires no package installation.
+Run `npm ci --ignore-scripts`, then `node tools/ci/install-hooks.cjs`, install
+the Playwright browsers, and use `npm run check` for syntax, lint, regression
+and browser smoke tests. These are development tools; playing locally still
+requires no package installation. A later push runs that same suite on this
+machine and is rejected if it fails.
 
-GitHub Actions checks pull requests and main. The **Publish game** workflow
-publishes to GitHub Pages only when manually run on main. Versions use
+GitHub Actions does not run those checks on pull requests or on main. The
+**Publish game** workflow publishes to GitHub Pages only when manually run on
+main, and it runs the checks against the staged site first. Versions use
 `YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
 deployment has not yet been validated. See the
 [development and release guide](docs/development-and-releases.md) for setup,

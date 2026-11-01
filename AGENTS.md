@@ -156,7 +156,10 @@ Link between records when a decision affects multiple issues.
 Serve the repository root using an available static HTTP server, for example
 `python -m http.server 8000`, then open `http://localhost:8000/`. Check interpreter
 availability and avoid interfering with an existing server. Automated checks use
-`npm run check`; see [the development guide](docs/development-and-releases.md)
+`npm run check`. A pre-push hook runs that suite and blocks the push when it
+fails. GitHub Actions does not run it on pull requests or pushes to main; the
+manual publish workflow still runs it against the staged site. See
+[the development guide](docs/development-and-releases.md)
 for setup and future regression registration. Playing from source needs no build.
 
 Use checks proportional to the change:
