@@ -245,7 +245,8 @@ introduction and host authority in `js/net.js`, `js/coop-host.js`,
 Protocol, decisions, `COOP_PROGRESS.md`, and this issue describe the PHP path.
 
 Commits on `feat/php-coop-introduction`: `b0f2239`, `50c05dc`, `ab76e16`,
-`1b37819`, `ad07a44`, `5990649`, `3b8ad70`, `de86567`.
+`1b37819`, `ad07a44`, `5990649`, `3b8ad70`, `de86567`, `52870d3`, `b5003ed`,
+`ba07c5e`.
 
 ### Checks and results
 
@@ -286,6 +287,20 @@ Commits on `feat/php-coop-introduction`: `b0f2239`, `50c05dc`, `ab76e16`,
   controls were not retargeted by this issue.
 - `package.json` has no `signal` script and no `ws` dependency. No co-op
   check starts `server/coop-server.cjs`.
+- `b5003ed` deletes a quiet lobby on every PHP entry, including status, an
+  empty action, and a disabled request. `node tools/check-coop-php.cjs`
+  passed twice afterward (61 assertions, exit 0). A recent lobby still
+  survives status. The log is `php-coop-stale-status.log`.
+- `ba07c5e` restarts the offline grace when a re-offer is taken.
+  `node tools/check-coop-lobby.cjs` passed. The guest is still present after
+  the original deadline, then cleared when the restarted grace ends. Opening
+  the link cancels that grace. The log is `coop-lobby-grace.log`.
+- `npm run check` passed again on this tree: `88 passed (12.9m)`, exit 0.
+  The same run reported 61 PHP assertions and the hung re-offer lobby check.
+  The log is `npm-check-sweep.log`.
+- `npx playwright test tools/ci/coop-smoke.spec.cjs` passed again on both
+  browsers after those fixes: `40 passed (11.2m)`, exit 0. The log is
+  `playwright-coop-4.log`.
 
 ### Limitations and remaining work
 
