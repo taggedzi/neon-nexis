@@ -27,7 +27,7 @@ in [the decision log](../decisions.md).
 | 015 | [PHP co-op introduction with opt-in STUN](015-php-coop-introduction.md) | Implemented — needs validation |
 | 016 | [Pack co-op fight traffic as binary payloads](016-coop-binary-payloads.md) | Implemented — needs validation |
 | 017 | [Resolve the weak-cryptography scanning alert](017-weak-cryptography-alert.md) | Planned |
-| 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Planned |
+| 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Implemented — needs validation |
 | 019 | [Lock the pointer and pause when focus leaves](019-pointer-lock-and-focus-pause.md) | Planned |
 | 020 | [Export and import all save data](020-save-export-import.md) | Planned |
 | 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Planned |
@@ -50,7 +50,8 @@ in [the decision log](../decisions.md).
 
 ## Plans from the 2026-11-01 todo list
 
-Issues 017 through 037 are plans only. They do not change how the game plays.
+Issues 017 and 019 through 037 are plans only. They do not change how the game plays.
+Issue 018 overrides a development-only dependency and does not change play.
 The numeric order is the proposed priority in [the todo list](../TODO.md).
 That order is waiting for owner review. Open questions in those documents are
 not approved design.
