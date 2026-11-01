@@ -1,10 +1,9 @@
 # Co-op network protocol
 
 This document describes the two-player co-op link for NEON NEXUS. It is an
-implementation contract, not a public API promise. The protocol is deliberately
-small so the signaling server stays cheap: the server creates rooms, forwards
-WebRTC offers/answers/ICE candidates, and can relay gameplay messages when a
-peer-to-peer channel is unavailable.
+implementation contract, not a public API promise. PHP introduces the two
+browsers. The hosting browser owns the lobby, shared pause, and the match.
+Gameplay moves only on the WebRTC data channel. There is no gameplay relay.
 
 ## Roles
 
@@ -16,45 +15,53 @@ peer-to-peer channel is unavailable.
 Both clients generate the sector from the host's run seed, so the static map is
 identical without sending map geometry.
 
-## Signaling messages (WebSocket JSON)
+## PHP introduction
 
-The signaling URL defaults to `ws://<page-host>:8787`. Override it with the
-`signal` query parameter, for example `?signal=ws://192.168.1.20:8787`, or use
-`wss://` when the page is served over HTTPS.
+The page asks `php/coop.php` for status. `?intro=` overrides that URL. Co-op
+stays off unless the server config has `enabled` true and at least one STUN or
+TURN address. The **CO-OP UPLINK** button stays visible and is disabled when
+co-op is off, the list is empty, or status fails.
 
-| Direction | Message | Purpose |
-| --- | --- | --- |
-| client → server | `{t:"host", clientId, profile}` | Create a room. The server replies `hosted` with a 5-character code. |
-| client → server | `{t:"join", code, clientId, profile}` | Join an existing room. |
-| server → host | `{t:"peer", peer}` | A guest joined or reconnected. |
-| server → guest | `{t:"joined", code, host, peer}` | Room accepted. The guest starts the WebRTC offer. |
-| both | `{t:"peer-left"}` | The other side disconnected. |
-| both | `{t:"signal", from, data}` | WebRTC offer, answer, or ICE candidate. |
-| both | `{t:"relay", from, data}` | Gameplay message fallback. |
-| client → server | `{t:"leave"}` | Leave the room. |
-| server → client | `{t:"notfound"}` / `{t:"full"}` / `{t:"error"}` | Join failures. |
-| client → server | `{t:"pause_request"}` | Ask the room to pause (any menu or pause input). |
-| client → server | `{t:"ready_signal"}` | Mark this client ready to resume. |
-| client → server | `{t:"pause_sync"}` | Ask for the server's current pause state. |
-| server → both | `{t:"global_pause", by}` | Room is paused. `by` is the initiating `clientId` (or `null`). |
-| server → both | `{t:"ready_state", ready:[clientId]}` | Current ready set. |
-| server → both | `{t:"countdown_start", seconds}` | All players ready; countdown begins. |
-| server → both | `{t:"global_resume"}` | Countdown finished; resume the simulation. |
+PHP actions are `status`, `host`, `join`, `checkin`, `leave`, `card`, and
+`poll`. A lobby row stores the room code, the two client ids, the two
+connection cards, and the host check-in time. It does not store the world,
+pause, or shots. The host checks in about every 30 seconds. A host leave
+deletes the row. A guest leave clears only the guest. Every request that opens
+the database deletes rows whose check-in stopped for 10 minutes. The daily
+`php/coop-cleanup.php` command deletes rows older than 24 hours.
+
+A STUN entry is a URL. A TURN REST entry uses a server-side secret. PHP mints
+`expiryUnix:clientId` and a base64 HMAC-SHA1 credential for
+`credentialTtlSeconds` (default 7200). Paid relays (Twilio, Cloudflare
+Realtime TURN, Metered, Xirsys) are server-side token calls. The browser
+receives only the returned `iceServers`. The long-term secret and API key are
+not sent. An optional `tokenUrl` overrides a vendor URL and is not echoed.
+
+The guest is the offerer. Cards carry `session`, `sdp`, `candidates`,
+`clientId`, and `profile`. Poll returns the peer card when its revision is
+newer. If the direct link never opens, both players stay on the co-op screen.
+A dropped link can post a new card while the lobby row exists. The host keeps
+the run. A guest ignores an answer whose `session` does not match its current
+offer. When the guest id in a poll changes, the host forgets the previous card
+revision, so a replacement guest's first card is new. While the host answers a
+new offer from an offline guest, it holds the about-10-second offline grace
+instead of clearing that guest. `session_sync` includes the current pause
+epoch, and a same-guest reconnect receives that epoch with the current pause.
+A later sync does not replace a newer epoch the guest already accepted.
 
 Profile objects are `{name, shipType, shipColor}`. Names are assigned by the
 client as `PLAYER 1` or `PLAYER 2`; players cannot type a name.
 
 Room codes use an unambiguous 32-character alphabet (no `I`, `O`, `0`, `1`).
-The server keeps at most two participants per room.
+A lobby has one host and at most one guest.
 
 ## WebRTC setup
 
-The guest is the offerer. It creates the `game` data channel before sending the
-offer. The host answers and attaches to the incoming channel. No public STUN or
-TURN server is configured by default so the game has no runtime CDN dependency.
-`NEON.Net.iceServers` may be set before hosting/joining for networks where host
-candidates are not reachable. Gameplay falls back to the server relay whenever
-the data channel is not open, so a failed WebRTC attempt does not end the run.
+The guest creates the `game` data channel before the offer. The host answers
+and attaches to that channel. `NEON.Net.iceServers` comes from the PHP status
+response. The sample config leaves the list empty, so the game has no runtime
+CDN dependency. Gameplay is not relayed. `NEON.Net.label()` is `P2P` or
+`OFFLINE`.
 
 ## Gameplay messages
 
@@ -69,7 +76,7 @@ monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
 
 | Type | Payload | Rate |
 | --- | --- | --- |
-| `session_sync` | `syncId`, seed/sector, retained player, host player, run, pool, phase | until setup acknowledgment |
+| `session_sync` | `syncId`, seed/sector, retained player, host player, run, pool, phase, pause epoch | until setup acknowledgment |
 | `state` | Host ship position, aim, hull, health | 20 Hz |
 | `world` | Enemies, anchors, caches, ground items, elapsed, kills | 5 Hz |
 | `bullet` / `ebullet` | Projectile spawn parameters for cosmetic guest simulation | batched at 20 Hz |
@@ -98,29 +105,30 @@ monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
 
 ## Shared pause and ready flow
 
-The server owns the pause state so both clients stop and resume together. Control
-messages travel on the signaling WebSocket rather than the WebRTC/relay gameplay
-path, because only the server can decide when every participant is ready.
+The hosting browser owns pause so both clients stop and resume together.
+Control messages travel on the data channel. The guest wraps them as
+`{t:"ctrl", body}`. The host applies them locally and sends room results back
+on the channel. A guest cannot forge `global_pause` by sending it as an
+ordinary channel message.
 
 1. A client opens any menu (inventory, rewards, level-up, overflow, pause) or
    presses the pause key. It sends `pause_request`.
-2. The server moves the room to `PAUSED`, records the initiator, and broadcasts
+2. The host moves the room to `PAUSED`, records the initiator, and sends
    `global_pause`.
 3. Every client pauses its simulation. The initiator keeps its menu open; the
    other client shows the co-op pause screen. Closing the menu and pressing
    READY sends `ready_signal`.
-4. The server broadcasts `ready_state` after each signal. When every connected
-   room member is ready, it broadcasts `countdown_start` with a 3-second timer.
-5. After the countdown the server broadcasts `global_resume`, and each client
-   resumes its simulation. A client does not resume because its own timer
-   elapsed. If that resume is missing, the client sends `pause_sync` and
-   applies the server's current pause, countdown, or resume message.
+4. The host sends `ready_state` after each signal. When every online member is
+   ready, it sends `countdown_start` with a 3-second timer.
+5. After the countdown the host sends `global_resume`, and each client resumes
+   its simulation. A client does not resume because its own timer elapsed. If
+   that resume is missing, the client sends `pause_sync` and applies the host's
+   current pause, countdown, or resume message.
 
-If a member's socket drops during the countdown, the server cancels the resume
-and broadcasts `global_pause` again. A reconnecting member receives the current
-pause state when it reattaches. Controls carry the current run ID and pause epoch;
-ready signals from earlier pauses are rejected. A departing guest is removed from
-the required membership, and the remaining host can continue alone.
+If a member drops during the countdown, the host cancels the resume and sends
+`global_pause` again. Controls carry the current run ID and pause epoch; ready
+signals from earlier pauses are rejected. A departing guest is removed from the
+required membership, and the remaining host can continue alone.
 
 ## Ownership rules
 
@@ -143,22 +151,17 @@ the required membership, and the remaining host can continue alone.
 
 ## Failure handling
 
-- A missing join code, full room, or signaling error is reported in the co-op
+- A missing join code, full room, or introduction error is reported in the co-op
   screen and never starts a run.
-- If the WebSocket drops, the client retries the signaling server and rejoins the
-  same room with the same client ID. The server keeps a disconnected peer for a
-  bounded grace period, then removes that peer. A room with both participant
-  sockets open stays up through peer-to-peer play and shared pause; it is not
-  expired just because gameplay is not being relayed. A room that is not a live
-  pair still expires after five minutes without signaling activity.
-- If the data channel drops, gameplay continues over the server relay. The
-  transport status indicator reports `RELAY` instead of `P2P`.
-- When a guest leaves, the host keeps the room/code and continues playing. Brief
-  socket drops retain the existing transport grace window; after departure is
-  confirmed, an absent record does not count as an active teammate. Open host
-  sockets keep rooms alive past both the old idle expiry and guest grace period.
-- Host departure closes the lobby for guests. Host migration, server-restart
-  recovery, and persisted co-op saves are not implemented.
+- If the direct link never opens, both players stay on the co-op screen. PHP
+  responses carry connection cards only.
+- If the data channel drops, the guest offers again through PHP. The host keeps
+  the guest for about 10 seconds, then clears that guest if the link does not
+  return. The transport label stays `OFFLINE` until the channel is open.
+- When a guest leaves, the host keeps the room code and continues playing. The
+  lobby row stays until the host leaves or the check-in expires.
+- Host departure deletes the lobby. Host migration and persisted co-op saves are
+  not implemented.
 
 ## Non-goals
 
@@ -170,11 +173,12 @@ the required membership, and the remaining host can continue alone.
 
 ## Persistent lobby and participant recovery (issue 014)
 
-The signaling server owns lobby phase (`lobby` / `run`), membership, profiles,
+The hosting browser owns lobby phase (`lobby` / `run`), membership, profiles,
 readiness, the configured shared respawn count, and a monotonically increasing
-run ID. The browser host owns the world, participant registry, shared remaining
-respawns, and life transitions. `js/coop-session.js` implements that lifecycle
-separately from avatar/world transport in `js/coop.js`.
+run ID. It also owns the world, participant registry, shared remaining
+respawns, and life transitions. `js/coop-host.js` is that room authority.
+`js/coop-session.js` implements the browser lifecycle separately from
+avatar/world transport in `js/coop.js`.
 
 | Client control | Effect |
 | --- | --- |
@@ -184,7 +188,7 @@ separately from avatar/world transport in `js/coop.js`.
 | `lobby_sync` | Request current lobby state |
 | `return_lobby` | Host-only, matching run ID; end mission without closing room |
 
-The server broadcasts `lobby_state` (members, profiles, readiness, revision,
+The host sends `lobby_state` (members, profiles, readiness, revision,
 respawns, phase, run ID, launch time). All connected members, including a lone
 host, must ready before a three-second launch countdown. Membership or selection
 changes cancel stale launches. `launch` authorizes the host to initialize exactly
@@ -211,7 +215,7 @@ bullets, mines, and strikes are transferred in bounded `sync_entities` chunks;
 readiness stays blocked until the world and every chunk arrive. Setup retries are
 throttled and duplicate chunks do not create extra hazards. Both
 players must ready to resume. Initial launch and normal sector advancement reuse
-the server countdown automatically after synchronization; they do not require a
+the host countdown automatically after synchronization; they do not require a
 second manual ready click. A guest leaving during setup releases the host.
 
 ## Shared life transitions
@@ -228,7 +232,7 @@ second manual ready click. A guest leaving during setup releases the host.
 - A replacement retains installed loadout/upgrades/buffs, gets full health and
   shields and three gameplay seconds of invincibility, and starts with empty
   storage. Its life number advances; old life messages are rejected. The whole
-  game pauses for manual orientation readiness before the server resume countdown.
+  game pauses for manual orientation readiness before the host resume countdown.
 - While awaiting replacement the camera stays at death position. With no pending
   replacement it follows the living teammate. The dead host continues world
   simulation; new routine waves use a living player's position.
@@ -242,5 +246,5 @@ second manual ready click. A guest leaving during setup releases the host.
 
 Recovery restores the last host-acknowledged state of the live session. It does
 not recover browser-local changes that never reached the host before a crash.
-Transport and simulation remain two-player and client-side; the existing service
-coordinates rooms and relays data, without server-side physics.
+Transport and simulation remain two-player and client-side. PHP only introduces
+the browsers. There is no server-side physics.

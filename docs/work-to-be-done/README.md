@@ -24,6 +24,7 @@ in [the decision log](../decisions.md).
 | 012 | [Prepare GitHub community and release documentation](012-github-community.md) | Done |
 | 013 | [Establish CI/CD and release policy](013-deployment-and-changelog.md) | Implemented — needs validation |
 | 014 | [Persistent co-op lobby, revival, and rejoining](014-coop-lobby-and-revival.md) | Implemented — needs validation |
+| 015 | [PHP co-op introduction with opt-in STUN](015-php-coop-introduction.md) | Implemented — needs validation |
 
 ### 009 implementation and validation update
 

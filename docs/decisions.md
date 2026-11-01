@@ -148,3 +148,28 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   `tools/ci/coop-smoke.spec.cjs` (requires Node 20+ for Playwright).
 - Supersedes: The earlier co-op note that guest menus could not pause the host and
   that pause ownership was unresolved.
+- Superseded on 2026-10-31 by “One PHP co-op path.” The hosting browser owns
+  shared pause. The signaling server described here is no longer a play path.
+
+## 2026-10-31 — One PHP co-op path
+
+- Decision: The only co-op play path is PHP, one SQLite file, an opt-in STUN or
+  TURN list in a server config file, and a WebRTC data channel. PHP introduces
+  the browsers. The hosting player's browser owns lobby membership, ready-up,
+  launch, shared pause, respawns, revival, and rejoin. There is no gameplay
+  relay and no Node signaling process.
+- Rationale: Ordinary and free PHP hosting cannot run a Node signaling process,
+  and two introduction servers should not be maintained.
+- Approval: Explicit owner instruction on 2026-10-31, including the instruction
+  to implement issue 015. That instruction approves writing the PHP scripts and
+  changing the client. The config file, SQLite, a 10-minute crash cleanup, a
+  daily sweep of rows older than 24 hours, and the 30-second host check-in are
+  the owner's choices. The 2-hour default TURN credential lifetime is an agent
+  default recorded in the issue, and the config file can change it.
+- Consequences: The sample config leaves co-op off. CO-OP UPLINK stays visible
+  and is disabled until the admin enables at least one address. A direct link
+  that never opens stays on the co-op screen. Details and checks are in
+  [issue 015](work-to-be-done/015-php-coop-introduction.md).
+- Supersedes: The 2026-10-30 decision that the signaling server owns shared
+  pause. It also supersedes the issue 015 note that writing the PHP scripts was
+  not approved by the original request.

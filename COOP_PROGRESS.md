@@ -20,6 +20,9 @@ never opens a socket or changes a save.
   signaling-drop survival, shared pause/ready/countdown, and menu pause
   (`tools/ci/coop-smoke.spec.cjs`)
 
+Items 3, 4, and 10 record the Node signaling path that issue 015 removed.
+Room introduction is PHP. There is no gameplay relay.
+
 ## Current architecture
 
 Host-authoritative world, client-owned avatars.
@@ -33,9 +36,8 @@ Host-authoritative world, client-owned avatars.
   level-ups, and health UI. The host mirrors the guest avatar for enemy targeting,
   contact checks, and authoritative guest shots.
 - The host assigns display names: `PLAYER 1` (host) and `PLAYER 2` (guest).
-- WebRTC DataChannels carry gameplay messages. If a channel is unavailable the
-  same messages fall back to the signaling server's relay. The server never
-  simulates gameplay.
+- WebRTC data channels carry gameplay and room control. PHP only introduces
+  the browsers. There is no gameplay relay.
 - Co-op runs do not write local checkpoints, so a co-op session cannot overwrite
   a single-player save.
 
@@ -43,8 +45,9 @@ Host-authoritative world, client-owned avatars.
 
 The client transport and co-op logic are integrated and loaded:
 
-- `js/net.js` is loaded in `index.html` before gameplay code. Single-player never
-  calls `Net.host()` / `Net.join()`, so no socket or peer connection is created.
+- `js/net.js` and `js/coop-host.js` are loaded in `index.html` before gameplay
+  code. Single-player never calls `Net.host()` / `Net.join()`, so no peer
+  connection is created.
 - `js/coop.js` owns the co-op state machine, sync queues, and the small hooks the
   simulation calls. It is loaded after `js/sim.js` and `js/enemies.js`.
 - `js/sim.js` routes bullets, mines, strikes, damage, pickups, pauses, level
@@ -61,23 +64,28 @@ See `docs/coop-protocol.md` for the message contract and rates.
 ## How to run
 
 ```bash
-npm install          # installs ws and dev tooling
-npm run signal       # signaling server on ws://0.0.0.0:8787
-npm run check:syntax # syntax gate for all scripts
-npm run lint         # eslint
-node tools/check-coop-server.cjs   # signaling server regression check
+npm install          # dev tooling for checks
+npm run check        # syntax, lint, unit checks, and browser smoke
 ```
 
-Serve the game over HTTP (for example `python3 -m http.server 8000` or the CI
-static server) and open it in two tabs/windows. Click **CO-OP UPLINK**, choose a
-hull and color, host in one window, and join with the room code in the other.
-The host presses **START CO-OP RUN**.
+Local co-op uses the same PHP scripts. From the repository root:
 
-`?signal=ws://<host>:<port>` overrides the default signaling URL. Use `wss://`
-when the page is served over HTTPS. The server host defaults to `0.0.0.0` and the
-port to `8787`; both are configurable with `HOST` and `PORT`.
+```bash
+php -d opcache.enable=0 -S 127.0.0.1:8000 -t . php/router.php
+```
+
+Copy `php/coop-config.sample.php` to `php/coop-config.php` (gitignored), set
+`enabled` to true, and add at least one STUN or TURN address. Open
+`http://127.0.0.1:8000/` in two browser windows. Click **CO-OP UPLINK**, choose
+a hull and color, host in one window, and join with the room code in the other.
+
+`?intro=` overrides the PHP introduction URL. The real config and the SQLite
+file stay out of git. The sample config leaves co-op off.
 
 ## Recent fixes (network and ownership)
+
+The bullets in this section are the 2026-10-30 Node signaling record. That
+process is not a play path. Current introduction is the PHP section above.
 
 Implemented on `feat/coop-multiplayer` after the initial integration:
 
@@ -134,14 +142,14 @@ Implemented on `feat/coop-multiplayer` after the initial integration:
 - If the guest's reward bank is full when the host grants an item, the host has
   already removed the item and the guest's `N.Rewards.bank` failure leaves it
   uncollected. The item is lost in that edge case.
-- The shared pause is server-relayed; if the signaling socket is lost, the room
-  cannot advance its pause state until the client reconnects. The 10-second
-  `peerOfflineGraceMs` window covers brief drops.
+- Shared pause lives in the hosting browser. If the direct link drops, the
+  guest offers again through PHP. The host keeps the guest for about 10 seconds.
+  There is no gameplay relay.
 - A player still inside a menu (inventory, rewards, level-up, overflow) cannot
   press READY until the menu is closed. The other player waits on the pause
   screen; this is intentional but means a long menu holds the session.
-- Pause state lives only in memory on the server. A server restart drops all
-  rooms, including paused ones.
+- Pause state lives in the host tab. Closing that tab ends the session after
+  the host's lobby check-in expires.
 
 ## Remaining validation
 
@@ -166,11 +174,11 @@ Node 24 `bin` directory first before `npm run test:browser`.
 
 ## Notes for the next contributor
 
-- The signaling server creates rooms, hands out 5-character codes, relays
-  signaling and gameplay fallback messages, rate-limits each socket, and expires
-  rooms that are not a live pair. It never simulates or stores game state.
-- Reconnection reuses the same client ID so the server can keep the room during
-  its grace period. The host's room survives a brief guest drop; the guest
-  re-offers when the peer is re-announced.
+- PHP creates room codes and stores two connection cards. It does not relay
+  gameplay. The hosting browser owns the lobby and shared pause.
+- Reconnection reuses the same client ID. The host's room survives a brief
+  guest drop. The guest offers a new card through PHP.
 - Co-op checkpoints and saves are intentionally disabled. Leaving a co-op run
   returns to the menu without touching single-player progress.
+- The 2026-10-30 notes above describe the removed Node signaling path. Issue
+  015 is the current introduction.
