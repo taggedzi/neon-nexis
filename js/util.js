@@ -190,6 +190,7 @@ N.SETTINGS_DEFAULT = {
   audio:{master:.7,music:.38,sfx:.75,muted:false},
   graphics:{quality:'high',shake:true,scanlines:true,glitch:true,particles:1,showFps:false},
   accessibility:{reducedFlash:false,aimAssist:0},
+  capturePointer:true,
   deadzone:.22,
   sensitivity:1
 };
@@ -247,6 +248,7 @@ N.loadSettings = function(){
   s.movementMode=s.movementMode==='driving'?'driving':'directional';
   s.firingMode=s.firingMode==='toggle'?'toggle':'hold';
   s.rightStickFire=s.rightStickFire!==false;
+  s.capturePointer=s.capturePointer!==false;
   if(raw?.keyboard&&raw.keyboard.fire===undefined){
     const used=new Set(Object.entries(s.keyboard).filter(([action])=>action!=='fire').map(([,code])=>code));
     s.keyboard.fire=['KeyF','KeyG','KeyV'].find(code=>!used.has(code))||null;

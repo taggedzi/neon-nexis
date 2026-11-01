@@ -231,3 +231,24 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: The allowance, in the 2026-10-29 task-branch workflow, to start
   from a local `main` whose remote freshness is unknown, and the allowance to
   continue a different issue while blocked.
+
+## 2026-11-01 — Pointer capture and pause on focus loss
+
+- Decision: During play, a primary click on the playfield requests pointer
+  lock when the "capture pointer while playing" setting is on. The setting
+  defaults on. Pause, or any leave from play, releases the pointer. Window
+  blur or a hidden document calls `G.pauseGame`, including when capture is off
+  or the browser denied it. Co-op uses that same pause, which already requests
+  the shared pause. Esc remains the remapped pause action. If the browser
+  consumes Esc to leave pointer lock, that unlock opens pause.
+- Rationale: A click on another monitor was leaving the run live. Pointer lock
+  cannot be forced, so focus loss has to pause whether or not capture succeeded.
+  A second pause flag would desync co-op.
+- Approval: Owner instruction on 2026-11-01, recorded in
+  [issue 019](work-to-be-done/019-pointer-lock-and-focus-pause.md). The owner
+  chose default on, and release as soon as pause opens. The remaining behavior
+  is the issue's Do list, which the owner asked to implement.
+- Consequences: Old settings blobs stay valid. Touch does not request lock.
+  Returning focus does not resume the run and does not restore held movement
+  or fire. A neutral stick is still required after the pause.
+- Supersedes: Nothing.

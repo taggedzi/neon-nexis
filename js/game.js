@@ -82,6 +82,7 @@ G.init=function(canvas){
     if(document.hidden && G.mode==='playing'){
       G.saveCheckpoint(true,'hidden');
       N.Audio.suspend();
+      G.pauseGame();
     }else if(!document.hidden){
       N.Audio.resume();
     }
@@ -124,6 +125,7 @@ G.setMode=function(m){
   }
   G.mode=m;
   document.body.classList.toggle('playing',m==='playing');
+  if(m!=='playing'&&N.Input.releasePointer) N.Input.releasePointer();
   if(m==='playing') N.Audio.setScene('game');
   else if(m==='menu'||m==='boot') N.Audio.setScene('menu');
   else if(m==='gameover') N.Audio.setScene('dead');
@@ -430,6 +432,7 @@ G.resumeGame=function(){
   if(G.overflow){G.openOverflow();return;}
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
+  N.Input.resetMovement();
   N.Input.resetFire();
   N.Audio.setScene('game');
   if(N.Coop) N.Coop.onPause(false);

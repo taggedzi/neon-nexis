@@ -35,6 +35,7 @@ assert.equal(loaded.keyboard.fire, 'KeyF');
 assert.equal(typeof loaded.gamepad.rewards, 'number');
 assert.equal(loaded.deadzone, 0.41);
 assert.equal(loaded.movementMode, 'driving');
+assert.equal(loaded.capturePointer, true);
 assert.equal(stored.get(N.Storage.settingsKey), malformed);
 
 stored.set(N.Storage.settingsKey, JSON.stringify({
@@ -51,6 +52,14 @@ assert.equal(migrated.keyboard.fire, 'KeyF');
 assert.equal(migrated.keyboard.rewards, 'KeyR');
 assert.equal(migrated.gamepad.rewards, 2);
 assert.equal(migrated.deadzone, 0.33);
+assert.equal(migrated.capturePointer, true);
 assert.equal(stored.size, 1);
+
+stored.set(N.Storage.settingsKey, JSON.stringify({ capturePointer: false, deadzone: 0.2 }));
+const captureOff = N.loadSettings();
+assert.equal(captureOff.capturePointer, false);
+assert.equal(captureOff.deadzone, 0.2);
+assert.equal(captureOff.keyboard.fire, 'KeyF');
+assert.equal(JSON.parse(stored.get(N.Storage.settingsKey)).capturePointer, false);
 
 console.log('Settings load checks passed.');

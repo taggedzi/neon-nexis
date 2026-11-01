@@ -299,6 +299,23 @@ test('session survives a brief direct-link drop inside the grace window', async 
   }
 });
 
+test('guest focus loss uses the shared pause', async ({ browser }) => {
+  test.setTimeout(120000);
+  const ctx = await startCoopRun(browser);
+  const { host, guest, errors } = ctx;
+  try {
+    await guest.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await host.bringToFront();
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('paused');
+    await expect.poll(() => host.evaluate(() => window.NEON.Game.mode), { timeout: 8000 }).toBe('paused');
+    expect(await guest.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+    expect(await host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+    expect(errors).toEqual([]);
+  } finally {
+    await closeAll(ctx);
+  }
+});
+
 test('global pause waits for both players to ready up, then counts down and resumes', async ({ browser }) => {
   test.setTimeout(120000);
   const ctx = await startCoopRun(browser);

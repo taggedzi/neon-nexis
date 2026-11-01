@@ -1,9 +1,6 @@
 # 019 — Lock the pointer and pause when focus leaves
 
-Status: Planned
-
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Status: Implemented — needs validation
 
 Priority 3 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -52,25 +49,28 @@ input map.
 
 ## Decide
 
-- Is pointer lock on by default during play, or a setting that starts off?
-- What text tells the player how to release the pointer? It has to be visible
-  before they feel stuck.
-- Does loss of focus always pause, even when pointer lock is off or was denied?
-- In co-op, does focus loss request the shared pause, or only stop local input
-  until the existing shared-pause rules answer?
+Accepted 2026-11-01:
 
-Proposal, not approved:
+- Capture is a setting, default on: "capture pointer while playing". The owner
+  chose the default. An older settings blob with no such field stays valid and
+  loads as on. An explicit off stays off.
+- A primary click on the playfield requests pointer lock when the browser
+  allows it. Touch does not request it.
+- The pointer releases as soon as pause opens. The owner chose that. Leaving
+  play for any other screen releases it too, so menus stay clickable. Esc is
+  still the browser's unlock key. If the browser eats that Esc, the unlock
+  itself opens the normal pause menu through `G.pauseGame`. The remapped pause
+  action is unchanged.
+- The release line is visible when capture first succeeds, on the pause screen
+  while capture is on, and the first time a request is denied:
+  "PAUSE OR ESC RELEASES THE POINTER." A denial also says that leaving the
+  window still pauses.
+- Blur, or a hidden document, during play calls `G.pauseGame` even when capture
+  is off or was denied.
+- In co-op, that same `G.pauseGame` path sends the existing shared-pause
+  request. There is no second pause flag.
 
-- Add a setting, default on, "capture pointer while playing".
-- A click on the playfield requests pointer lock. Escape releases it and opens
-  the normal pause menu. A one-line hint is on the pause screen and the first
-  time lock is denied.
-- Blur or a hidden document during single-player play calls `G.pauseGame`.
-- In co-op, focus loss uses the existing shared-pause request. It does not
-  invent a second pause flag.
-
-Pointer lock cannot be forced. A denied request still needs the pause-on-blur
-behavior.
+Pointer lock cannot be forced. A denied request still pauses when focus leaves.
 
 ## Do
 
@@ -88,20 +88,17 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] During play, the player can capture the pointer when the browser allows it.
-- [ ] The release control is visible and returns the pointer without a fight.
-- [ ] Leaving the browser during single-player play pauses the run.
-- [ ] Returning does not leave movement or fire stuck on.
-- [ ] Co-op pause still follows the shared pause rules.
-- [ ] A browser that denies pointer lock still pauses when focus leaves.
-- [ ] Keyboard, mouse, and controller paths that already pause still work.
+- [x] During play, the player can capture the pointer when the browser allows it.
+- [x] The release control is visible and returns the pointer without a fight.
+- [x] Leaving the browser during single-player play pauses the run.
+- [x] Returning does not leave movement or fire stuck on.
+- [x] Co-op pause still follows the shared pause rules.
+- [x] A browser that denies pointer lock still pauses when focus leaves.
+- [x] Keyboard, mouse, and controller paths that already pause still work.
 
 ## Open questions
 
-- Should the pointer stay captured on the pause menu, or release as soon as
-  pause opens?
-- Is a setting default of on acceptable, or should capture start off until the
-  player opts in?
+Resolved by the owner on 2026-11-01. See Decide. No open questions remain.
 
 ## Dependencies
 
@@ -112,4 +109,51 @@ must not depend on it.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+Changed files: `js/input.js`, `js/game.js`, `js/ui.js`, `js/util.js`, `index.html`,
+`css/style.css`, `tools/ci/pointer-lock.spec.cjs`, `tools/ci/coop-smoke.spec.cjs`,
+`tools/check-firing.js`, `tools/check-driving.js`, `tools/check-controller.js`,
+`tools/check-settings-load.cjs`, `tools/check-settings-paths.cjs`,
+`docs/decisions.md`, `docs/work-to-be-done/README.md`, this issue.
+
+Implementation notes:
+
+- `capturePointer` defaults on and is stored with the other settings. A blob
+  that omits it still loads, and storage is not rewritten just to add the field.
+- A trusted primary click on `#game` during play requests pointer lock. Touch
+  and untrusted clicks do not. While locked, aim follows pointer movement
+  deltas inside the viewport.
+- Leaving play calls `Input.releasePointer`. If the browser drops Esc, the
+  unlock opens pause through `G.pauseGame`. The next Esc can still leave pause.
+- The first successful lock shows "POINTER CAPTURED. PAUSE OR ESC RELEASES IT."
+  The pause screen shows "PAUSE OR ESC RELEASES THE POINTER." while capture is
+  on. The first denial shows "POINTER CAPTURE DENIED. LEAVING THE WINDOW STILL
+  PAUSES."
+- Blur and a hidden document call `G.pauseGame`. Focus return, pause, and
+  resume clear movement and fire. Resume requires a neutral stick again.
+- Co-op focus loss uses `G.pauseGame`, which already requests the shared pause.
+
+Checks and results, 2026-11-01, Windows, Node from `npm run check`:
+
+- `npm run check` passed. Browser step: 102 passed, about 4.6 minutes.
+  Playwright Chromium 156.0.8078.4 and Firefox 157.0.
+- `tools/ci/pointer-lock.spec.cjs` passed on both browsers: default and saved
+  off, lock, movement while locked, Esc release, pause hint, held fire cleared
+  across blur and resume, one denial notice, hidden document pauses.
+- `guest focus loss uses the shared pause` passed on both browsers. Guest blur
+  paused the guest and the host, and both reported `pauseState` `PAUSED`.
+- Regression counts on both browsers: firing 54, driving 33, controller 48.
+  Those cover focus-loss pause, cleared keys, and a neutral stick after the
+  pause. The existing smoke test still pauses with Esc and continues.
+
+Limitations:
+
+- Blur and visibility were dispatched in the page. A physical click on a second
+  monitor and a physical Alt-Tab were not performed. Those gestures are what
+  produce blur and, for Alt-Tab, a hidden document.
+- No physical controller was attached. The stick check uses the synthetic pad
+  in `tools/check-controller.js`.
+- Owner play on a multi-monitor desktop is still the feel check for the hint
+  and for capture being on by default.
+
+Remaining work: that owner pass. No code work is left for the acceptance
+criteria above.

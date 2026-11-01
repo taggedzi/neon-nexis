@@ -91,6 +91,13 @@ try{
   release();press(1);check(G.mode==='playing','controller back resumes gameplay');
   pad.axes=[0,1,0,0];I.update();G.pauseGame();G.resumeGame();I.update();check(I.getMove().len===0,'held movement blocked across pause');
   release();pad.axes=[0,1,0,0];I.update();check(I.getMove().len===1,'neutral rearms controller movement');
+  pad.axes=[0,1,0,0];I.update();
+  window.dispatchEvent(new Event('blur'));
+  check(G.mode==='paused','focus loss pauses');
+  window.dispatchEvent(new Event('focus'));
+  check(G.mode==='paused','focus return stays paused');
+  G.resumeGame();I.update();check(I.getMove().len===0,'held stick blocked after focus loss');
+  release();pad.axes=[0,1,0,0];I.update();check(I.getMove().len===1,'neutral stick rearms movement after focus loss');
   pads=[];I.update();check(I.getMove().len===0&&!I.isPadConnected(),'disconnect clears movement');
   window.controllerResult={passed:checks.length,checks};
 }finally{
