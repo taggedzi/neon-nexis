@@ -191,10 +191,9 @@
     function holdOfflineGrace(clientId) {
       const guest = room.guest;
       if (!guest || guest.clientId !== clientId || guest.online) return;
-      if (guest.offlineTimer) {
-        clearTimeout(guest.offlineTimer);
-        guest.offlineTimer = null;
-      }
+      // setLocalDescription can succeed while the channel never opens and the
+      // connection never reaches "failed". Restart the grace from this offer.
+      armOfflineTimer(guest);
     }
 
     function setHost(clientId, profile) {

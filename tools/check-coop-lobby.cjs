@@ -117,7 +117,31 @@ async function until(predicate) {
     authority.handle('host', { t: 'return_lobby', runId: 1 });
     await delay(50);
     assert.equal(room.phase, 'run');
-    console.log('Lobby checks passed: readiness revisions, count bounds, repeated runs, stale controls, replacement, duplicate identity, and hosted lifetime.');
+
+    const hung = harness(80);
+    hung.authority.setHost('host', {});
+    assert.equal(hung.authority.setGuest('guest', {}), true);
+    hung.authority.holdOfflineGrace('guest');
+    await delay(120);
+    assert.equal(hung.room.guest && hung.room.guest.online, true);
+    hung.authority.markOffline('guest');
+    await delay(50);
+    hung.authority.holdOfflineGrace('guest');
+    await delay(40);
+    assert.ok(hung.room.guest && hung.room.guest.online === false);
+    await until(() => !hung.room.guest);
+
+    const linked = harness(40);
+    linked.authority.setHost('host', {});
+    assert.equal(linked.authority.setGuest('guest', {}), true);
+    linked.authority.markOffline('guest');
+    linked.authority.holdOfflineGrace('guest');
+    assert.equal(linked.authority.setGuest('guest', {}), true);
+    await delay(80);
+    assert.equal(linked.room.guest && linked.room.guest.clientId, 'guest');
+    assert.equal(linked.room.guest.online, true);
+
+    console.log('Lobby checks passed: readiness revisions, count bounds, repeated runs, stale controls, replacement, duplicate identity, hosted lifetime, and a hung re-offer.');
   } finally {
     authority.close();
   }

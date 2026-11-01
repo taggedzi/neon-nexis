@@ -230,8 +230,9 @@ stays open and the issue is not Done.
   guest rejoin. PHP only introduces the browsers. There is no gameplay relay.
 - A guest ignores an answer whose session does not match its current offer.
   The host forgets the previous card revision when the guest id changes, and
-  holds the about-10-second offline grace while it answers a new offer from
-  an offline guest. A same-guest reconnect receives the current pause epoch.
+  restarts the about-10-second offline grace when it answers a new offer from
+  an offline guest, and clears that guest if the link does not open. A
+  same-guest reconnect receives the current pause epoch.
   A later session sync does not replace a newer epoch.
 
 ### Changed files

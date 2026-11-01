@@ -44,8 +44,9 @@ A dropped link can post a new card while the lobby row exists. The host keeps
 the run. A guest ignores an answer whose `session` does not match its current
 offer. When the guest id in a poll changes, the host forgets the previous card
 revision, so a replacement guest's first card is new. While the host answers a
-new offer from an offline guest, it holds the about-10-second offline grace
-instead of clearing that guest. `session_sync` includes the current pause
+new offer from an offline guest, it restarts the about-10-second offline
+grace. If that link does not open, the host still clears the guest when the
+grace ends. `session_sync` includes the current pause
 epoch, and a same-guest reconnect receives that epoch with the current pause.
 A later sync does not replace a newer epoch the guest already accepted.
 
