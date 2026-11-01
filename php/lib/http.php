@@ -49,11 +49,22 @@ function neon_coop_status(array $config, string $clientId): array
   return ['ok' => true, 'enabled' => true, 'iceServers' => $servers];
 }
 
+function neon_coop_sweep(string $path): void
+{
+  if (!is_file($path)) {
+    return;
+  }
+  neon_coop_pdo($path);
+}
+
 function neon_coop_handle_http(): void
 {
   try {
     $request = neon_coop_request();
     $config = neon_coop_load_config();
+    // Status, an empty action, and a disabled lobby verb return before the
+    // action opens the database. The 10-minute delete still has to run.
+    neon_coop_sweep(neon_coop_database_path($config));
     $action = (string) $request['action'];
     $clientId = neon_coop_client_id($request['clientId'] ?? ($_GET['clientId'] ?? ''));
     if ($action === '' || $action === 'status') {

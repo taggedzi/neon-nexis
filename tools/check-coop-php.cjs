@@ -129,6 +129,7 @@ function sql(db, op, code) {
     'if ($op === "columns") { foreach ($pdo->query("PRAGMA table_info(lobbies)") as $column) echo $column["name"], " "; }',
     'elseif ($op === "age-checkin") { $pdo->prepare("UPDATE lobbies SET checked_in_at = :t WHERE code = :c")->execute(["t" => time() - 100, "c" => $code]); }',
     'elseif ($op === "stale") { $pdo->prepare("UPDATE lobbies SET checked_in_at = :t WHERE code = :c")->execute(["t" => time() - 700, "c" => $code]); }',
+    'elseif ($op === "seed-stale") { $pdo->exec("CREATE TABLE IF NOT EXISTS lobbies (code TEXT PRIMARY KEY, host_id TEXT NOT NULL, guest_id TEXT, host_card TEXT, guest_card TEXT, created_at INTEGER NOT NULL, checked_in_at INTEGER NOT NULL)"); $now = time() - 700; $pdo->prepare("INSERT OR REPLACE INTO lobbies (code, host_id, guest_id, host_card, guest_card, created_at, checked_in_at) VALUES (:c, :h, NULL, NULL, NULL, :t, :t)")->execute(["c" => $code, "h" => "nn_seed", "t" => $now]); }',
     'elseif ($op === "ancient") { $pdo->prepare("UPDATE lobbies SET created_at = :t, checked_in_at = :now WHERE code = :c")->execute(["t" => time() - 86400 - 30, "now" => time(), "c" => $code]); }',
     'elseif ($op === "checked") { echo (int) $pdo->query("SELECT checked_in_at FROM lobbies")->fetchColumn(); }',
     'elseif ($op === "count") { echo (int) $pdo->query("SELECT COUNT(*) FROM lobbies")->fetchColumn(); }',
@@ -274,6 +275,23 @@ async function main() {
   sql(db, 'stale', doomedCode);
   await post(live.base, { action: 'poll', code: doomedCode, clientId });
   check(sql(db, 'one', doomedCode) === '0', 'a later request deletes a lobby quiet for 10 minutes');
+
+  const kept = await post(live.base, { action: 'host', clientId });
+  await post(live.base, { action: 'status', clientId });
+  check(sql(db, 'one', kept.body.code) === '1', 'status keeps a recent lobby');
+  sql(db, 'stale', kept.body.code);
+  const statusSweep = await post(live.base, { action: 'status', clientId });
+  check(statusSweep.status === 200 && statusSweep.body.enabled === true && sql(db, 'one', kept.body.code) === '0', 'a status request deletes a lobby quiet for 10 minutes');
+
+  const quiet = await post(live.base, { action: 'host', clientId });
+  sql(db, 'stale', quiet.body.code);
+  const emptySweep = await fetch(live.base + '/php/coop.php');
+  check(emptySweep.status === 200 && sql(db, 'one', quiet.body.code) === '0', 'an empty action deletes a lobby quiet for 10 minutes');
+
+  const offDb = path.join(scratch, 'off.sqlite');
+  sql(offDb, 'seed-stale', 'ZZZZZ');
+  const disabledSweep = await post(off.base, { action: 'join', code: 'ZZZZZ', clientId });
+  check(disabledSweep.status === 403 && disabledSweep.body.enabled === false && sql(offDb, 'one', 'ZZZZZ') === '0', 'a disabled request deletes a lobby quiet for 10 minutes');
 
   const old = await post(live.base, { action: 'host', clientId });
   sql(db, 'ancient', old.body.code);
