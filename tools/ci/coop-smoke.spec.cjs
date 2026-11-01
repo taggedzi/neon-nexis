@@ -85,7 +85,7 @@ async function startCoopRun(browser, delayInitialPause = false) {
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
   await expect(guest.locator('#btn-coop-join')).toBeEnabled();
-  await guest.locator('#coop-code-input').fill(code);
+  await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
 
   let lastNudge = Date.now();
@@ -497,7 +497,7 @@ test('pause and ready are retried after a direct-link outage', async ({ browser 
     await guest.goto('/');
     await guest.locator('#btn-boot').click();
     await guest.locator('#btn-coop').click();
-    await guest.locator('#coop-code-input').fill(code);
+    await fillRoomCode(guest, code);
     await guest.locator('#btn-coop-join').click();
     await expect.poll(() => host.evaluate(() => !!(window.NEON.Net.peer)), { timeout: ROOM_SETUP_TIMEOUT }).toBe(true);
     await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
@@ -734,25 +734,32 @@ test('guest pickups stay until the grant is accepted', async ({ browser }) => {
 
 
 async function waitForGuestSetup(host, guest) {
-  await expect.poll(async () => {
-    const [hostState, guestState] = await Promise.all([
-      host.evaluate(() => ({ peer: window.NEON.Net.peerId, state: window.NEON.Net.state })),
-      guest.evaluate(() => ({ id: window.NEON.Net.clientId, active: window.NEON.Coop.active,
-        state: window.NEON.Net.state, role: window.NEON.Net.role, phase: window.NEON.Coop.lobby?.phase,
-        detail: window.NEON.Coop.status?.detail, mode: window.NEON.Game.mode,
-        status: document.querySelector('#coop-status')?.textContent || '' }))
-    ]);
-    const hostLinked = hostState.peer === guestState.id;
-    // Background browser pages may defer applying peer/setup messages in CI.
-    // Use the same foreground handling and budget as the initial room setup.
-    if (!hostLinked) await host.bringToFront();
-    else if (!guestState.active) await guest.bringToFront();
-    return { hostLinked, guestActive: guestState.active,
-      hostState: hostState.state, guestState: guestState.state,
-      role: guestState.role, phase: guestState.phase, detail: guestState.detail,
-      mode: guestState.mode, status: guestState.status };
-  }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] })
-    .toMatchObject({ hostLinked: true, guestActive: true });
+  let last = null;
+  try {
+    await expect.poll(async () => {
+      const [hostState, guestState] = await Promise.all([
+        host.evaluate(() => ({ peer: window.NEON.Net.peerId, state: window.NEON.Net.state })),
+        guest.evaluate(() => ({ id: window.NEON.Net.clientId, active: window.NEON.Coop.active,
+          state: window.NEON.Net.state, role: window.NEON.Net.role, phase: window.NEON.Coop.lobby?.phase,
+          detail: window.NEON.Coop.status?.detail, mode: window.NEON.Game.mode,
+          code: document.querySelector('#coop-code-input')?.value || '',
+          status: document.querySelector('#coop-status')?.textContent || '' }))
+      ]);
+      const hostLinked = hostState.peer === guestState.id;
+      // Background browser pages may defer applying peer/setup messages in CI.
+      // Use the same foreground handling and budget as the initial room setup.
+      if (!hostLinked) await host.bringToFront();
+      else if (!guestState.active) await guest.bringToFront();
+      last = { hostLinked, guestActive: guestState.active,
+        hostState: hostState.state, guestState: guestState.state,
+        role: guestState.role, phase: guestState.phase, detail: guestState.detail,
+        mode: guestState.mode, code: guestState.code, status: guestState.status };
+      return last;
+    }, { timeout: ROOM_SETUP_TIMEOUT, intervals: [100, 250, 500] })
+      .toMatchObject({ hostLinked: true, guestActive: true });
+  } catch (error) {
+    throw new Error('Guest setup did not finish: ' + JSON.stringify(last) + '\n' + error.message);
+  }
 }
 
 async function readyPair(host, guest) {
@@ -884,7 +891,7 @@ test('014 page reload restores participant equipment and health; both players mu
   await guest.reload();
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
-  await guest.locator('#coop-code-input').fill(code);
+  await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(id);
@@ -1013,7 +1020,7 @@ test('014 a lone host admits a guest with manual readiness and guest departure p
   await guest.goto('/');
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
-  await guest.locator('#coop-code-input').fill(code);
+  await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
   await expect.poll(()=>guest.evaluate(()=>window.NEON.Coop.active)).toBe(true);
   await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.pauseState)).toBe('PAUSED');
@@ -1121,7 +1128,7 @@ test('a direct link that never opens stays on the co-op screen', async ({ browse
   await guest.goto('/');
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
-  await guest.locator('#coop-code-input').fill(code);
+  await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
   await guest.waitForTimeout(2500);
   await expect(host.locator('#screen-coop')).toHaveClass(/active/);

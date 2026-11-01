@@ -445,6 +445,17 @@ physical-controller checks, and the extended real-network scenarios below remain
   that test. The reload rejoin now uses the same foreground budget. On
   2026-10-31 that single test passed locally in headless Chromium (17.6s) and
   Firefox (21.4s). The full browser suite was not rerun.
+- GitHub Actions run 41276356057 on `main` (2026-11-01) passed Chromium and
+  failed Firefox on the same page-reload test, this time at the 30-second
+  `waitForGuestSetup` budget. `hostLinked` and `guestActive` both stayed false,
+  which matches a join that never sent the room code. Firefox can drop
+  `locator.fill` on a page that was just reloaded behind another tab. The
+  reload rejoin and the other remaining joins now use `fillRoomCode`, which
+  sets `#coop-code-input` in the page and requires the value to stick. On
+  2026-11-01 that single test passed locally in headless Chromium and Firefox
+  (2 passed, 53.5s; Firefox 26.8s). `git diff --check` passed. The full
+  `npm run check` suite was not rerun. This issue stays Implemented — needs
+  validation.
 - Signaling tests verify host-only integer bounds, readiness revision invalidation,
   exactly-once launch, repeated runs, stale run/pause controls, duplicate active
   identity rejection, replacements, and hosted lifetime beyond the old expiry.
