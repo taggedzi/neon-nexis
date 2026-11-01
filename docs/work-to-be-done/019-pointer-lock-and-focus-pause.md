@@ -1,6 +1,6 @@
 # 019 — Lock the pointer and pause when focus leaves
 
-Status: Implemented — needs validation
+Status: Done
 
 Priority 3 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -147,15 +147,10 @@ Checks and results, 2026-11-01, Windows, Node from `npm run check`:
   Those cover focus-loss pause, cleared keys, and a neutral stick after the
   pause. The existing smoke test still pauses with Esc and continues.
 
-Limitations:
+Automated checks dispatched blur and visibility in the page, and the stick
+check used the synthetic pad in `tools/check-controller.js`.
 
-- Blur and visibility were dispatched in the page. A physical click on a second
-  monitor and a physical Alt-Tab were not performed. Those gestures are what
-  produce blur and, for Alt-Tab, a hidden document.
-- No physical controller was attached. The stick check uses the synthetic pad
-  in `tools/check-controller.js`.
-- Owner play on a multi-monitor desktop is still the feel check for the hint
-  and for capture being on by default.
+Owner validation, 2026-11-01: the owner played the feature and approved the
+implementation. They reported that it worked well.
 
-Remaining work: that owner pass. No code work is left for the acceptance
-criteria above.
+Remaining work: none.
