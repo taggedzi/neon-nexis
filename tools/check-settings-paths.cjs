@@ -8,7 +8,7 @@ const helper = source.slice(source.indexOf('const SETTING_PATHS ='), source.inde
 const context = vm.createContext({ assert });
 vm.runInContext(helper + `
   const settings = {
-    deadzone: 0.2, rightStickFire: false,
+    deadzone: 0.2, rightStickFire: false, capturePointer: true,
     audio: { master: 1, music: 1, sfx: 1, muted: false },
     graphics: { particles: 1, shake: true, scanlines: true, glitch: true, showFps: false },
     accessibility: { reducedFlash: false }

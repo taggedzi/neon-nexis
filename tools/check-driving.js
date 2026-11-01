@@ -37,7 +37,12 @@ try{
   check(N.loadSettings().movementMode==='driving','movement preference persists');
   down('ArrowUp');G.pauseGame();check(!I.actionDown('moveUp'),'pause clears movement keys');G.resumeGame();down('ArrowUp',true);
   check(!I.actionDown('moveUp'),'held key repeat does not rearm movement after pause');up('ArrowUp');
-  down('ArrowUp');window.dispatchEvent(new Event('blur'));check(!I.actionDown('moveUp'),'blur clears movement keys');window.dispatchEvent(new Event('focus'));up('ArrowUp');
+  down('ArrowUp');window.dispatchEvent(new Event('blur'));
+  check(G.mode==='paused'&&!I.actionDown('moveUp'),'blur pauses and clears movement keys');
+  window.dispatchEvent(new Event('focus'));
+  check(G.mode==='paused'&&!I.actionDown('moveUp'),'focus return stays paused without restoring movement');
+  G.resumeGame();up('ArrowUp');
+  check(G.mode==='playing'&&!I.actionDown('moveUp'),'resume does not restore a key held across focus loss');
   const descriptor=Object.getOwnPropertyDescriptor(navigator,'getGamepads');let pads=[];
   Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>pads});
   try{

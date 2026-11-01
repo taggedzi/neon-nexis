@@ -434,7 +434,7 @@ function closeSettings(){
 }
 function getPath(obj,path){return path.split('.').reduce((o,k)=>o&&o[k],obj);}
 const SETTING_PATHS = new Set([
-  'deadzone', 'rightStickFire',
+  'deadzone', 'rightStickFire', 'capturePointer',
   'audio.master', 'audio.music', 'audio.sfx', 'audio.muted',
   'graphics.particles', 'graphics.shake', 'graphics.scanlines',
   'graphics.glitch', 'graphics.showFps', 'accessibility.reducedFlash'
@@ -462,9 +462,9 @@ function setPath(obj, path, val) {
   }
   return false;
 }
-function toggleHTML(path,label){
+function toggleHTML(path,label,small='TOGGLE VISUAL FEEDBACK'){
   const v=!!getPath(G.settings,path);
-  return `<div class="setting-row"><div class="setting-label"><b>${esc(label)}</b><small>TOGGLE VISUAL FEEDBACK</small></div>
+  return `<div class="setting-row"><div class="setting-label"><b>${esc(label)}</b><small>${esc(small)}</small></div>
     <button class="toggle ${v?'on':''}" data-toggle="${path}" aria-pressed="${v}" type="button">${v?'ON':'OFF'}</button></div>`;
 }
 function rangeHTML(path,label,small,min,max,step,scale,fmt){
@@ -595,6 +595,10 @@ function renderSettings(){
         </div>
         <div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves and right stick aims; optional right-stick firing is controlled below. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div>
       </div>
+      <div class="settings-section"><h3>POINTER</h3>
+        ${toggleHTML('capturePointer','CAPTURE POINTER WHILE PLAYING','CLICK THE PLAYFIELD DURING A RUN')}
+        <div class="data-block"><p>Capture starts on a playfield click and releases when the run pauses. Esc also releases it. A denied request still pauses the run when the window loses focus. Touch input does not request capture.</p></div>
+      </div>
       <div class="settings-section"><h3>FIRING MODE</h3>
         <div class="setting-row"><div class="setting-label"><b>WEAPON TRIGGER</b><small>SAVED BETWEEN SESSIONS</small></div>
           <div class="segmented">
@@ -671,6 +675,13 @@ function renderSettings(){
 }
 UI.switchSettingsTab=function(tab){settingsTab=tab;renderSettings();};
 
+function syncPointerHint(){
+  const hint=$('pause-pointer-hint');
+  if(!hint) return;
+  const text=N.Input&&N.Input.pointerHint?N.Input.pointerHint():'';
+  hint.hidden=!text;
+  hint.textContent=text;
+}
 function finiteStat(value,fallback,min,max){
   const number=Number(value);
   if(!Number.isFinite(number)) return fallback;
@@ -704,6 +715,7 @@ UI.showPause=function(data){
     ['ANCHORS',data.anchorsLeft+' / '+data.anchorsTotal]
   ];
   fillStatGrid($('pause-stats'),cells,false);
+  syncPointerHint();
   $('btn-save-quit').textContent=N.Coop&&N.Coop.isActive()?'LEAVE CO-OP':'SAVE & QUIT';
   if(N.Coop&&N.Coop.isActive()){
     UI.showCoopPause({owner:N.Coop.pauseOwner,ready:N.Coop.readyPeers,selfReady:N.Coop._readySent});
@@ -735,6 +747,7 @@ UI.showCoopPause=function(data){
   if(title)title.textContent='CO-OP PAUSE';
   const micro=$('pause-micro');
   if(micro)micro.textContent='WAITING FOR ALL PLAYERS TO READY UP';
+  syncPointerHint();
   UI.updateCoopPause(data);
   showScreen('pause');
 };
@@ -770,6 +783,7 @@ UI.showCoopCountdown=function(seconds){
   if(resumeBtn){resumeBtn.textContent='RESUMING...';resumeBtn.disabled=true;}
   const micro=$('pause-micro');
   if(micro)micro.textContent='ALL PLAYERS READY // RESUMING IN '+seconds;
+  syncPointerHint();
   UI.updateCoopCountdown(seconds);
   showScreen('pause');
 };
@@ -1014,6 +1028,10 @@ function activateFocused(){
 function onKeyDown(e){
   if(!currentScreen||N.Input.isCapturing())return;
   if(e.code==='Escape'){
+    if(N.Input.consumeUnlockEscape&&N.Input.consumeUnlockEscape()){
+      e.preventDefault();e.stopPropagation();
+      return;
+    }
     if(currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
       // Stop the event so the gameplay input layer does not also register this
       // press and immediately re-open the pause screen after resuming.

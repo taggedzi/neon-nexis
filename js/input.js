@@ -23,6 +23,10 @@ let initialized=false;
 let movementBlocked=false;
 let unfocused=false;
 let padFireReady=true;
+let releasingPointer=false;
+let swallowUnlockEscape=false;
+let toldPointerLocked=false;
+let toldPointerDenied=false;
 const fireActive=()=>!unfocused&&N.Game?.mode==='playing'&&!N.UI?.overlayOpen?.();
 
 I.resetMovement=function(){
@@ -40,9 +44,11 @@ I.init=function(s){
   if(initialized) return; initialized=true;
   window.addEventListener('keydown',onKeyDown,{passive:false});
   window.addEventListener('keyup',onKeyUp,{passive:false});
-  window.addEventListener('blur',()=>{unfocused=true;I.resetMovement();clearPad();I.resetFire();});
-  window.addEventListener('focus',()=>{unfocused=false;});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){I.resetMovement();clearPad();I.resetFire();}});
+  window.addEventListener('blur',onWindowBlur);
+  window.addEventListener('focus',onWindowFocus);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldInput();});
+  document.addEventListener('pointerlockchange',onPointerLockChange);
+  document.addEventListener('pointerlockerror',onPointerLockError);
   window.addEventListener('pointermove',onPointerMove,{passive:true});
   window.addEventListener('pointerdown',onPointerDown,{passive:true});
   window.addEventListener('pointerup',onPointerUp,{passive:true});
@@ -63,6 +69,7 @@ I.init=function(s){
 I.setSettings=function(s){
   const previous=settings.movementMode,old=settings;
   settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});
+  if(old.capturePointer!==false&&settings.capturePointer===false)I.releasePointer();
   N.Firing.configure(settings.firingMode);
   if(previous!==settings.movementMode||old.rightStickFire!==settings.rightStickFire||old.keyboard.fire!==settings.keyboard.fire||old.gamepad.fire!==settings.gamepad.fire)I.resetFire();
   if(old.keyboard.fire!==settings.keyboard.fire)N.Firing.set('keyboard',false,false);
@@ -102,8 +109,15 @@ function onKeyDown(e){
 function onKeyUp(e){keys[e.code]=false;if(e.code===settings.keyboard.fire)N.Firing.set('keyboard',false,false);}
 function onPointerMove(e){
   if(e.movementX||e.movementY){aimSource='mouse';document.body.classList.remove('controller-nav');}
-  mouse.x=e.clientX; mouse.y=e.clientY;
-  mouse.in = e.clientX>=0 && e.clientY>=0 && e.clientX<=innerWidth && e.clientY<=innerHeight;
+  // A locked pointer reports movement deltas. clientX stays at the lock point.
+  if(pointerIsLocked()){
+    mouse.x=N.clamp(mouse.x+(e.movementX||0),0,innerWidth);
+    mouse.y=N.clamp(mouse.y+(e.movementY||0),0,innerHeight);
+    mouse.in=true;
+  }else{
+    mouse.x=e.clientX; mouse.y=e.clientY;
+    mouse.in = e.clientX>=0 && e.clientY>=0 && e.clientX<=innerWidth && e.clientY<=innerHeight;
+  }
   // Track physical state; the firing helper keeps interrupted holds blocked
   // until release rather than treating pointer movement as another press.
   if(e.buttons && (e.buttons & 1)){mouse.down=true;N.Firing.set('mouse',true,fireActive());}
@@ -116,6 +130,7 @@ function onPointerDown(e){
   if(t && t.id==='game' && (e.button===0||e.pointerType==='touch')){
     mouse.down=true; aimSource='mouse'; mouse.x=e.clientX;mouse.y=e.clientY;
     N.Firing.set('mouse',false,false);N.Firing.set('mouse',true,fireActive());
+    requestPointerLock(t,e);
   }
 }
 function onPointerUp(e){
@@ -274,4 +289,81 @@ I.padNumber=()=>I.padId||'';
 I.hasGamepad=()=>padConnected;
 I.noteAimSource=()=>aimSource;
 I.getDebug=()=>({mouse,keys,pads:padHeld});
+
+function pointerCaptureEnabled(){
+  return settings.capturePointer!==false;
+}
+function pointerIsLocked(){
+  return !!(document.pointerLockElement&&document.pointerLockElement.id==='game');
+}
+function notePointerDenied(){
+  if(toldPointerDenied) return;
+  toldPointerDenied=true;
+  if(N.Game&&N.Game.notify) N.Game.notify('POINTER CAPTURE DENIED. LEAVING THE WINDOW STILL PAUSES.','warn',4200);
+}
+function notePointerLocked(){
+  if(toldPointerLocked) return;
+  toldPointerLocked=true;
+  if(N.Game&&N.Game.notify) N.Game.notify('POINTER CAPTURED. PAUSE OR ESC RELEASES IT.','info',3200);
+}
+function armUnlockEscape(){
+  swallowUnlockEscape=true;
+  // The browser may deliver the unlocking Esc after the pause screen is open.
+  setTimeout(()=>{swallowUnlockEscape=false;},0);
+}
+I.consumeUnlockEscape=function(){
+  if(!swallowUnlockEscape) return false;
+  swallowUnlockEscape=false;
+  return true;
+};
+I.pointerHint=function(){
+  return pointerCaptureEnabled()?'PAUSE OR ESC RELEASES THE POINTER.':'';
+};
+I.releasePointer=function(){
+  if(!document.pointerLockElement||typeof document.exitPointerLock!=='function') return;
+  releasingPointer=true;
+  try{document.exitPointerLock();}
+  catch(e){releasingPointer=false;return;}
+  setTimeout(()=>{releasingPointer=false;},0);
+};
+function requestPointerLock(target,event){
+  if(!pointerCaptureEnabled()||!event||event.isTrusted===false||event.pointerType==='touch') return;
+  if(!target||target.id!=='game'||typeof target.requestPointerLock!=='function') return;
+  if(pointerIsLocked()||N.Game?.mode!=='playing'||N.UI?.overlayOpen?.()) return;
+  let pending;
+  try{pending=target.requestPointerLock();}
+  catch(e){notePointerDenied();return;}
+  if(pending&&typeof pending.catch==='function') pending.catch(()=>{notePointerDenied();});
+}
+function onPointerLockChange(){
+  if(pointerIsLocked()){
+    releasingPointer=false;
+    notePointerLocked();
+    return;
+  }
+  if(releasingPointer){
+    releasingPointer=false;
+    return;
+  }
+  // Esc exits lock without a key event. Pause through the remapped pause path.
+  if(N.Game&&N.Game.mode==='playing'){
+    armUnlockEscape();
+    N.Game.pauseGame();
+  }
+}
+function onPointerLockError(){notePointerDenied();}
+function clearHeldInput(){
+  I.resetMovement();
+  clearPad();
+  I.resetFire();
+}
+function onWindowBlur(){
+  unfocused=true;
+  clearHeldInput();
+  if(N.Game&&N.Game.mode==='playing') N.Game.pauseGame();
+}
+function onWindowFocus(){
+  unfocused=false;
+  clearHeldInput();
+}
 })();
