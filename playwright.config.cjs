@@ -1,10 +1,19 @@
+const os = require('node:os');
 const { defineConfig } = require('@playwright/test');
+
+const cores = typeof os.availableParallelism === 'function'
+  ? os.availableParallelism()
+  : os.cpus().length;
 
 module.exports = defineConfig({
   testDir: './tools/ci',
   testMatch: '*.spec.cjs',
   timeout: 60000,
-  workers: 1,
+  // The co-op file is almost the whole suite, and its tests use separate rooms
+  // on one PHP server. Run them side by side, but stop at 4 so that server
+  // and the machine are not flooded.
+  fullyParallel: true,
+  workers: Math.max(1, Math.min(4, cores)),
   retries: 0,
   reporter: 'list',
   use: {

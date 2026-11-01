@@ -98,3 +98,23 @@ Later checklist topics remain deferred. See [decisions](../decisions.md).
   2026-10-29. GitHub CI rerun remains pending on that pull request.
   Issue status remains Implemented — needs validation; deployment criteria above
   remain pending.
+
+### Local pre-push checks — 2026-11-01
+
+- The owner asked to stop spending shared Actions minutes on the routine suite,
+  to require that suite locally before a push, and to shorten it.
+- Removed `.github/workflows/ci.yml`. Pushes and pull requests no longer start
+  a checks job. The manual Publish game workflow still runs syntax, lint, unit
+  checks, and both browser suites against `dist`.
+- `.githooks/pre-push` runs `npm run check`. `node tools/ci/install-hooks.cjs`
+  sets `core.hooksPath`. A delete-only push skips the suite. `git push
+  --no-verify` skips the hook.
+- Playwright runs tests in parallel, at most 4 at once. The co-op smoke file
+  was almost all of the previous ~14 minute browser run.
+- Local `npm run check` on 2026-11-01 passed: syntax, lint, unit checks, and
+  88 browser tests. The browser step reported 4.3 minutes. The whole command
+  took 5.5 minutes. Windows, Node 24.14.1, 4 workers, headless Playwright
+  Chromium and Firefox, PHP 8.4.13. A delete-only pre-push input exited 0
+  without running the suite.
+- Issue status stays Implemented — needs validation. Hosted Pages publication
+  is still unvalidated.

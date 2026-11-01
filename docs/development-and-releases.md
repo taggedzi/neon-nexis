@@ -1,8 +1,9 @@
 # Development and releases
 
 This is the approved initial CI/CD setup for the client-side game. Hosting is
-GitHub Pages; GitHub Actions runs checks and publishes only on manual request.
-No public deployment has been validated yet.
+GitHub Pages. Routine pushes are checked by a local pre-push hook. GitHub
+Actions publishes only on manual request, and that publication runs the check
+suite against the staged site. No public deployment has been validated yet.
 
 ## Local checks
 
@@ -11,13 +12,19 @@ only their browser, and the game still runs without a build step.
 
 ```sh
 npm ci --ignore-scripts
+node tools/ci/install-hooks.cjs
 npx playwright install chromium firefox
 npm run check
 ```
 
+`npm ci --ignore-scripts` skips lifecycle scripts, including the hook installer,
+so run the install command once per clone. `npm install` without
+`--ignore-scripts` runs it through the `prepare` script.
+
 `check` runs syntax validation, ESLint correctness rules, Node regression checks,
-and browser regression/smoke tests. Linux browser installation may also require
-`npx playwright install --with-deps chromium firefox`, as used in CI.
+and browser regression/smoke tests. Browser tests run side by side, up to 4 at
+once, because the co-op file is almost the whole suite. Linux browser
+installation may also require `npx playwright install --with-deps chromium firefox`.
 
 Existing compact source is not reformatted. The initial lint rules catch undefined
 names, duplicate definitions, unreachable code, invalid `typeof`, unsafe finally
@@ -31,13 +38,18 @@ from the repository root. Reports/traces are local ignored artifacts.
 
 Add Node regression scripts as `tools/check-*.cjs`; the runner discovers them.
 Add browser regression scripts as `tools/check-*.js` and register their query and
-result object in `tools/ci/regression.spec.cjs`. An unregistered script fails CI.
+result object in `tools/ci/regression.spec.cjs`. An unregistered script fails the check suite.
 New Playwright `*.spec.cjs` tests in `tools/ci/` are discovered automatically.
 Tests must fail when an assertion fails and use isolated browser storage.
 
-CI runs on pull requests and pushes to main. Make its `checks` job a required
-status check in repository rules before relying on it to prevent bad merges.
-This repository setting cannot be enforced by workflow YAML alone.
+The `pre-push` hook runs `npm run check` before Git sends commits or tags. A
+failing check rejects the push. A push that only deletes a remote ref skips the
+suite. `git push --no-verify` skips the hook.
+
+Pushes and pull requests do not run this suite on GitHub. The shared Actions
+minutes stay available for other repositories. The manual **Publish game**
+workflow still runs the checks against the staged `dist` files before it
+deploys, and that is the only automated test run on GitHub.
 
 ## One-time GitHub setup
 
