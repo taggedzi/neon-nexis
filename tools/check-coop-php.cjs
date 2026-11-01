@@ -185,6 +185,7 @@ async function main() {
   const [expiry, idPart] = String(turn.username).split(':');
   check(idPart === clientId, 'TURN username client id');
   check(Math.abs(Number(expiry) - (Math.floor(Date.now() / 1000) + 7200)) < 5, 'TURN lifetime is credentialTtlSeconds');
+  // codeql[js/weak-cryptographic-algorithm] TURN REST requires HMAC-SHA1. See docs/coop-protocol.md.
   const expected = crypto.createHmac('sha1', secret).update(turn.username).digest('base64');
   check(turn.credential === expected, 'TURN credential matches an independent HMAC-SHA1');
   check(turn.urls[0] === 'turn:turn.example.com:3478' && turn.urls[1] === 'turns:turn.example.com:5349', 'TURN url order');
