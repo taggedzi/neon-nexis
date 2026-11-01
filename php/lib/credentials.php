@@ -46,6 +46,7 @@ function neon_coop_mint_turn(array $entry, string $clientId, int $ttl): array
   }
   $username = (time() + $ttl) . ':' . $clientId;
   $public['username'] = $username;
+  // TURN REST (coturn use-auth-secret) requires HMAC-SHA1. See docs/coop-protocol.md.
   $public['credential'] = base64_encode(hash_hmac('sha1', $username, $secret, true));
   return $public;
 }
