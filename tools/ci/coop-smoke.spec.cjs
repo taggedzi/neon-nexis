@@ -38,6 +38,19 @@ async function watchChannels(context) {
   });
 }
 
+async function fillRoomCode(page, code) {
+  await page.bringToFront();
+  const input = page.locator('#coop-code-input');
+  await input.click();
+  // Firefox can drop locator.fill on a page that was just opened behind another
+  // tab. Set the same input the join button reads, then require it to stick.
+  await input.evaluate((el, value) => {
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, code);
+  await expect(input).toHaveValue(code);
+}
+
 async function startCoopRun(browser, delayInitialPause = false) {
   const hostContext = trackContext(await browser.newContext());
   const host = await hostContext.newPage();
@@ -233,8 +246,7 @@ test('session survives a brief direct-link drop inside the grace window', async 
     await guest.goto('/');
     await guest.locator('#btn-boot').click();
     await guest.locator('#btn-coop').click();
-    await guest.locator('#coop-code-input').fill(code);
-    await expect(guest.locator('#coop-code-input')).toHaveValue(code);
+    await fillRoomCode(guest, code);
     await guest.locator('#btn-coop-join').click();
 
     await expect.poll(async () => {
@@ -931,8 +943,7 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await replacement.goto('/');
   await replacement.locator('#btn-boot').click();
   await replacement.locator('#btn-coop').click();
-  await replacement.locator('#coop-code-input').fill(code);
-  await expect(replacement.locator('#coop-code-input')).toHaveValue(code);
+  await fillRoomCode(replacement, code);
   await replacement.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, replacement);
   expect(await replacement.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
@@ -940,8 +951,7 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await replacement.evaluate(() => window.NEON.Coop.leaveToMenu());
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
   await guest.locator('#btn-coop').click();
-  await guest.locator('#coop-code-input').fill(code);
-  await expect(guest.locator('#coop-code-input')).toHaveValue(code);
+  await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(originalId);
