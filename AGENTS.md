@@ -137,9 +137,9 @@ checks, agent manual checks, and owner playtesting. Never invent measurements or
 mark subjective feel/balance criteria complete without the needed player review.
 Partial implementation stays In progress; document exactly what remains.
 
-Work on one issue at a time unless the requested scope or a shared prerequisite
-requires otherwise. If blocked, record the specific reason and continue independent
-authorized work when practical. A status-review request means checking the actual
+Work on one issue at a time. The owner uses one AI at a time. If blocked, record
+the specific reason and stop. Do not start a different issue unless the owner
+explicitly asks for that issue. A status-review request means checking the actual
 code and evidence, not merely repeating the current labels.
 
 Small maintenance and documentation tasks do not require a new backlog issue.
@@ -156,9 +156,10 @@ Link between records when a decision affects multiple issues.
 Serve the repository root using an available static HTTP server, for example
 `python -m http.server 8000`, then open `http://localhost:8000/`. Check interpreter
 availability and avoid interfering with an existing server. Automated checks use
-`npm run check`. A pre-push hook runs that suite and blocks the push when it
-fails. GitHub Actions does not run it on pull requests or pushes to main; the
-manual publish workflow still runs it against the staged site. See
+`npm run check`. A pre-push hook fetches `origin/main`, rejects a branch that is
+behind it or that adds a merge commit, then runs that suite and blocks the push
+when it fails. GitHub Actions does not run it on pull requests or pushes to
+main; the manual publish workflow still runs it against the staged site. See
 [the development guide](docs/development-and-releases.md)
 for setup and future regression registration. Playing from source needs no build.
 
@@ -189,16 +190,16 @@ Inspect `git status` before editing. Preserve unrelated changes and untracked
 files. Do not stage the entire working tree blindly or commit browser artifacts,
 profiles, temporary captures, credentials, or local saves.
 
-Before making any tracked changes, create a new branch for the task, including
-features, bug fixes, refactors, tests, and documentation. Use descriptive names
-such as `feat/ship-selection`, `fix/controller-release`, or `docs/release-guide`.
-Never implement directly on `main` or another default/release branch. Continue
-an existing task branch for follow-up work on that same unmerged task; create a
-new branch for unrelated work. Start from the local default branch for a new
-independent task, and report if its remote freshness is unknown. Do not silently
-base unrelated work on an unmerged task branch. If existing changes prevent safe
-branch isolation, ask the owner; do not discard, stash, or move their work without
-authorization.
+Before making any tracked changes, fetch `origin` and inspect `git status` and
+the open pull requests. Follow [Stay current with main](#stay-current-with-main).
+Create a new branch for the task, including features, bug fixes, refactors,
+tests, and documentation. Use descriptive names such as `feat/ship-selection`,
+`fix/controller-release`, or `docs/release-guide`. Never implement directly on
+`main` or another default/release branch. Continue an existing task branch for
+follow-up work on that same unmerged task; create a new branch for unrelated
+work. Do not silently base unrelated work on an unmerged task branch. If
+existing changes prevent safe branch isolation, ask the owner; do not discard,
+stash, or move their work without authorization.
 
 When commits are requested or authorized, use focused commits with clear messages
 and include the associated issue updates. Record implementation hashes in a later
@@ -213,3 +214,46 @@ Conclude with a short report: what changed, what was verified, the issue status,
 the branch name, commit state, and any remaining decision or validation. Provide
 a concise suggested PR title and description when handing off completed work.
 Never claim a test passed unless it ran.
+
+## Stay current with main
+
+The owner is a solo developer and uses one AI at a time, on one issue at a
+time. Conflicts in this repository have come from a second branch cut from a
+stale `main`. The usual shared file is the backlog index,
+`docs/work-to-be-done/README.md`. `package-lock.json` conflicts the same way
+when two dependency updates are open.
+
+Before starting a new task:
+
+- If a pull request is still open, do not start another branch. Rebase that
+  open branch onto `origin/main` and finish its handoff, or tell the owner
+  which pull request is open and wait.
+- Fast-forward local `main` to `origin/main`. Start the new branch from that
+  local `main` commit. Do not set the new branch's upstream to `main`. If local
+  `main` cannot fast-forward, stop and say so.
+- Use the owner's primary checkout for the active task. A temporary worktree is
+  only for a check that must not disturb that checkout. Remove the worktree
+  when the check is done. Do not begin the next task from a worktree based on
+  an older `main`.
+- After a pull request merges, fast-forward local `main`. When the primary
+  checkout is clean and that task is finished, check out the updated `main` so
+  the next session does not continue from the old feature branch.
+
+Before the first push, and again before describing a pull request as ready to
+merge:
+
+- Fetch `origin`. If `origin/main` is not an ancestor of the task branch,
+  rebase the task branch onto `origin/main`.
+- Do not merge `origin/main` into a task branch. GitHub updates `main` by
+  rebasing the pull request. A merge commit on the task branch makes that
+  rebase impossible.
+- Resolve a backlog-index conflict by keeping every row `origin/main` already
+  updated, and keeping this branch's row for the issue it owns. Do not set
+  another issue back to an older status.
+- After a rebase, update the remote task branch with `--force-with-lease`.
+  Never force-push `main`.
+- The pre-push hook fetches `origin/main` and rejects a branch that is behind
+  `main` or that adds a merge commit. Do not skip it with `--no-verify`.
+- If GitHub reports a conflict or says the pull request cannot be rebased,
+  rebase onto current `origin/main` and push with `--force-with-lease` before
+  merging.

@@ -42,14 +42,30 @@ result object in `tools/ci/regression.spec.cjs`. An unregistered script fails th
 New Playwright `*.spec.cjs` tests in `tools/ci/` are discovered automatically.
 Tests must fail when an assertion fails and use isolated browser storage.
 
-The `pre-push` hook runs `npm run check` before Git sends commits or tags. A
-failing check rejects the push. A push that only deletes a remote ref skips the
-suite. `git push --no-verify` skips the hook.
+The `pre-push` hook fetches `origin/main` when a branch is pushed. It rejects
+the push when that branch does not contain `origin/main` or when it adds a
+merge commit. It then runs `npm run check`. A failing check rejects the push.
+A push that only deletes a remote ref skips the hook. Tag pushes skip the
+branch check and still run the suite. `git push --no-verify` skips the hook.
 
 Pushes and pull requests do not run this suite on GitHub. The shared Actions
 minutes stay available for other repositories. The manual **Publish game**
 workflow still runs the checks against the staged `dist` files before it
 deploys, and that is the only automated test run on GitHub.
+
+## One branch, current with main
+
+Work on one issue at a time. Fetch and fast-forward local `main` before
+starting a branch, and start that branch from the local `main` commit. Do not
+open a second branch while a pull request is open.
+
+Before pushing, rebase the task branch onto `origin/main`. Do not merge `main`
+into the task branch. Pull requests land on `main` by rebase, and a merge
+commit on the branch cannot be rebased.
+
+The files that conflict most often are the backlog index,
+`docs/work-to-be-done/README.md`, and `package-lock.json`. Agents follow
+[Stay current with main](../AGENTS.md#stay-current-with-main).
 
 ## One-time GitHub setup
 
