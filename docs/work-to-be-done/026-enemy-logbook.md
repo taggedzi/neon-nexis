@@ -1,6 +1,6 @@
 # 026 — Add an enemy logbook
 
-Status: Implemented — needs validation
+Status: Done
 
 Accepted decisions and implementation evidence appear below. Earlier proposals
 are retained for context and are superseded by the owner's recorded answers.
@@ -78,13 +78,13 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] Every approved style has a description or an explicit unknown state.
-- [ ] Meeting and destroying an enemy updates the local book under the approved
+- [x] Every approved style has a description or an explicit unknown state.
+- [x] Meeting and destroying an enemy updates the local book under the approved
       definitions.
-- [ ] The book is readable from the menu during a session that has discoveries.
-- [ ] Old saves still load when the book is missing.
-- [ ] A new style cannot ship without the check that it has an entry.
-- [ ] Co-op credit matches the approved rule.
+- [x] The book is readable from the menu during a session that has discoveries.
+- [x] Old saves still load when the book is missing.
+- [x] A new style cannot ship without the check that it has an entry.
+- [x] Co-op credit matches the approved rule.
 
 ## Open questions
 
@@ -147,6 +147,14 @@ conflicting proposals above and resolve the earlier blocker.
   verify that a returning participant discovers current survivors without
   losing earlier discoveries. Agent inspected the 640 × 720 Chromium screenshot:
   role groups, unknown entries, descriptions and counts remain readable.
-- Full required suite is in progress. Keyboard and simulated gamepad navigation
-  use existing menu handling. No physical-controller, separate Google Chrome,
-  or performance check is claimed.
+- `npm run check` passed syntax, lint, unit checks and all 144 browser cases
+  (6.4 minutes), Windows Chromium 156.0.8078.4 and Firefox 157.0. The complete
+  suite includes nearby controls, pause, pickups, sector transitions, save/continue,
+  co-op reconnect and backup rollback. `git diff --check` passed.
+- Agent inspected Chromium and Firefox screenshots. Keyboard and simulated
+  gamepad navigation use existing menu handling. No physical-controller,
+  separate Google Chrome, or performance check is claimed.
+- Implementation commit: `daad5b0`. Final hardening also covers current-enemy
+  discovery on return and receipt persistence after profile replacement; the
+  focused unit checks passed. The pre-push hook checks the complete final state.
+- All acceptance criteria have supporting evidence; remaining work: none.

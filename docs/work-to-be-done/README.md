@@ -35,7 +35,7 @@ in [the decision log](../decisions.md).
 | 023 | [Add skill levels](023-skill-levels.md) | Done |
 | 024 | [Save named ship loadouts](024-named-ship-loadouts.md) | Done |
 | 025 | [Track player stats and an end-of-run tally](025-player-stats.md) | Done |
-| 026 | [Add an enemy logbook](026-enemy-logbook.md) | Implemented — needs validation |
+| 026 | [Add an enemy logbook](026-enemy-logbook.md) | Done |
 | 027 | [Let enemy fire damage other enemies](027-enemy-friendly-fire.md) | Planned |
 | 028 | [Raise co-op capacity to 4](028-coop-four-players.md) | Planned |
 | 029 | [Give ships stats and decide what colors mean](029-ship-stats-and-colors.md) | Planned |
@@ -58,8 +58,8 @@ Easy/Hard/Hardcore balance on 2026-11-02. Issue 024 is Done: automated checks pa
 rule on 2026-11-02.
 Issue 025 is Done under its recorded owner-approved counter rules, with local
 lifetime totals and per-participant match boards.
-Issue 026 is implemented under owner-approved discovery and co-op credit rules;
-the full required suite is running.
+Issue 026 is Done: the lifetime enemy logbook follows owner-approved discovery
+and co-op credit rules, with profile migration, backup and browser checks passing.
 Issues 027 through 037 remain plans only and do not change play.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
