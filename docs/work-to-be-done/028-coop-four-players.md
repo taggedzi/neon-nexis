@@ -385,7 +385,9 @@ sample, not a real-player performance acceptance test or a WAN bandwidth bound.
   usability/disconnects, real GPU frame times and memory/extended soak, and WAN
   behavior. The recorded headless frame times are poor and do not establish
   real-player performance. Issue 001 is not closed by this work.
-- Branch: `codex/028-four-player-coop`. Commit/push/PR/rebase merge are authorized
-  by the owner's original instruction and are the remaining delivery steps.
-  The mandatory pre-push hook will rerun the full suite. No deployment or
-  publication is authorized or performed by this task.
+- Branch: `codex/028-four-player-coop`; implementation commit **`5ea217a`**
+  (`feat(coop): support four-player rooms with locked rosters`). This hash record
+  is a subsequent documentation update. Push/PR/rebase merge are authorized by
+  the owner's original instruction; the PR records final integration/check state.
+  The mandatory pre-push hook reruns the full suite. No deployment or publication
+  is authorized or performed by this task.
