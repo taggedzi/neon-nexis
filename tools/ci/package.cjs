@@ -15,7 +15,8 @@ if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
 // Only this fixed, verified child directory is recreated. Never stage the repository root.
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output);
-const html = fs.readFileSync('index.html', 'utf8');
+// Never publish the source-only console surface, even in a local staging run.
+const html = fs.readFileSync('index.html', 'utf8').replace(/^.*<script src="js\/dev\.js"><\/script>\r?\n/gm, '');
 const files = ['index.html', 'LICENSE', ...[...html.matchAll(/(?:src|href)="((?:js|css)\/[a-zA-Z0-9/_.-]+)"/g)].map(match => match[1])];
 for (const file of new Set(files)) {
   const source = path.resolve(root, file);
@@ -26,6 +27,7 @@ for (const file of new Set(files)) {
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(source, destination);
 }
+fs.writeFileSync(path.join(output, 'index.html'), html);
 const util = path.join(output, 'js/util.js');
 fs.writeFileSync(util, fs.readFileSync(util, 'utf8').replace("N.RELEASE_VERSION = 'development';", `N.RELEASE_VERSION = '${version}';`));
 const commit = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();

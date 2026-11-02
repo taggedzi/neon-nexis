@@ -268,3 +268,16 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   file. The incompatible-save export/remove dialog is unchanged.
 - Supersedes: Nothing. The 2026-10-29 rule that unsupported saves offer export
   or removal stays in effect.
+
+## 2026-11-01 — Source-only scenario commands
+
+- Decision: Issue 021 uses console commands, without a password or panel, in
+  source single-player sessions only. Production staging omits the command file
+  and script tag. Commands cover hull/color, weapons, player level, sector,
+  named enemy spawning, invulnerability, and kill-all. File import stays in 020.
+- Rationale: Repeatable setups without playing to the desired state.
+- Approval: Owner agreed to both scope recommendations in chat on 2026-11-01.
+- Consequences: Dev runs save only through the normal manual checkpoint action.
+  Normal new runs and loaded stored checkpoints retain ordinary save behavior.
+  See [issue 021](work-to-be-done/021-dev-mode.md) for implementation choices.
+- Supersedes: Nothing.
