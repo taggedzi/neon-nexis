@@ -380,3 +380,17 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: Unapproved structure, discovery, boss ordering and Hardcore wipe
   questions in issue 026. Extends the version-3 backup decision using the existing
   confirmation and four-key rollback flow.
+
+## 2026-11-02 — Enemy friendly fire declined
+
+- Decision: Do not implement enemy friendly fire; close issue 027 as a decision.
+- Rationale: The owner chose not to pursue the feature. No further reason was
+  supplied; no performance or balance benefit is claimed.
+- Approval: Explicit owner instruction in chat on 2026-11-02 to document,
+  commit, and merge this update.
+- Consequences: No toggle, damage, reward, or kill-credit changes are added.
+  Issues 025 and 026 need no friendly-fire integration for this task. Other
+  issues retain their scope and status. See
+  [issue 027](work-to-be-done/027-enemy-friendly-fire.md).
+- Supersedes: The unapproved feature proposals and open questions in issue 027.
+  Any future implementation requires a new owner decision.
