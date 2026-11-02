@@ -103,7 +103,11 @@
     for (const key of fields) player[key] = N.deepClone(ship.player[key]);
     player.weapons = ship.player.weapons.map(w => N.Game.makeWeapon(w.id, w.tier, w.level));
     player.loadoutHighestSector = ship.highestSector;
+    // Named ships launch new runs, so use current hull bases with earned upgrades.
+    player.hullStatsVersion = 1;
     player.stats = null;
+    player.hp = null;
+    player.shield = null;
     N.Game.rebuildStats(player, true);
     return true;
   };

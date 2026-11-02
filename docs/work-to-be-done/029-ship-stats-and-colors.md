@@ -1,114 +1,102 @@
 # 029 — Give ships stats and decide what colors mean
 
-Status: Planned
+Status: Done
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+## Approved scope — 2026-11-02
 
-Priority 13 of 21 in the proposed order in [the todo list](../TODO.md).
+Owner approval: voice-chat approval relayed in the implementation request explicitly
+supersedes issue 002's cosmetic-only stats. Colors remain cosmetic; weapons and
+upgrades remain shared; hull shapes and outline hitboxes remain unchanged.
 
-## Problem
+| Hull | Role | Health | Shield | Speed | Damage |
+| --- | --- | --- | --- | --- | --- |
+| Dart | Fast scout | 80 | 20 | 115% | 100% |
+| Delta | Heavy | 140 | 30 | 85% | 100% |
+| Kite | Balanced | 100 | 20 | 100% | 100% |
+| Talon | Glass cannon | 75 | 20 | 100% | 125% |
 
-The player wants the hulls to play differently: a heavier ship, a faster small
-ship, a fragile high-damage ship, and so on. They also floated color rules,
-such as taking more damage from a color or ignoring a color, and they said that
-part needs more thought. Colors might stay decorative.
-
-## What exists today
-
-[Issue 002](002-ship-selection.md) is explicit. The owner chose four cosmetic
-hulls. The only mechanical difference is the hitbox, which follows the shape.
-Speed, weapons, and stats are the same. The issue says mechanical differences
-might come much later. That decision is still the current rule. This todo item
-reopens it. It does not cancel it until the owner says so.
-
-Hull drawing and hit tests live in `js/ships.js`. The shared pilot stats are
-`N.BASE_STATS` in `js/content.js`. Colors are a palette on the hull. Enemy colors
-are separate: each enemy role has a hue, and sectors shift that hue. Enemy hue
-is not a damage type.
-
-The selection screen's acceptance criteria already require that any gameplay
-difference be described accurately before launch.
-
-## Determine
-
-- The four hulls and the six colors currently offered, from `js/ships.js`, so
-  the plan names the real set.
-- Which stats a player can feel in one sector: maximum health, shield, speed,
-  damage done, damage taken. A longer list becomes a spreadsheet the player
-  will not read.
-- Whether enemy hues are stable enough to be "a color" for a resistance rule.
-  They currently shift by sector, so a resistance to "red" would move under the
-  player without a new art rule.
-
-## Decide
-
-The owner must supersede the issue 002 cosmetic decision in writing before any
-stat change. If they do not, this issue closes with colors left decorative and
-no code change.
-
-If they want hull roles:
-
-- One sentence per hull, and the stat deltas behind it.
-- Whether weapons stay shared. The proposal should keep weapons shared so the
-  hull is the role and the loadout is still the player's build.
-- Old checkpoints keep the stats they were saved with, or adopt the new hull
-  stats on load. Adopting on load changes a run the player already balanced.
-
-If they want color rules, that is a second decision. It needs a stable meaning
-for a color. Sector hue shift makes "impervious to red" a moving target.
-
-Proposal, not approved:
-
-- Do not implement color damage rules. Colors stay decorative.
-- Do not implement hull stats until the owner replaces the issue 002 decision
-  with a specific table.
-- When that table exists, show it on the ship select screen, keep weapons
-  shared, keep hitboxes on the collision outline, and apply the table only to
-  new runs. An in-progress checkpoint keeps its saved numbers until the next
-  new run.
-- Default graphics and quality do not change. This is not
-  [issue 036](036-graphics-polish.md).
-
-No stat table is proposed here. Inventing one would pretend the design is done.
-
-## Do
-
-Only after a written table exists:
-
-- Apply the deltas in one place used by both the local ship and the co-op
-  mirror. A guest's hull must use the same numbers the host agreed.
-- Describe the differences on the select screen, in the same words as the table.
-- Checks: the four hulls differ only by the approved fields, hitboxes still
-  match the outline, a legacy save does not change mid-run, and select-screen
-  copy matches the table.
-- Owner plays each hull. Feel is not marked done from the checks alone.
-
-If the owner keeps issue 002 as-is, record that here and in the decision log,
-and do not edit `js/ships.js`.
+Percentages apply to the shared base before upgrades (base speed currently 245).
+Only new runs adopt these stats. Existing checkpoints retain their original bases
+and upgrades. Rationale: distinct hull roles without changing an existing run.
+Named ships launch new runs and therefore use current hull bases with their saved
+equipment/upgrades (agent implementation choice consistent with new-run rule).
+Host and guests use the same initialization; no color mechanics are added.
+See [decision log](../decisions.md#2026-11-02--hull-roles-for-new-runs-issue-029).
 
 ## Acceptance criteria
 
-- [ ] The owner has either kept cosmetic hulls or approved a stat table.
-- [ ] If a table was approved, the select screen states each difference.
-- [ ] In-game numbers match that table and no other hidden difference.
-- [ ] Existing runs keep their saved stats until a new run, if that was the rule.
-- [ ] Color either stays decorative or follows a separate approved color rule.
-- [ ] Co-op shows the same hull stats on host and guest.
+- [x] The owner approved the stat table above.
+- [x] The select screen states each difference.
+- [x] In-game numbers match that table and no other hidden difference.
+- [x] Existing runs retain their saved stats until a new run.
+- [x] Colors stay decorative under the owner-approved rule.
+- [x] Co-op shows the same hull stats on host and guest.
+- [x] Owner accepts hull handling and balance after playtesting (2026-11-02).
 
-## Open questions
+## Scope and related decisions
 
-- Should a saved loadout ([issue 024](024-named-ship-loadouts.md)) store the
-  hull's stat snapshot, or always use the current table?
-- Are enemy colors in scope at all?
-
-## Dependencies
-
-Blocked on an owner decision that supersedes
-[issue 002](002-ship-selection.md). Do not start from this todo line alone.
-[Issue 023](023-skill-levels.md) scales enemies, not hulls. Keep those systems
-separate so a hard fight is not also a secretly weak hull.
+This replaces the equal-stat decision in [issue 002](002-ship-selection.md).
+Its shape-matched hitboxes and other selection requirements remain in force.
+The six existing colors (cyan, magenta, lime, amber, violet and ice) stay cosmetic.
+Enemy hue changes and color resistances are outside scope.
+[Issue 023](023-skill-levels.md) continues to scale enemies independently.
+[Issue 024](024-named-ship-loadouts.md) continues to share equipment and upgrades.
+No graphics or quality changes are part of this issue.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+- Delivery branch: `codex/029-ship-stats`. Owner authorized commit, push, PR creation
+  and rebase merge on 2026-11-02; website publishing/deployment remains separate.
+- `js/content.js`: approved hull base table, before upgrades.
+- `js/ships.js`: shared base-stat calculation and selection descriptions; hull
+  points, drawing and collision algorithms are unchanged.
+- `js/game.js`: selection-aware player creation and stat rebuilding. Checkpoints
+  save `hullStatsVersion`: absent/0 keeps original shared bases, 1 uses this table.
+  Unknown revisions are refused by the existing incompatible-save recovery gate.
+  This preserves old runs through upgrades and repeated checkpoint cycles without
+  clearing stored data or changing the overall checkpoint format version.
+- `js/coop.js`: local guest and host-owned remote pilots use the same constructor
+  with the selected hull. Existing stat synchronization remains authoritative.
+- `js/loadouts.js`: new named-ship runs use current hull bases and fully refill
+  health/shield, retaining saved equipment and upgrades.
+- `index.html`, `js/ui.js`, `js/loadouts-ui.js`: solo/co-op selection descriptions
+  show role, health, shield, speed and damage; named selection shows its saved hull.
+- `tools/check-ships.js`: all hull/color combinations, host remote parity,
+  checkpoint revision persistence, legacy rebuilds and existing hitbox checks.
+- `tools/ci/hull-stats.spec.cjs`: selection copy, narrow/desktop captures,
+  before-upgrade values, repeat rebuilding, legacy upgrades/checkpoint cycles,
+  named-ship adoption, unknown revision refusal and unchanged remaining bases.
+- `tools/ci/coop-four.spec.cjs`: distinct hull choices and host/guest stat checks
+  in the existing three/four-player launch, recovery and combat scenarios.
+### Checks and results — 2026-11-02
+
+- Windows, Node v24.14.1, PHP 8.4.13; Playwright Chromium 156.0.8078.4 and
+  Firefox 157.0. These are headless automated browser checks, not physical-device
+  or real-player performance evidence. Google Chrome was not checked separately.
+- `npm run check` passed: syntax, ESLint, all registered unit suites, and 150
+  browser tests (7.4 minutes). This includes the expanded ship regression's 170
+  assertions per browser; distinct hulls in three/four-player host/guest launch,
+  combat, pause, recovery and rejoin scenarios; and start/move/save/continue smoke.
+- Final `npx playwright test tools/ci/hull-stats.spec.cjs` passed both tests after
+  adding explicit narrow-screen Launch-button scrolling/reachability coverage.
+- Final syntax and lint checks passed after the last source edits.
+- Agent inspected selection captures at 1280×720 and 360×740, including the narrow
+  footer in both browsers. Stat copy wraps, no horizontal overflow was detected,
+  and the Launch control is reachable through the existing panel scroll.
+- Agent compared original and updated Talon/cyan selection at 1280×720 using the
+  original files served by request interception in a separate isolated context.
+  Hull geometry, preview and styling are preserved; the added description shifts
+  later controls downward. Animated attract backgrounds vary between captures.
+- `git diff --check` passed. No owner browser storage was accessed or cleared;
+  tests used isolated browser contexts. Captures remain ignored test artifacts.
+- Initial sandboxed `npm run check` stopped at PHP server startup after passing
+  syntax/lint. Running with permitted local-server/browser access resolved it.
+- Owner playtest approval — 2026-11-02: the owner played the game and said they
+  like the changes. The follow-up instruction explicitly accepts this as approval
+  of hull handling/balance. Together with the automated evidence above, this
+  completes issue 029's acceptance criteria. No per-hull, input-device or WAN
+  playtest protocol was supplied, so no such detailed owner test is claimed.
+- Limitations: agent checks did not use physical controls or real multiplayer/WAN;
+  automated co-op used local headless browser contexts. No performance improvement
+  or new cross-browser support guarantee is claimed. These are broader validation
+  limits, not remaining issue 029 acceptance work.

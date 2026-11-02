@@ -88,7 +88,7 @@
   }
 
   function makeRemotePlayer(profile, level, index) {
-    const p = G.makePlayer();
+    const p = G.makePlayer(profile);
     const selection = profileOf(profile || {});
     Object.assign(p, N.Ships.selection(selection));
     p.name = selection.name;
@@ -280,7 +280,7 @@
       checkpointLevel: 0
     };
     G.coopRun = true;
-    G.player = G.makePlayer();
+    G.player = G.makePlayer(Coop.localProfile);
     Object.assign(G.player, N.Ships.selection(Coop.localProfile));
     G.player.name = 'PLAYER ' + (N.Net.seat + 1);
     G.player.coopGuest = true;

@@ -26,6 +26,7 @@ for (const count of [3, 4]) {
           });
         }
         await page.locator('#btn-coop').click();
+        await page.locator('#coop-ship-types [data-ship-type="'+['dart','delta','kite','talon'][seat]+'"]').click();
         if (seat === 0) {
           await page.locator('#btn-coop-host').click();
           await expect.poll(() => page.evaluate(() => window.NEON.Net.code), { timeout: 30000 }).not.toBe('');
@@ -73,6 +74,13 @@ for (const count of [3, 4]) {
       }
       for (let seat = 0; seat < count; seat++) {
         expect(await pages[seat].evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(count === 4 && seat === 1 ? 3 : 1);
+      }
+      for (let seat = 0; seat < count; seat++) {
+        const actual = await pages[seat].evaluate(() => {const p=window.NEON.Game.player;return [p.shipType,p.stats.maxHp,p.stats.maxShield,p.stats.speed,p.stats.damageMul];});
+        const mirrored = await host.evaluate(index => {const C=window.NEON.Coop,p=index===0?window.NEON.Game.player:C.remotePlayers.find(p=>p.seat===index);return [p.shipType,p.stats.maxHp,p.stats.maxShield,p.stats.speed,p.stats.damageMul];},seat);
+        expect(mirrored).toEqual(actual);
+        const hull = count===4&&seat===1?'dart':['dart','delta','kite','talon'][seat];
+        expect(actual).toEqual({dart:['dart',80,20,245*1.15,1],delta:['delta',140,30,245*.85,1],kite:['kite',100,20,245,1],talon:['talon',75,20,245,1.25]}[hull]);
       }
       expect(await host.evaluate(() => Array.from(window.NEON.Net.peers.values(), peer => peer.seat).sort())).toEqual(Array.from({ length: count - 1 }, (_, index) => index + 1));
       await host.evaluate(() => {

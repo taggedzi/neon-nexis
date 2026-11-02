@@ -344,6 +344,7 @@ UI.showShipSelection=function(){
     $('ship-types').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipType===shipSelection.shipType)));
     $('ship-colors').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipColor===shipSelection.shipColor)));
     N.Ships.preview($('ship-preview'),shipSelection);
+    $('ship-stats').textContent=N.Ships.description(shipSelection.shipType);
   };
   const types=$('ship-types'),colors=$('ship-colors');types.innerHTML='';colors.innerHTML='';
   for(const t of N.Ships.types){
@@ -390,6 +391,7 @@ function chooseCoopSkill(id){
 // ——— co-op uplink ———
 function refreshCoopSelection(){
   if(!coopSelection)coopSelection=N.Ships.selection({});
+  $('coop-ship-stats').textContent=N.Ships.description(coopSelection.shipType);
   $('coop-ship-types').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipType===coopSelection.shipType)));
   $('coop-ship-colors').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipColor===coopSelection.shipColor)));
   N.Ships.preview($('coop-preview'),coopSelection);
