@@ -36,6 +36,10 @@ See the [project decision](../decisions.md#2026-11-02--enemy-friendly-fire-decli
   and `docs/decisions.md`.
 - No runtime code, settings, dependencies, or save formats changed.
 - Documentation links and `git diff --check` verified before commit.
-- Gameplay/browser tests are not required for this documentation-only change.
-  The mandatory pre-push suite is recorded separately in the delivery report.
+- Mandatory pre-push `npm run check` passed on 2026-11-02: syntax, lint,
+  unit checks, and all 144 browser tests (Chromium 156.0.8078.4 and Firefox
+  157.0 on Windows). This does not claim new gameplay or performance validation.
+- Initial documentation commit: `7b5e41c`. The first push failed after passing
+  checks because its SSH connection timed out; delivery was retried with
+  keep-alive enabled.
 - Branch: `codex/docs/decline-enemy-friendly-fire`.
