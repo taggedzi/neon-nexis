@@ -112,3 +112,30 @@ assert.equal(G.groundItems.some((item) => item.grantId === grantId), false);
 assert.equal(N.Rewards.state().pending.length, 1);
 
 console.log('Grant ownership checks passed.');
+
+// A nearer ship outside its own range cannot block a farther eligible ship.
+const destinations = [];
+N.Net.send = (message, targetId) => { sent.push(message); destinations.push(targetId); return true; };
+player.x = 100; player.y = 0; player.stats.pickupRadius = 95;
+const eligible = { clientId: 'long-range', x: 120, y: 0, dead: false, magnet: false,
+  pickupRadius: 150, stats: { pickupRadius: 150 } };
+const ineligible = { clientId: 'short-range', x: 110, y: 0, dead: false, magnet: false,
+  pickupRadius: 90, stats: { pickupRadius: 90 } };
+const farther = { clientId: 'farther-range', x: 140, y: 0, dead: false, magnet: false,
+  pickupRadius: 200, stats: { pickupRadius: 200 } };
+Coop.remotePlayers = [ineligible, farther, eligible];
+G.groundItems = [{ id: 'different-ranges', kind: 'mod', itemId: mod.id, x: 0, y: 0,
+  tier: 1, color: mod.color, angle: 0, phase: 0, pickupDelay: 0 }];
+G.updateGroundItems(0);
+assert.equal(G.groundItems[0].grantOwner, 'long-range');
+assert.equal(destinations.at(-1), 'long-range');
+// With no eligible guest, the host still pulls loot in the outer magnet band.
+player.buffs.magnet = 1;
+player.x = 600;
+Coop.remotePlayers = [];
+G.groundItems = [{ id: 'outer-magnet', kind: 'mod', itemId: mod.id, x: 0, y: 0,
+  tier: 1, color: mod.color, angle: 0, phase: 0, pickupDelay: 0 }];
+G.updateGroundItems(0.1);
+assert.ok(G.groundItems[0].x > 0);
+assert.notEqual(G.groundItems[0].collected, true);
+console.log('Pickup eligibility: different ship ranges and outer magnet attraction passed.');

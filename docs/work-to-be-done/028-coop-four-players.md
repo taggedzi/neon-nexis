@@ -391,3 +391,38 @@ sample, not a real-player performance acceptance test or a WAN bandwidth bound.
   the owner's original instruction; the PR records final integration/check state.
   The mandatory pre-push hook reruns the full suite. No deployment or publication
   is authorized or performed by this task.
+
+### Pickup eligibility follow-up during delivery
+
+- Final review of different saved-ship pickup ranges found an existing edge in
+  the touched arbitration path: a host outside its own range could block a
+  farther guest inside that guest's upgraded range. `js/sim.js` now compares
+  only eligible collectors. Outer-band magnet attraction remains available when
+  no other eligible collector claims the item. This implements the protocol's
+  existing nearest-eligible-living-player rule; it does not add a balance option.
+- `tools/check-grants.cjs` now covers four ships with different pickup ranges,
+  including a closer ineligible guest and two eligible guests, and preserves
+  outer-band magnet pull. The focused grant checks, targeted ESLint, and
+  `git diff --check` passed. The mandatory full pre-push check will run again on
+  this follow-up before merge. The earlier full-suite pass remains historical
+  evidence, not a claim that this follow-up already passed every browser case.
+
+### Pre-push harness follow-up
+
+- The pre-push browser run reached an inventory-pause case whose gameplay
+  assertions all passed, then failed its no-console-errors assertion on a
+  Firefox ICE failure. The saved trace contains five initial joins and four
+  forced leaves: the setup helper restarted an in-progress guest introduction
+  every three seconds, aborting negotiation under parallel browser load.
+- The helper now keeps foreground nudging but allows an active negotiation its
+  existing 30-second budget. It retries idle/error/closed clients only. Console
+  checks remain strict; no WebRTC error is filtered or ignored. This follow-up
+  will be exercised by the required complete pre-push rerun alongside the pickup
+  eligibility fix.
+
+- The first pre-push run finished **147 passed / 1 failed** (7.5 minutes) and
+  correctly blocked the push. With the non-disruptive setup helper, the failing
+  Firefox inventory/pause case passed **four parallel repetitions** (4/4,
+  29.9 seconds), retaining strict console checks. The four-ship range/magnet
+  regression also passed. A fresh mandatory full pre-push run follows this
+  follow-up commit; the branch has not been merged at this point.

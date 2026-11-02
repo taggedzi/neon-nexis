@@ -671,8 +671,10 @@ G.updateGroundItems=function(dt){
       it.grantHold-=dt;
       if(it.grantHold>0) continue;
     }
-    let collector=p.dead?null:p,collectorRadius=radius;
-    let d=p.dead?Infinity:N.dist(it.x,it.y,p.x,p.y);
+    const hostDistance=p.dead?Infinity:N.dist(it.x,it.y,p.x,p.y);
+    let collector=!p.dead&&hostDistance<radius?p:null;
+    let collectorRadius=collector?radius:0;
+    let d=collector?hostDistance:Infinity;
     if(coopHost){
       for(const guest of N.Coop.remotePlayers){
       if(guest&&!guest.dead){
@@ -682,7 +684,7 @@ G.updateGroundItems=function(dt){
       }
       }
     }
-    if(collector===p&&magnet&&d<radius*1.5){
+    if((!collector||collector===p)&&magnet&&hostDistance<radius*1.5){
       const oldX=it.x,oldY=it.y;
       const f=Math.min(1,dt*3.2);
       it.x+=(p.x-it.x)*f;it.y+=(p.y-it.y)*f;
