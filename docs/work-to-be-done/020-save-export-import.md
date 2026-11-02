@@ -153,4 +153,4 @@ Limitations: a browser download, including the Playwright download, shows that
 the browser offered the file. It does not prove a player's own disk received it.
 
 Remaining work: none in this issue. Owner play of the Data tab is optional.
-The implementation commit hash is recorded in the pull request.
+Implementation commit: `a8d50d6`.
