@@ -1,9 +1,8 @@
 # 021 — Add a dev mode for scenario setup
 
-Status: Planned
+Status: Done
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Implementation and owner validation are complete.
 
 Priority 5 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -48,11 +47,11 @@ the client is not a lock. It only stops accidental use.
   real secret in the repository.
 - May a co-op guest open dev mode? 
 
-Proposal, not approved:
+Approved scope (owner instruction, 2026-11-01):
 
 - Dev commands work only when playing from source, where the version is
   `development`. The staged production file does not include the command
-  entry, or the entry refuses to run when the version is not `development`.
+  entry. The source script also refuses installation outside `development`.
 - No password. A console command such as a single named function is enough
   friction, and it is usable by an agent in a test page.
 - Single-player only for the first version. In co-op the commands stay off,
@@ -77,20 +76,19 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] From a source session, a dev can set a ship and spawn a chosen enemy
+- [x] From a source session, a dev can set a ship and spawn a chosen enemy
       style without playing to that state.
-- [ ] The same commands do not run in the staged production file, under the
+- [x] The same commands do not run in the staged production file, under the
       rule the owner approved.
-- [ ] A normal run, save, and co-op session behave as they do today when the
+- [x] A normal run, save, and co-op session behave as they do today when the
       commands are not used.
-- [ ] A guest cannot inject a dev command into the host's world.
-- [ ] Using a command does not leave fire, pause, or focus stuck.
+- [x] A guest cannot inject a dev command into the host's world.
+- [x] Using a command does not leave fire, pause, or focus stuck.
 
 ## Open questions
 
-- Is a visible on-screen panel required, or is a console command enough?
-- Should dev mode be allowed to load an arbitrary checkpoint from a file, or
-  does [issue 020](020-save-export-import.md) cover that?
+- Resolved: console commands are enough; no on-screen panel.
+- Resolved: file loading stays with [issue 020](020-save-export-import.md).
 
 ## Dependencies
 
@@ -101,4 +99,50 @@ It does not block [issue 017](017-weak-cryptography-alert.md) or
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+Owner approval on 2026-11-01: source-only, single-player-only console commands,
+no password or panel; production packages omit the entry point. Approved commands:
+hull/color, weapons, player level, sector, named enemy spawn, invulnerability,
+and kill-all. File loading stays with issue 020. No automatic dev checkpoint saves.
+
+Changed files: `js/dev.js`, `index.html`, `tools/ci/package.cjs`,
+`tools/ci/dev-mode.spec.cjs`, `tools/ci/coop-smoke.spec.cjs`,
+`tools/check-dev-package.cjs`, `docs/dev-mode.md`,
+this issue, the backlog index, and `docs/decisions.md`.
+
+Implementation choices: setup creates a fresh scenario through `loadFromSave`,
+with seed 1 by default, levels/sectors bounded to 1 through 100, and normal initial
+enemies. Mutating commands pause normally. Enemy spawn and kill use existing
+combat functions, including population limits, rewards, and splitter children.
+Dev runs suppress every checkpoint reason except the normal `manual` action,
+including later timer, focus, reward and quit saves. Invulnerability is attached
+to the live player only and is not serialized. See [usage](../dev-mode.md).
+
+Automated validation on Windows, Node v24.14.1, PHP 8.4.13, Playwright
+Chromium 156.0.8078.4 and Firefox 157.0:
+
+- `npm run check` passed syntax, lint, unit checks, and 112 browser tests.
+  This includes normal run/save/continue, pause/focus, save transfer, and co-op.
+- The actual staging command passed its new regression: neither `js/dev.js`
+  nor its script tag exists in `dist/`, including local development staging.
+- Source tests verified hull/color, weapons, player level, sector, free enemy
+  spawn position, immunity, splitter kill-all, unchanged browser storage,
+  blocked automatic saves, deliberate manual saving, rejected invalid setup,
+  pause/resume, and ordinary saving after a new normal run.
+- Initial sandbox runs could not reach loopback PHP servers. The successful
+  suite ran with local server access outside that restriction.
+- Final focused follow-up passed 6 browser tests across both browsers after
+  the last guard changes: lobby roles and both live co-op peers reject every
+  mutating command; held fire clears; blur pauses and focus leaves it paused.
+- Final lint and `git diff --check` passed.
+
+Owner validation on 2026-11-02: the owner reported, "It works as expected,"
+after the requested DevTools playtest. This completes the remaining owner
+validation, including the command pause/input acceptance criterion.
+
+Limitations: agent browser checks used synthetic input/focus events. Google
+Chrome and physical controllers were not separately checked by the agent. The
+owner did not specify browser or device details.
+
+Delivery branch: `codex/feat/dev-mode`. The owner authorized committing,
+pushing the branch, and opening a pull request on 2026-11-02; the owner will
+merge it.

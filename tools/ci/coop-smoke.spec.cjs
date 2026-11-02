@@ -172,6 +172,20 @@ test('host fires and guest sees the authoritative bullets', async ({ browser }) 
   const ctx = await startCoopRun(browser);
   const { host, guest, errors } = ctx;
   try {
+    // Neither peer may invoke the source console surface in a live co-op world.
+    for (const page of [host, guest]) {
+      expect(await page.evaluate(() => {
+        const N = window.NEON, G = N.Game, run = G.run, player = G.player;
+        const count = G.enemies.length, mode = G.mode;
+        let refused = 0;
+        for (const command of [() => N.Dev.setup(), () => N.Dev.spawn('dart'),
+          () => N.Dev.invulnerable(true), () => N.Dev.killAll()]) {
+          try { command(); } catch { refused++; }
+        }
+        return refused === 4 && G.run === run && G.player === player &&
+          G.enemies.length === count && G.mode === mode;
+      })).toBe(true);
+    }
     const guestBefore = await guest.evaluate(() => window.NEON.Game.playerBullets.length);
     await host.evaluate(() => window.__coopFire());
     await expect.poll(
