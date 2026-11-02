@@ -69,7 +69,8 @@
     return {
       name: String(profile && profile.name || 'PLAYER').slice(0, 20),
       shipType: N.Ships.get(profile && profile.shipType).id,
-      shipColor: N.Ships.selection(profile).shipColor
+      shipColor: N.Ships.selection(profile).shipColor,
+      loadout: profile?.loadout || null
     };
   }
 
@@ -228,7 +229,8 @@
     Coop._grantSerial = 0;
 
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
-    G.newRun(Coop.localProfile, { seed: seed, coop: true, skill: Coop.lobby.skill, name: 'PLAYER 1' });
+    G.newRun(Coop.localProfile, { seed: seed, coop: true, skill: Coop.lobby.skill,
+      loadout: Coop.localProfile.loadout, sector: Coop.lobby.startSector, name: 'PLAYER 1' });
     const mirror = makeRemotePlayer(Coop.peerProfile || { name: 'PLAYER 2' }, G.level, 1);
     Coop.remotePlayers = N.Net.peer ? [mirror] : [];
     Coop.started = true;
@@ -240,7 +242,7 @@
       t: 'start',
       seed: seed,
       skill: G.run.skill,
-      level: 1,
+      level: G.run.level,
       host: profileOf(Coop.localProfile)
     });
     if (N.UI) {
@@ -253,7 +255,7 @@
   Coop.startGuestRun = function (message) {
     if (Coop.active) return false;
     const seed = finite(message.seed, 0) >>> 0;
-    const levelNumber = Math.max(1, Math.min(99, Math.floor(finite(message.level, 1))));
+    const levelNumber = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(finite(message.level, 1))));
     Coop.active = true;
     Coop.role = 'guest';
     Coop.host = false;
@@ -323,7 +325,7 @@
 
   Coop.startNextGuestLevel = function (message) {
     if (!Coop.isGuest()) return;
-    const levelNumber = Math.max(1, Math.min(99, Math.floor(finite(message.level, 1))));
+    const levelNumber = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(finite(message.level, 1))));
     const seed = finite(message.seed, G.run ? G.run.seed : 0) >>> 0;
     G.run.level = levelNumber;
     G.run.seed = seed;

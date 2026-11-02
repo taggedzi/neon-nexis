@@ -111,6 +111,7 @@
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
             <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
             <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
+            <button class="neon-btn" id="btn-pause-loadouts" type="button">SAVED SHIPS</button>
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
             <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
           </div>
@@ -149,12 +150,29 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-loadouts">
+        <div class="panel wide">
+          <div class="panel-head"><h2>SAVED SHIPS</h2></div>
+          <p class="micro">THREE EARNED PILOTS. LOADING STARTS A NEW MAP. HARDCORE REQUIRES A FRESH PILOT.</p>
+          <label class="coop-label" for="loadout-name">SHIP NAME</label>
+          <input class="coop-code-input" id="loadout-name" maxlength="32" autocomplete="off">
+          <button class="neon-btn" id="loadout-save" type="button">SAVE CURRENT SHIP</button>
+          <p class="micro" id="loadout-message" role="status"></p>
+          <div id="loadout-list"></div>
+          <div class="panel-footer"><button class="neon-btn primary" id="loadout-close" type="button">RETURN</button></div>
+        </div>
+      </section>
+
       <section class="screen" id="screen-ship">
         <div class="panel wide ship-panel">
           <div class="panel-head"><div><span class="eyebrow">NEW RUN // PILOT CONFIGURATION</span><h2>CHOOSE YOUR SHIP</h2></div></div>
           <canvas id="ship-preview" width="320" height="200" aria-label="Selected ship preview"></canvas>
           <div class="ship-choices" id="ship-types" aria-label="Ship type"></div>
           <div class="ship-choices" id="ship-colors" aria-label="Ship color"></div>
+          <div class="coop-label">SAVED SHIP</div>
+          <div class="ship-choices" id="solo-loadouts"></div>
+          <div class="ship-choices"><button type="button" id="solo-sector-down">PREVIOUS SECTOR</button><span id="solo-sector-label"></span><button type="button" id="solo-sector-up">NEXT SECTOR</button><button type="button" id="solo-manage-loadouts">MANAGE SHIPS</button></div>
+          <p class="micro" id="solo-loadout-note"></p>
           <div class="coop-label">SKILL LEVEL</div>
           <div class="ship-choices" id="ship-skills" aria-label="Skill level"></div>
           <p class="micro" id="ship-skill-note"></p>
@@ -195,6 +213,10 @@
               </div>
               <button class="neon-btn" id="btn-coop-start" type="button" hidden>READY</button>
               <div id="coop-members" class="coop-note"></div>
+              <button class="neon-btn subtle" id="coop-allow-loadouts" type="button" aria-pressed="false">ALLOW SAVED SHIPS: OFF</button>
+              <div class="ship-choices" id="coop-loadouts"></div>
+              <div class="ship-choices"><button type="button" id="coop-sector-down">PREVIOUS SECTOR</button><span id="coop-sector-label">SECTOR 1</span><button type="button" id="coop-sector-up">NEXT SECTOR</button></div>
+              <p class="micro" id="coop-loadout-note"></p>
               <div class="coop-label">HOST SKILL LEVEL</div>
               <div class="ship-choices" id="coop-skills" aria-label="Host skill level"></div>
               <p class="micro" id="coop-skill-note"></p>
@@ -365,6 +387,7 @@
   <script src="js/input.js"></script>
   <script src="js/game.js"></script>
   <script src="js/save-policy.js"></script>
+  <script src="js/loadouts.js"></script>
   <script src="js/save-transfer.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/driving.js"></script>
@@ -379,6 +402,7 @@
   <script src="js/coop-session.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/loadouts-ui.js"></script>
   <script src="js/dev.js"></script>
   <script src="js/main.js"></script>
 </body>

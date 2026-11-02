@@ -51,7 +51,7 @@ async function fillRoomCode(page, code) {
   await expect(input).toHaveValue(code);
 }
 
-async function startCoopRun(browser, delayInitialPause = false, skill = 'medium') {
+async function startCoopRun(browser, delayInitialPause = false, skill = 'medium', savedShips = false) {
   const hostContext = trackContext(await browser.newContext());
   const host = await hostContext.newPage();
   const errors = [];
@@ -69,6 +69,13 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
       } else receive(message);
     };
   });
+  if(savedShips) await host.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    G.newRun();G.pauseGame();G.run.level=5;G.player.level=4;G.player.xpNext=G.xpForLevel(4);
+    G.player.weapons[0].level=4;
+    const result=N.Loadouts.save('Coop veteran');if(!result.ok)throw Error(result.error);
+    G.completeToMenu();
+  });
   await host.locator('#btn-coop').click();
   await host.evaluate(id => { window.NEON.Game.settings.skill = id; }, skill);
   await host.locator('#btn-coop-host').click();
@@ -84,6 +91,13 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
 
   await guest.goto('/');
   await guest.locator('#btn-boot').click();
+  if(savedShips) await guest.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    G.newRun();G.pauseGame();G.run.level=5;G.player.level=4;G.player.xpNext=G.xpForLevel(4);
+    G.player.weapons[0].level=4;
+    const result=N.Loadouts.save('Coop veteran');if(!result.ok)throw Error(result.error);
+    G.completeToMenu();
+  });
   await guest.locator('#btn-coop').click();
   await expect(guest.locator('#btn-coop-join')).toBeEnabled();
   await fillRoomCode(guest, code);
@@ -122,6 +136,17 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
   }
 
   await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
+  if(savedShips){
+    await host.locator('#coop-allow-loadouts').click();
+    for(const page of [host,guest]){
+      await expect(page.locator('#coop-loadouts').getByRole('button',{name:'Coop veteran',exact:false})).toBeEnabled();
+      await page.locator('#coop-loadouts').getByRole('button',{name:'Coop veteran',exact:false}).click();
+    }
+    await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.lobby.sectorCap)).toBe(5);
+    await host.evaluate(()=>window.NEON.Net.sendControl({t:'lobby_sector',sector:4}));
+    await expect.poll(()=>guest.evaluate(()=>window.NEON.Coop.lobby.startSector)).toBe(4);
+    await expect(guest.locator('#coop-members')).toContainText('Coop veteran LV 4');
+  }
   await expect(host.locator('#coop-skills [aria-pressed="true"]')).toHaveText(skill.toUpperCase());
   await expect(guest.locator('#coop-skills [aria-pressed="true"]')).toHaveText(skill.toUpperCase());
   await host.locator('#btn-coop-start').click();
@@ -1226,4 +1251,18 @@ test('023 old wire versions fail closed with an update message', async ({browser
   await expect.poll(()=>host.evaluate(()=>window.NEON.Net.state)).toBe('error');
   expect(await host.evaluate(()=>window.NEON.Coop.active)).toBe(false);
   await expect(host.locator('#coop-status')).toContainText('UPDATE BOTH CLIENTS');
+});
+
+
+test('024 co-op host consents to saved pilots and both start at the approved sector',async({browser})=>{
+  test.setTimeout(90000);
+  const {host,guest,errors}=await startCoopRun(browser,false,'medium',true);
+  for(const page of [host,guest]){
+    const result=await page.evaluate(()=>{
+      const G=window.NEON.Game;
+      return [G.run.level,G.player.level,G.player.weapons[0].level,G.run.highestSector];
+    });
+    expect(result).toEqual([4,4,4,5]);
+  }
+  expect(errors).toEqual([]);
 });

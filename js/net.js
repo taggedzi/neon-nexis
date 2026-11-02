@@ -86,7 +86,9 @@
     return {
       name: String(profile && profile.name || 'PLAYER').slice(0, 20),
       shipType: String(profile && profile.shipType || 'dart').slice(0, 16),
-      shipColor: String(profile && profile.shipColor || '#00f0ff').slice(0, 16)
+      shipColor: String(profile && profile.shipColor || '#00f0ff').slice(0, 16),
+      loadout: profile?.loadout && N.Loadouts?.validateShip(profile.loadout) ? N.deepClone(profile.loadout) : null,
+      loadoutInvalid: !!profile?.loadout && !N.Loadouts?.validateShip(profile.loadout)
     };
   }
 
@@ -422,6 +424,7 @@
       }
       setPeer({ clientId: remoteCard.clientId, profile: remoteCard.profile });
     }
+    if(Net.role==='guest' && intent) Net.sendControl({t:'lobby_profile',profile:intent.profile});
     if (typeof Net.onSocketOpen === 'function') Net.onSocketOpen();
   }
 

@@ -5,7 +5,7 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','ship','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
+const screens=['boot','menu','ship','loadouts','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
@@ -111,7 +111,7 @@ UI.init=function(){
     }
   });
   $('btn-ship-cancel').addEventListener('click',()=>UI.showMenu());
-  $('btn-ship-launch').addEventListener('click',()=>G.newRun(shipSelection));
+  $('btn-ship-launch').addEventListener('click',()=>N.LoadoutUI.launch(shipSelection));
   $('btn-coop').addEventListener('click',()=>UI.showCoop());
   $('btn-coop-close').addEventListener('click',()=>UI.closeCoop());
   $('btn-coop-back').addEventListener('click',()=>UI.closeCoop());
@@ -275,6 +275,7 @@ UI.init=function(){
     if(e.target.closest&&e.target.closest('button'))N.Audio.ui('click');
   },true);
 
+  N.LoadoutUI.init();
   refreshSaveMeta();
   showScreen('boot');
   document.body.classList.remove('playing');
@@ -354,6 +355,7 @@ UI.showShipSelection=function(){
     b.addEventListener('click',()=>{shipSelection.shipColor=color.color;refresh();});colors.appendChild(b);
   }
   refresh();showScreen('ship');
+  N.LoadoutUI.buildSolo();
 };
 
 function skillNote(id){
@@ -368,6 +370,7 @@ function chooseSkill(id){
   N.saveSettings(G.settings);
   buildSkillChoices('ship-skills',id,chooseSkill);
   $('ship-skills').querySelector('[data-skill="'+id+'"]').focus();
+  N.LoadoutUI.buildSolo();
 }
 function buildSkillChoices(target,id,onChoose,disabled=false){
   const box=$(target);box.replaceChildren();
@@ -485,6 +488,7 @@ UI.updateCoopStatus=function(status){
 UI.updateLobby=function(){
   const c=N.Coop,lobby=c.lobby;
   if(lobby&&N.Net.code){
+    N.LoadoutUI.updateCoop(lobby);
     const ready=lobby.ready.includes(N.Net.clientId);
     const skill=lobby.skill||'medium';
     // Preserve focus while periodic lobby updates refresh the selected skill.
@@ -495,7 +499,7 @@ UI.updateLobby=function(){
       choices.dataset.skill=skill;choices.dataset.role=N.Net.role;choices.dataset.phase=lobby.phase;
       if(focused)choices.querySelector('[data-skill="'+focused+'"]')?.focus();
     }
-    $('coop-members').textContent=lobby.members.map(m=>m.profile.name+' // '+m.profile.shipType+' // '+m.profile.shipColor+' // '+(lobby.ready.includes(m.clientId)?'READY':'CHOOSING')).join(' | ');
+    $('coop-members').textContent=lobby.members.map(m=>m.profile.name+' // '+(m.profile.loadout?m.profile.loadout.name+' LV '+m.profile.loadout.player.level:'FRESH PILOT')+' // '+m.profile.shipType+' // '+m.profile.shipColor+' // '+(lobby.ready.includes(m.clientId)?'READY':'CHOOSING')).join(' | ');
     $('coop-respawn-count').textContent=String(lobby.respawns);
     $('coop-respawns').value=String(lobby.respawns);
     $('coop-respawns').disabled=N.Net.role!=='host'||lobby.phase!=='lobby'||skill==='hardcore';
@@ -788,7 +792,7 @@ function renderSettings(){
       <div class="data-block">
         <p>Saves and settings stay in this browser until you export a file. Export starts a download. This page cannot confirm that the file reached disk. Nothing syncs on its own, and there is no high-score service.</p>
         ${recovery.incompatible?'<p>This checkpoint cannot be loaded. Use the recovery screen to export or remove it. Settings stay.</p>':''}
-        ${canImport?'<p>Import asks before it replaces the stored checkpoint and settings.</p>':'<p>Quit to the main menu before importing. A live run stays as it is, so its checkpoint cannot overwrite a file you just imported.</p>'}
+        ${canImport?'<p>Import asks before it replaces the stored checkpoint, settings, and saved ships.</p>':'<p>Quit to the main menu before importing. A live run stays as it is, so its checkpoint cannot overwrite a file you just imported.</p>'}
         ${liveRun&&settingsReturn==='pause'?'<p>Export uses the last stored checkpoint. Sync first if this fight should be in the file.</p>':''}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${liveRun?'<button class="neon-btn" data-action="save-now" type="button">SYNC CHECKPOINT NOW</button>':''}
@@ -1131,6 +1135,7 @@ UI.confirm=function(title,copy,onYes,yesLabel){
 // ——— navigation ———
 function backAction(){
   switch(currentScreen){
+    case 'loadouts': N.LoadoutUI.close();break;
     case 'settings': closeSettings();break;
     case 'pause': G.resumeGame();break;
     case 'inventory': G.closeInventory();break;
@@ -1160,7 +1165,7 @@ function onKeyDown(e){
       e.preventDefault();e.stopPropagation();
       return;
     }
-    if(currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
+    if(currentScreen==='loadouts'||currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
       // Stop the event so the gameplay input layer does not also register this
       // press and immediately re-open the pause screen after resuming.
       e.preventDefault();e.stopPropagation();backAction();
@@ -1177,6 +1182,7 @@ function onKeyDown(e){
     if(currentScreen==='pause'){e.preventDefault();e.stopPropagation();G.openInventory();return;}
     if(currentScreen==='inventory'){e.preventDefault();e.stopPropagation();G.closeInventory();return;}
   }
+  if(e.target instanceof HTMLInputElement && e.target.type!=='range'){return;}
   if(currentScreen==='levelup'){
     const map={Digit1:0,Digit2:1,Digit3:2,Numpad1:0,Numpad2:1,Numpad3:2};
     if(map[e.code]!==undefined){

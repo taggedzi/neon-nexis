@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const N = window.NEON;
-  const Wire = N.Wire = { VERSION: 2 };
+  const Wire = N.Wire = { VERSION: 3 };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
 

@@ -17,7 +17,9 @@
     return {
       name: String(profile.name || '').slice(0, 20),
       shipType: String(profile.shipType || 'dart').slice(0, 16),
-      shipColor: String(profile.shipColor || '#00f0ff').slice(0, 16)
+      shipColor: String(profile.shipColor || '#00f0ff').slice(0, 16),
+      loadout: profile?.loadout && N.Loadouts?.validateShip(profile.loadout) ? N.deepClone(profile.loadout) : null,
+      loadoutInvalid: !!profile?.loadout && !N.Loadouts?.validateShip(profile.loadout)
     };
   }
 
@@ -31,6 +33,8 @@
       lobbyRevision: 0,
       respawns: 4,
       skill: 'medium',
+      allowLoadouts: false,
+      startSector: 1,
       lobbyReady: new Set(),
       launchTimer: null,
       launchAt: 0,
@@ -84,6 +88,10 @@
         revision: room.lobbyRevision || 0,
         respawns: room.skill === 'hardcore' ? 0 : room.respawns,
         skill: room.skill,
+        loadoutRules: 1,
+        allowLoadouts: room.allowLoadouts,
+        startSector: Math.min(room.startSector,sectorCap()),
+        sectorCap: sectorCap(),
         members: onlineMembers().map(function (member) {
           return { clientId: member.clientId, profile: member.profile };
         }),
@@ -108,7 +116,13 @@
       room.countdownEndsAt = 0;
     }
 
+    function sectorCap() {
+      if(!room.allowLoadouts || room.skill==='hardcore') return 1;
+      return Math.min(...onlineMembers().map(member=>member.profile.loadout?.highestSector||1));
+    }
+
     function invalidateLobby() {
+      room.startSector=Math.min(room.startSector,sectorCap());
       clearLaunch();
       room.lobbyReady.clear();
       room.lobbyRevision = (room.lobbyRevision || 0) + 1;
@@ -249,6 +263,21 @@
       } else if (message.t === 'lobby_skill') {
         if (member.role !== 'host' || !['easy', 'medium', 'hard', 'hardcore'].includes(message.skill)) return;
         room.skill = message.skill;
+        if(room.skill==='hardcore'){
+          room.allowLoadouts=false;
+          for(const item of onlineMembers()){item.profile.loadout=null;item.profile.loadoutInvalid=false;}
+        }
+        invalidateLobby();
+      } else if (message.t === 'lobby_loadouts') {
+        if(member.role!=='host'||room.skill==='hardcore'||typeof message.allow!=='boolean') return;
+        room.allowLoadouts=message.allow;
+        if(!message.allow){
+          for(const item of onlineMembers()){item.profile.loadout=null;item.profile.loadoutInvalid=false;}
+        }
+        invalidateLobby();
+      } else if (message.t === 'lobby_sector') {
+        if(member.role!=='host'||!Number.isSafeInteger(message.sector)||message.sector<1||message.sector>sectorCap()) return;
+        room.startSector=message.sector;
         invalidateLobby();
       } else if (message.t === 'lobby_respawns') {
         if (room.skill === 'hardcore' || member.role !== 'host' || !Number.isInteger(message.count) || message.count < 0 || message.count > 8) return;
@@ -256,6 +285,7 @@
         invalidateLobby();
       } else if (message.t === 'lobby_ready') {
         if (message.revision !== room.lobbyRevision) return;
+        if(member.profile.loadoutInvalid || (member.profile.loadout && (!room.allowLoadouts||room.skill==='hardcore'))) return;
         if (message.ready === false) invalidateLobby();
         else room.lobbyReady.add(member.clientId);
         const members = onlineMembers();
@@ -296,7 +326,7 @@
         else if (message.t === 'ready_signal') handleReady(member);
         return;
       }
-      if (message.t === 'lobby_sync' || message.t === 'lobby_profile' || message.t === 'lobby_respawns' || message.t === 'lobby_skill' || message.t === 'lobby_ready' || message.t === 'return_lobby') {
+      if (message.t === 'lobby_sync' || message.t === 'lobby_profile' || message.t === 'lobby_respawns' || message.t === 'lobby_skill' || message.t === 'lobby_loadouts' || message.t === 'lobby_sector' || message.t === 'lobby_ready' || message.t === 'return_lobby') {
         handleLobby(member, message);
       }
     }

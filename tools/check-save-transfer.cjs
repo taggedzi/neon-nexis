@@ -19,7 +19,7 @@ const box = {
   }
 };
 vm.createContext(box);
-for (const file of ['util', 'game', 'save-policy', 'save-transfer']) {
+for (const file of ['util', 'game', 'save-policy', 'loadouts', 'save-transfer']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), box);
 }
 const N = box.window.NEON;
@@ -68,7 +68,7 @@ G.mode = 'menu';
 
 const built = N.SaveTransfer.build();
 assert.equal(built.ok, true);
-assert.equal(built.file.fileVersion, 1);
+assert.equal(built.file.fileVersion, 2);
 assert.equal(built.file.release, 'development');
 same(built.file.checkpoint, checkpoint);
 assert.equal(built.file.settings.deadzone, 0.31);

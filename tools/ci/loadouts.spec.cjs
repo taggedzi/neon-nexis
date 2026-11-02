@@ -1,0 +1,70 @@
+const {test,expect}=require('@playwright/test');
+
+test('024 earned ships persist, refuse invalid equipment, and join backups',async({page})=>{
+  await page.goto('/');await page.locator('#btn-boot').click();
+  const result=await page.evaluate(()=>{
+    const N=window.NEON,G=N.Game,L=N.Loadouts;
+    G.newRun();G.pauseGame();
+    G.run.level=5;G.player.level=4;G.player.xp=7;G.player.xpNext=G.xpForLevel(4);
+    G.player.weapons[0].level=5;
+    const save=L.save('Veteran'),duplicate=L.save('veteran');
+    const two=L.save('Second'),three=L.save('Third'),full=L.save('Fourth');
+    const rename=L.rename('Second','Renamed');
+    const ship=L.find('Veteran');
+    const launch=G.newRun(null,{loadout:ship,sector:4});
+    G.pauseGame();
+    const applied=[G.run.level,G.player.level,G.player.xp,G.player.weapons[0].level,G.player.hp===G.player.stats.maxHp];
+    const before=G.run;
+    const locked=G.newRun(null,{loadout:ship,sector:6});
+    const lockedUntouched=before===G.run;
+    const hardcore=G.newRun(null,{loadout:ship,skill:'hardcore'});
+    const invalid=N.deepClone(ship);invalid.player.weapons[0].id='removed-weapon';
+    const refused=G.newRun(null,{loadout:invalid});
+    const invalidUntouched=before===G.run;
+    G.completeToMenu();
+    const backup=N.SaveTransfer.build();
+    const deleted=L.remove('Third');
+    const restored=N.SaveTransfer.apply(backup.file);
+    const afterRestore=L.read().data.ships.length;
+    const oldBackup={...backup.file,fileVersion:1};delete oldBackup.loadouts;
+    N.SaveTransfer.apply(oldBackup);
+    const oldPreserves=L.read().data.ships.length;
+    N.clearSave();const checkpointPreserves=L.read().data.ships.length;
+    const badList=JSON.stringify({version:1,ships:[invalid]});
+    localStorage.setItem(L.key,badList);
+    const unknownPreserved=L.read().ok&&!L.validateShip(L.find('Veteran'));
+    const corrupted='{broken';localStorage.setItem(L.key,corrupted);
+    const bad=L.read();const corruptionPreserved=localStorage.getItem(L.key)===corrupted;
+    localStorage.setItem(L.key,JSON.stringify(backup.file.loadouts));
+    return {save,duplicate,two,three,full,rename,launch,applied,locked,lockedUntouched,hardcore,refused,invalidUntouched,
+      version:backup.file.fileVersion,deleted,restored,afterRestore,oldPreserves,checkpointPreserves,unknownPreserved,bad,corruptionPreserved};
+  });
+  for(const key of ['save','two','three','rename','deleted','restored'])expect(result[key].ok).toBe(true);
+  expect(result.duplicate.ok).toBe(false);expect(result.full.ok).toBe(false);
+  expect(result.applied).toEqual([4,4,7,5,true]);
+  for(const key of ['locked','hardcore','refused'])expect(result[key]).toBe(false);
+  for(const key of ['lockedUntouched','invalidUntouched','unknownPreserved','corruptionPreserved'])expect(result[key]).toBe(true);
+  expect(result.version).toBe(2);expect(result.afterRestore).toBe(3);expect(result.oldPreserves).toBe(3);expect(result.checkpointPreserves).toBe(3);
+  expect(result.bad.ok).toBe(false);
+  await page.reload();await page.locator('#btn-boot').click();await page.locator('#btn-new-run').click();
+  await expect(page.locator('#solo-loadouts')).toContainText('Veteran');
+});
+
+test('024 save, rename, select and delete ships through menus',async({page},info)=>{
+  await page.goto('/');await page.locator('#btn-boot').click();
+  await page.evaluate(()=>{const G=window.NEON.Game;G.newRun();G.pauseGame();G.run.level=3;});
+  await page.locator('#btn-pause-loadouts').click();await page.locator('#loadout-name').fill('Menu ship');
+  await page.locator('#loadout-save').click();await expect(page.locator('#loadout-list')).toContainText('Menu ship');
+  await page.locator('#loadout-list').getByRole('button',{name:'RENAME',exact:true}).click();
+  await page.locator('#loadout-name').fill('Renamed ship');await page.locator('#loadout-save').click();
+  await page.screenshot({path:info.outputPath('saved-ships.png')});
+  await page.locator('#loadout-close').click();
+  await page.evaluate(()=>window.NEON.Game.saveAndQuit());
+  await page.locator('#btn-new-run').click();await page.locator('#btn-confirm-yes').click();
+  await page.locator('#solo-loadouts').getByRole('button',{name:'Renamed ship',exact:false}).click();
+  await page.locator('#solo-sector-up').click();await page.locator('#btn-ship-launch').click();
+  expect(await page.evaluate(()=>window.NEON.Game.run.level)).toBe(2);
+  await page.evaluate(()=>window.NEON.Game.pauseGame());await page.locator('#btn-pause-loadouts').click();
+  await page.locator('#loadout-list').getByRole('button',{name:'DELETE',exact:true}).click();
+  await page.locator('#btn-confirm-yes').click();await expect(page.locator('#loadout-list')).toContainText('NO SAVED SHIPS');
+});

@@ -6,10 +6,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { setTimeout: delay } = require('node:timers/promises');
 
-const sandbox = { setTimeout, clearTimeout };
+const sandbox = { setTimeout, clearTimeout, location: {search:''} };
 sandbox.window = sandbox;
 sandbox.NEON = {};
 vm.createContext(sandbox);
+for(const file of ['util','content','game','ships','loadouts']){
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'..','js',file+'.js'),'utf8'),sandbox);
+}
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'coop-host.js'), 'utf8'), sandbox, { filename: 'js/coop-host.js' });
 
 const CoopHost = sandbox.NEON.CoopHost;
@@ -160,6 +163,36 @@ async function until(predicate) {
       skills.authority.handle('host', { t: 'lobby_skill', skill: 'easy' });
       assert.equal(skills.messages.at(-1).message.respawns, 4);
     } finally { skills.authority.close(); }
+
+    const pilots=harness(40),N=sandbox.NEON,G=N.Game;
+    G.run={level:7};G.player=G.makePlayer();G.mode='paused';
+    const ship=N.Loadouts.capture('Earned');
+    try{
+      pilots.authority.setHost('host',{});pilots.authority.setGuest('guest',{});
+      pilots.authority.handle('host',{t:'lobby_profile',profile:{loadout:ship}});
+      pilots.authority.handle('host',{t:'lobby_ready',revision:pilots.room.lobbyRevision});
+      assert.equal(pilots.room.lobbyReady.size,0,'saved pilots need host permission');
+      pilots.authority.handle('guest',{t:'lobby_loadouts',allow:true});
+      assert.equal(pilots.room.allowLoadouts,false);
+      pilots.authority.handle('host',{t:'lobby_loadouts',allow:true});
+      pilots.authority.handle('host',{t:'lobby_sector',sector:4});
+      assert.equal(pilots.room.startSector,1,'fresh guest limits start to sector one');
+      const guestShip=JSON.parse(JSON.stringify(ship));guestShip.highestSector=5;
+      pilots.authority.handle('guest',{t:'lobby_profile',profile:{loadout:guestShip}});
+      pilots.authority.handle('guest',{t:'lobby_sector',sector:5});
+      assert.equal(pilots.room.startSector,1,'guest cannot choose the sector');
+      pilots.authority.handle('host',{t:'lobby_sector',sector:6});
+      assert.equal(pilots.room.startSector,1,'locked sector refused');
+      pilots.authority.handle('host',{t:'lobby_sector',sector:5});
+      assert.equal(pilots.room.startSector,5);
+      pilots.authority.handle('host',{t:'lobby_ready',revision:pilots.room.lobbyRevision});
+      pilots.authority.handle('guest',{t:'lobby_profile',profile:{}});
+      assert.equal(pilots.room.lobbyReady.size,0);
+      assert.equal(pilots.room.startSector,1);
+      pilots.authority.handle('host',{t:'lobby_skill',skill:'hardcore'});
+      assert.equal(pilots.room.allowLoadouts,false);
+      assert.equal(pilots.room.host.profile.loadout,null);
+    }finally{pilots.authority.close();}
 
     console.log('Lobby checks passed: readiness revisions, count bounds, repeated runs, stale controls, replacement, duplicate identity, hosted lifetime, and a hung re-offer.');
   } finally {
