@@ -137,7 +137,7 @@ conflicting proposals above.
 
 - Issue 024 merged in PR #28 (`2d83974`) before this issue started.
 - Origin fetched; main current and clean; no open PRs.
-- Task branch: `codex/025-player-stats`.
+- Task branch: `codex/025-player-stats`. Implementation: `83230db`.
 - Added `js/profile.js` and `js/player-stats.js`: validated local lifetime store,
   match counters, per-shot identity, damage-event attribution and row exchange.
 - Connected emitted projectiles, orbitals, beams/arcs, mines and strikes to their
