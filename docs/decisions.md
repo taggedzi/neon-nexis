@@ -296,3 +296,31 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   unapproved proposal. Existing error reporting stays unchanged.
 - Supersedes: The unresolved logging proposal in issue 022; this records the
   owner's decision rather than approving a logging implementation.
+
+
+## 2026-11-02 — Ordered progression features and Hardcore persistence
+
+- Decision: Implement issues 023, 024, 025 and 026 in order, merging each into
+  main before starting the next. The owner explicitly delegated these merges.
+- Rationale: Keep one active issue and avoid stale branches for shared storage
+  and menus.
+- Approval: Owner instruction in chat on 2026-11-02.
+- Consequences: Use a separate task branch and validation record for each issue;
+  no next issue begins before the previous merge. Owner playtesting remains
+  distinct from agent checks.
+- Supersedes: Owner-managed push/PR/merge delivery for these four issues only.
+
+- Decision: Medium keeps current combat and the last skill choice persists.
+  Hardcore uses Hard combat in single-player and co-op, allows fresh pilots
+  only, removes its single-player checkpoint on death and offers no restore.
+  Co-op has zero revives, including at sector boundaries; dead players stay
+  spectators until the whole team dies. Preserve settings, named loadouts,
+  lifetime stats and logbook. Co-op preserves separate single-player saves.
+- Rationale: One life ends the pilot's run without deleting the player's profile.
+- Approval: Owner answers in chat on 2026-11-02. Approved initial numeric values
+  and detailed implementation choices are recorded in
+  [issue 023](work-to-be-done/023-skill-levels.md#implementation-and-validation).
+- Consequences: Issue 024 must disallow loadout starts in Hardcore; issues 025
+  and 026 must preserve their profile data after Hardcore death. Combat feel
+  still requires owner playtesting.
+- Supersedes: Single-player-only Hardcore and unresolved wipe proposals in 023.

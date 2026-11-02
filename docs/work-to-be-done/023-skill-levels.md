@@ -1,9 +1,9 @@
 # 023 — Add skill levels
 
-Status: Planned
+Status: Implemented — needs validation
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Implementation follows the owner-approved decisions in the implementation and
+validation section. The original planning questions below are retained for context.
 
 Priority 7 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -89,16 +89,16 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] Before a single-player run, the player can choose easy, medium, hard, or
+- [x] Before a single-player run, the player can choose easy, medium, hard, or
       hardcore, and the choice is visible.
-- [ ] Medium matches the pre-change spawn counts, strength, and speeds at the
+- [x] Medium matches the pre-change spawn counts, strength, and speeds at the
       recorded sectors.
-- [ ] Easy and hard change quantity, strength, spawn rate, and speed by the
+- [x] Easy and hard change quantity, strength, spawn rate, and speed by the
       approved amounts.
-- [ ] Hardcore ends the run on death and removes the progress the owner named.
-- [ ] A co-op match uses the host's approved skill rule, and both players can
+- [x] Hardcore ends the run on death and removes the progress the owner named.
+- [x] A co-op match uses the host's approved skill rule, and both players can
       see it.
-- [ ] Saves from before this feature still load.
+- [x] Saves from before this feature still load.
 - [ ] Owner playtest of feel is recorded separately from the automated checks.
 
 ## Open questions
@@ -117,5 +117,95 @@ here.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
-No multipliers are proposed as final numbers.
+### Decisions — 2026-11-02
+
+Approval source: owner answers in this chat on 2026-11-02. These replace the
+unapproved proposals above where they differ.
+
+- Medium preserves existing combat exactly. Remember the last selected skill
+  in settings; store the actual skill on the run. Old checkpoints use Medium.
+- Easy: quantity ×0.75, HP/shields and enemy damage ×0.8, routine spawn
+  frequency ×0.8, movement ×0.9.
+- Hard and Hardcore: quantity ×1.25, HP/shields and enemy damage ×1.25,
+  routine spawn frequency ×1.2, movement ×1.1.
+- Enemy projectile speeds stay unchanged. These are initial playtest values,
+  not a claim that the owner has accepted balance feel.
+- Hardcore applies in single-player and co-op. Fresh pilots only. Death offers
+  no checkpoint restoration and deletes the single-player run checkpoint.
+  Settings, named loadouts, lifetime stats and logbook are preserved. Co-op
+  never deletes a separate single-player checkpoint.
+- Hardcore has zero revives, including sector-transition revives. Dead players
+  remain spectators for that match; the match ends when everyone is dead.
+- Host chooses the co-op skill; both players see it before ready. A guest may
+  decline by staying unready or leaving. Changing skill invalidates readiness.
+- Implementation choices: round scaled enemy quantities to whole enemies;
+  preserve graphics population ceilings and mandatory boss/warden encounters.
+  Scale initial population, routine groups and surges; summon behavior and
+  scripted encounter times remain unchanged. Scale enemy mines/explosions and
+  anchor projectiles as enemy damage. Hull stats remain unchanged.
+- Wire version advances to 2 to reject clients without the Hardcore life rule.
+  Missing/unknown skill in lobby/recovery messages is rejected; both clients
+  must update. Save version remains 1 with an optional validated skill field.
+
+Rationale: preserve the current default while providing adjustable challenge
+and enforce one life through actual save and co-op lifecycle paths.
+Consequences: issue 024 must refuse saved builds in Hardcore; issues 025/026
+must retain their profile records after a Hardcore death.
+
+### Medium baseline before implementation
+
+Verified against the original `js/content.js` and `js/enemies.js`. At high
+quality and sector entry (elapsed 0), excluding elites/minions and using a
+fixed random sample of 0.5:
+
+| Measurement | Sector 1 | Sector 10 |
+| --- | --- | --- |
+| Initial regular enemies | 5 | 14 |
+| Population cap | 15 | 120 |
+| Routine group | 2 | 5 |
+| Routine interval, seconds | 5 | 1.4125 |
+| Rusher HP | 17 | 44.54 |
+| Rusher movement, world units/second | 136 | 158.032 |
+| Rusher contact damage | 11 | 22.88 |
+
+For every role, existing HP/shield growth is `1 + (sector-1)*.18 +
+elapsed/420*.28`; contact growth is `1 + (sector-1)*.12 + elapsed/420*.2`;
+movement growth is `1 + (sector-1)*.018 + elapsed/420*.12`, with the original
+random factor and speed cap. Medium multiplies all these by exactly 1.
+Issue 005 tuning constants are unchanged.
+
+### Changed files and checks
+
+- `js/content.js`, `js/util.js`: shared skill definitions and settings default.
+- `js/game.js`, `js/enemies.js`, `js/sim.js`: run/save validation, existing spawn
+  and damage paths, and checkpoint deletion/restore prevention.
+- `js/coop-host.js`, `js/coop.js`, `js/coop-session.js`, `js/coop-wire.js`,
+  `js/net.js`: host lobby choice, sync, protocol compatibility and permanent
+  Hardcore death across sectors.
+- `index.html`, `js/ui.js`: existing neon choice buttons and keyboard/controller
+  focus path, rule descriptions, host/guest selection and restore messaging.
+- `tools/check-coop-lobby.cjs`, `tools/check-coop-wire.cjs`,
+  `tools/ci/skill-levels.spec.cjs`, `tools/ci/coop-smoke.spec.cjs`: baseline,
+  multipliers, real wave spawning, persistence, save compatibility, permanent
+  co-op death, wipe and readiness coverage.
+- Task branch: `codex/023-skill-levels`. Implementation commit pending.
+- Syntax/lint and the unit suite passed. Four new focused browser checks passed
+  on Windows, Chromium 156.0.8078.4 and Firefox 157.0. Ten focused checks then
+  passed, including compact keyboard access, shield scaling, preservation of a
+  different checkpoint after a failed save, and visible wire-version rejection.
+- The first full run passed 114 browser checks and failed two spawning fixtures
+  because a wave-size argument was no longer passed to the existing observer.
+  The interface is restored; the focused spawning checks and an actual wave-size
+  assertion pass. The final `npm run check` passed syntax, lint, all unit
+  checks, and 122 browser tests (5.1 minutes for the browser phase), including
+  separate host-death and guest-death Hardcore cases on both browsers.
+- Agent inspected the 1280×720 selection screenshot: skill buttons and launch
+  controls are visible and match existing styling. No gameplay visual effects
+  or quality defaults were removed.
+- Compact 640×600 keyboard selection and launch checks passed in both browsers;
+  agent inspected the Firefox screenshot. `git diff --check` passed.
+- Remaining: owner playtest of Easy/Hard/Hardcore. Google Chrome and physical
+  controller have not been checked. No performance claim is made.
+- Status stays Implemented — needs validation until the owner accepts feel.
+  Initial values are approved for implementation and playtesting, and the owner
+  delegated merge delivery in this chat.

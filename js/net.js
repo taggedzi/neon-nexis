@@ -256,7 +256,7 @@
     if (message && message.versionMismatch) {
       if (!wireRejected) {
         wireRejected = true;
-        onLinkLost();
+        fail('INCOMPATIBLE CO-OP VERSION // UPDATE BOTH CLIENTS');
       }
       return null;
     }
@@ -509,6 +509,7 @@
         if (Net.peer) setPeer(null);
       });
       authority.setHost(clientId, intent.profile);
+      authority.handle(clientId, { t: 'lobby_skill', skill: N.Game.settings.skill });
       setState('waiting', 'ROOM OPEN // SHARE THE CODE');
       startHousekeeping();
     }).catch(function () {

@@ -155,6 +155,9 @@
           <canvas id="ship-preview" width="320" height="200" aria-label="Selected ship preview"></canvas>
           <div class="ship-choices" id="ship-types" aria-label="Ship type"></div>
           <div class="ship-choices" id="ship-colors" aria-label="Ship color"></div>
+          <div class="coop-label">SKILL LEVEL</div>
+          <div class="ship-choices" id="ship-skills" aria-label="Skill level"></div>
+          <p class="micro" id="ship-skill-note"></p>
           <p class="micro">COSMETIC HULLS · HITBOXES FOLLOW EACH HULL'S OUTLINE. SPEED, WEAPONS AND ABILITIES ARE IDENTICAL. SELECTION IS FIXED FOR THIS SAVE.</p>
           <div class="panel-footer"><button class="neon-btn subtle" id="btn-ship-cancel" type="button">BACK</button><button class="neon-btn primary" id="btn-ship-launch" type="button">LAUNCH RUN</button></div>
         </div>
@@ -192,6 +195,9 @@
               </div>
               <button class="neon-btn" id="btn-coop-start" type="button" hidden>READY</button>
               <div id="coop-members" class="coop-note"></div>
+              <div class="coop-label">HOST SKILL LEVEL</div>
+              <div class="ship-choices" id="coop-skills" aria-label="Host skill level"></div>
+              <p class="micro" id="coop-skill-note"></p>
               <label class="coop-label" for="coop-respawns">SHARED RESPAWNS: <span id="coop-respawn-count">4</span></label>
               <input id="coop-respawns" type="range" min="0" max="8" step="1" value="4">
               <button class="neon-btn subtle" id="btn-coop-stats" type="button">LAST GAME STATISTICS</button>

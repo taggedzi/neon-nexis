@@ -23,7 +23,7 @@ for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
 
 const N = sandbox.NEON;
 const Wire = N.Wire;
-assert.equal(Wire.VERSION, 1);
+assert.equal(Wire.VERSION, 2);
 assert.equal(typeof Wire.encode, 'function');
 assert.equal(typeof Wire.decode, 'function');
 
@@ -396,7 +396,7 @@ assert.equal(Wire.encode(stamp({
 const encoded = Wire.encode(state);
 const mismatch = new Uint8Array(encoded.byteLength);
 mismatch.set(new Uint8Array(encoded));
-mismatch[0] = 2;
+mismatch[0] = 1;
 const mismatchResult = Wire.decode(mismatch.buffer);
 assert.equal(mismatchResult.versionMismatch, true);
 assert.deepEqual(Object.keys(mismatchResult), ['versionMismatch']);

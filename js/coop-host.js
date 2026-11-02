@@ -30,6 +30,7 @@
       runId: 0,
       lobbyRevision: 0,
       respawns: 4,
+      skill: 'medium',
       lobbyReady: new Set(),
       launchTimer: null,
       launchAt: 0,
@@ -81,7 +82,8 @@
         phase: room.phase,
         runId: room.runId,
         revision: room.lobbyRevision || 0,
-        respawns: room.respawns,
+        respawns: room.skill === 'hardcore' ? 0 : room.respawns,
+        skill: room.skill,
         members: onlineMembers().map(function (member) {
           return { clientId: member.clientId, profile: member.profile };
         }),
@@ -244,8 +246,12 @@
       if (message.t === 'lobby_profile') {
         member.profile = cleanProfile(message.profile);
         invalidateLobby();
+      } else if (message.t === 'lobby_skill') {
+        if (member.role !== 'host' || !['easy', 'medium', 'hard', 'hardcore'].includes(message.skill)) return;
+        room.skill = message.skill;
+        invalidateLobby();
       } else if (message.t === 'lobby_respawns') {
-        if (member.role !== 'host' || !Number.isInteger(message.count) || message.count < 0 || message.count > 8) return;
+        if (room.skill === 'hardcore' || member.role !== 'host' || !Number.isInteger(message.count) || message.count < 0 || message.count > 8) return;
         room.respawns = message.count;
         invalidateLobby();
       } else if (message.t === 'lobby_ready') {
@@ -290,7 +296,7 @@
         else if (message.t === 'ready_signal') handleReady(member);
         return;
       }
-      if (message.t === 'lobby_sync' || message.t === 'lobby_profile' || message.t === 'lobby_respawns' || message.t === 'lobby_ready' || message.t === 'return_lobby') {
+      if (message.t === 'lobby_sync' || message.t === 'lobby_profile' || message.t === 'lobby_respawns' || message.t === 'lobby_skill' || message.t === 'lobby_ready' || message.t === 'return_lobby') {
         handleLobby(member, message);
       }
     }

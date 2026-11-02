@@ -179,6 +179,7 @@ N.Storage = {
 };
 
 N.SETTINGS_DEFAULT = {
+  skill:'medium',
   movementMode:'directional',
   firingMode:'hold',rightStickFire:true,
   version:1,
@@ -244,6 +245,7 @@ N.normalizeSettings = function(raw){
   s.audio.sfx=N.clamp(+s.audio.sfx||0,0,1);
   s.graphics.particles=N.clamp(+s.graphics.particles||1,.25,2);
   s.deadzone=N.clamp(+s.deadzone||.22,.05,.6);
+  s.skill=['easy','medium','hard','hardcore'].includes(s.skill)?s.skill:'medium';
   s.movementMode=s.movementMode==='driving'?'driving':'directional';
   s.firingMode=s.firingMode==='toggle'?'toggle':'hold';
   s.rightStickFire=s.rightStickFire!==false;
