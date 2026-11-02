@@ -20,7 +20,7 @@ decisions those features need.
 | 8 | Save a limited list of named ships and load them into a new run | [024](work-to-be-done/024-named-ship-loadouts.md) |
 | 9 | Track per-player stats and show a tally at the end of a run | [025](work-to-be-done/025-player-stats.md) |
 | 10 | Add a logbook of enemies encountered and destroyed | [026](work-to-be-done/026-enemy-logbook.md) |
-| 11 | Let enemy fire damage other enemies, behind a toggle | [027](work-to-be-done/027-enemy-friendly-fire.md) |
+| 11 | Enemy friendly fire declined (decision complete) | [027](work-to-be-done/027-enemy-friendly-fire.md) |
 | 12 | Raise co-op capacity to 4 and let the host set the count | [028](work-to-be-done/028-coop-four-players.md) |
 | 13 | Give ships different stats, and decide what colors mean | [029](work-to-be-done/029-ship-stats-and-colors.md) |
 | 14 | Add an About page with version, contributors, and a GitHub link | [030](work-to-be-done/030-about-page.md) |
