@@ -69,6 +69,7 @@ console.log('Logbook guest: repeated confirmations and recorder restart preserve
 
 N.Coop.isHost=()=>true;N.Coop.isGuest=()=>false;
 N.Net.peerId='returning';
+N.Coop.remotePlayers=[{clientId:'returning'}];
 box.performance={now:()=>1000};
 let sent;
 N.Net.send=value=>{sent=value;};

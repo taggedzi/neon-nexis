@@ -45,13 +45,16 @@
       countdownTimer: null,
       countdownEndsAt: 0,
       host: null,
-      guest: null
+      guests: new Map(),
+      roster: new Map()
     };
+    // Legacy readers can inspect the first guest; membership always uses the map.
+    Object.defineProperty(room, 'guest', { get: () => room.guests.values().next().value || null });
     let deliver = function () {};
     let onGuestCleared = function () {};
 
     function onlineMembers() {
-      return [room.host, room.guest].filter(function (member) {
+      return [room.host, ...room.guests.values()].filter(function (member) {
         return member && member.online;
       });
     }
@@ -84,6 +87,8 @@
       return {
         t: 'lobby_state',
         phase: room.phase,
+        capacity: 4,
+        protocol: 2,
         runId: room.runId,
         revision: room.lobbyRevision || 0,
         respawns: room.skill === 'hardcore' ? 0 : room.respawns,
@@ -93,7 +98,7 @@
         startSector: Math.min(room.startSector,sectorCap()),
         sectorCap: sectorCap(),
         members: onlineMembers().map(function (member) {
-          return { clientId: member.clientId, profile: member.profile };
+          return { clientId: member.clientId, seat: member.seat, profile: member.profile };
         }),
         ready: Array.from(room.lobbyReady),
         launchAt: room.launchAt || 0
@@ -174,66 +179,75 @@
       send(member, { t: 'global_pause', by: room.pauseOwner || null });
     }
 
-    function clearGuest() {
-      const guest = room.guest;
+    function clearGuest(clientId) {
+      const guest = room.guests.get(clientId);
       if (!guest) return;
       if (guest.offlineTimer) clearTimeout(guest.offlineTimer);
       clearCountdown();
       invalidateLobby();
-      room.pauseState = 'PLAY';
-      room.readyPeers.clear();
-      room.guest = null;
+      room.readyPeers.delete(clientId);
+      room.guests.delete(clientId);
       broadcastLobby();
-      if (room.phase === 'run') broadcast({ t: 'global_resume' });
-      onGuestCleared();
+      if (room.phase === 'run') {
+        if (onlineMembers().length === 1) {
+          room.pauseState = 'PLAY';
+          room.readyPeers.clear();
+          broadcast({ t: 'global_resume' });
+        } else startGlobalPause(null);
+      }
+      onGuestCleared(clientId);
     }
 
     function armOfflineTimer(guest) {
       if (guest.offlineTimer) clearTimeout(guest.offlineTimer);
       guest.offlineTimer = setTimeout(function () {
         guest.offlineTimer = null;
-        if (room.guest === guest && !guest.online) clearGuest();
+        if (room.guests.get(guest.clientId) === guest && !guest.online) clearGuest(guest.clientId);
       }, graceMs);
     }
 
     function markOffline(clientId) {
-      if (!room.guest || room.guest.clientId !== clientId) return;
-      const guest = room.guest;
+      const guest = room.guests.get(clientId);
+      if (!guest) return;
       guest.online = false;
+      invalidateLobby();
       if (room.pauseState === 'COUNTDOWN') startGlobalPause(null);
       armOfflineTimer(guest);
+      broadcastLobby();
     }
 
     function holdOfflineGrace(clientId) {
-      const guest = room.guest;
-      if (!guest || guest.clientId !== clientId || guest.online) return;
-      // setLocalDescription can succeed while the channel never opens and the
-      // connection never reaches "failed". Restart the grace from this offer.
-      armOfflineTimer(guest);
+      const guest = room.guests.get(clientId);
+      if (guest && !guest.online) armOfflineTimer(guest);
     }
 
     function setHost(clientId, profile) {
-      room.host = { clientId: clientId, profile: cleanProfile(profile), role: 'host', online: true };
+      room.host = { clientId, seat: 0, profile: cleanProfile(profile), role: 'host', online: true };
       invalidateLobby();
       broadcastLobby();
     }
 
-    function setGuest(clientId, profile) {
-      if (room.guest && room.guest.online) return false;
-      const same = room.guest && room.guest.clientId === clientId;
-      if (room.guest && room.guest.offlineTimer) clearTimeout(room.guest.offlineTimer);
-      if (!same) {
-        room.guest = { clientId: clientId, profile: cleanProfile(profile), role: 'guest', online: true, offlineTimer: null };
-        invalidateLobby();
-        if (room.phase === 'run') startGlobalPause(room.guest);
-        else if (room.pauseState !== 'PLAY') startGlobalPause(room.guest);
+    function setGuest(clientId, profile, requestedSeat) {
+      if (room.phase === 'run' && !room.roster.has(clientId)) return false;
+      let guest = room.guests.get(clientId);
+      if (guest?.online) return false;
+      if (guest?.offlineTimer) clearTimeout(guest.offlineTimer);
+      if (!guest) {
+        const occupied = new Set(Array.from(room.guests.values(), member => member.seat));
+        const retainedSeat = room.roster.get(clientId);
+        const seat = retainedSeat ?? requestedSeat ?? [1, 2, 3].find(value => !occupied.has(value));
+        if (retainedSeat !== undefined && requestedSeat !== undefined && requestedSeat !== retainedSeat) return false;
+        if (![1, 2, 3].includes(seat) || occupied.has(seat)) return false;
+        guest = { clientId, seat, profile: cleanProfile(profile), role: 'guest', online: true, offlineTimer: null };
+        room.guests.set(clientId, guest);
       } else {
-        room.guest.profile = cleanProfile(profile);
-        room.guest.online = true;
-        room.guest.offlineTimer = null;
+        guest.online = true;
+        guest.offlineTimer = null;
       }
+      guest.profile.name = 'PLAYER ' + (guest.seat + 1);
+      invalidateLobby();
+      if (room.phase === 'run' || room.pauseState !== 'PLAY') startGlobalPause(guest);
       broadcastLobby();
-      if (same && room.pauseState !== 'PLAY') handlePauseSync(room.guest);
       return true;
     }
 
@@ -249,6 +263,7 @@
           return;
         }
         room.phase = 'lobby';
+        room.roster.clear();
         clearCountdown();
         room.pauseState = 'PLAY';
         room.readyPeers.clear();
@@ -259,6 +274,7 @@
       if (room.phase !== 'lobby') return;
       if (message.t === 'lobby_profile') {
         member.profile = cleanProfile(message.profile);
+        member.profile.name = 'PLAYER ' + (member.seat + 1);
         invalidateLobby();
       } else if (message.t === 'lobby_skill') {
         if (member.role !== 'host' || !['easy', 'medium', 'hard', 'hardcore'].includes(message.skill)) return;
@@ -298,6 +314,7 @@
             const current = onlineMembers();
             if (!current.length || !current.every(function (item) { return room.lobbyReady.has(item.clientId); })) return;
             room.phase = 'run';
+            room.roster = new Map(current.map(item => [item.clientId, item.seat]));
             room.runId += 1;
             invalidateLobby();
             broadcastLobby();
@@ -311,11 +328,11 @@
     function handle(clientId, message) {
       if (!message || typeof message !== 'object') return;
       const member = (room.host && room.host.clientId === clientId && room.host.online) ? room.host
-        : (room.guest && room.guest.clientId === clientId && room.guest.online) ? room.guest
+        : room.guests.get(clientId)?.online ? room.guests.get(clientId)
           : null;
       if (!member) return;
       if (message.t === 'leave') {
-        if (member.role === 'guest') clearGuest();
+        if (member.role === 'guest') clearGuest(clientId);
         return;
       }
       if (message.t === 'pause_request' || message.t === 'ready_signal' || message.t === 'pause_sync') {
@@ -334,7 +351,9 @@
     function close() {
       clearLaunch();
       clearCountdown();
-      if (room.guest && room.guest.offlineTimer) clearTimeout(room.guest.offlineTimer);
+      for (const guest of room.guests.values()) {
+        if (guest.offlineTimer) clearTimeout(guest.offlineTimer);
+      }
       deliver = function () {};
     }
 

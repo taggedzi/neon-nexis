@@ -85,6 +85,7 @@ function lobbyRow(dbFile) {
   return JSON.parse(lobbyQuery(dbFile, [
     '$pdo = new PDO("sqlite:" . $argv[1]);',
     '$row = $pdo->query("SELECT code, host_id, guest_id FROM lobbies")->fetch(PDO::FETCH_ASSOC);',
+    'if ($row) $row["guest_count"] = (int) $pdo->query("SELECT COUNT(*) FROM coop_seats")->fetchColumn();',
     'echo json_encode($row ?: new stdClass());'
   ].join('\n')));
 }
@@ -186,15 +187,17 @@ async function instrument(context) {
 }
 
 function assertIntroductionOnly(bodies) {
-  const allowed = new Set(['ok', 'enabled', 'iceServers', 'reason', 'code', 'role', 'hostId', 'guestId', 'error', 'deleted', 'rev', 'selfRev', 'peerCard']);
-  const cardKeys = new Set(['rev', 'session', 'sdp', 'candidates', 'clientId', 'profile']);
+  const allowed = new Set(['ok', 'enabled', 'iceServers', 'reason', 'code', 'role', 'hostId', 'guestId', 'error', 'deleted', 'rev', 'selfRev', 'peerCard', 'protocol', 'seat', 'peers']);
+  const cardKeys = new Set(['rev', 'session', 'sdp', 'candidates', 'clientId', 'profile', 'seat', 'protocol']);
   check(bodies.length > 0, 'the page talked to PHP');
   for (const body of bodies) {
     check(body && body.parse !== false, 'PHP introduction responses are JSON');
     for (const key of Object.keys(body)) check(allowed.has(key), 'PHP response stays an introduction: ' + key);
-    const card = body.peerCard;
-    if (card) {
-      for (const key of Object.keys(card)) check(cardKeys.has(key), 'connection card has no gameplay field: ' + key);
+    for (const peer of body.peers || []) {
+      for (const key of Object.keys(peer)) check(['clientId', 'seat', 'card'].includes(key), 'introduction peer field: ' + key);
+      if (peer.card) {
+        for (const key of Object.keys(peer.card)) check(cardKeys.has(key), 'connection card has no gameplay field: ' + key);
+      }
     }
     const raw = JSON.stringify(body);
     check(!raw.includes('global_pause') && !raw.includes('playerBullets') && !raw.includes('shots'), 'PHP does not relay pause or shots');
@@ -305,7 +308,7 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 800));
   const row = lobbyRow(liveDb);
   check(row.code === code, 'guest leave keeps the host lobby');
-  check(!row.guest_id, 'guest leave clears only the guest');
+  check(row.guest_count === 0, 'guest leave clears only its guest seat');
   check(await host.page.evaluate(() => window.NEON.Net.code) === code, 'host keeps the room code');
 
   await host.page.locator('#btn-save-quit').evaluate(button => button.click());

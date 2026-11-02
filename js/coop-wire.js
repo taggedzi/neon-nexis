@@ -1,17 +1,17 @@
-/* Binary layout for co-op fight messages. Version 1.
+/* Binary layout for co-op fight messages. Version 6.
  * encode returns null when the message stays JSON or a value does not fit.
  * A value that does not fit is not wrapped. */
 (function () {
   'use strict';
   const N = window.NEON;
-  const Wire = N.Wire = { VERSION: 5 };
+  const Wire = N.Wire = { VERSION: 6 };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
 
   const TYPES = {
     state: 1, world: 2, bullet: 3, ebullet: 4, mine: 5, strike: 6, fire: 7, fx: 8,
     loadout: 9, hit: 10, heal: 11, kill: 12, xp: 13, grant: 14, grant_ack: 15,
-    event_ack: 16, participant: 17, lives: 18
+    event_ack: 16, participant: 17, lives: 18, avatars: 19
   };
   const TYPE_NAME = [];
   for (const name in TYPES) TYPE_NAME[TYPES[name]] = name;
@@ -227,6 +227,10 @@
     if (sector > 255 || life > 255) fail();
     writer.u8(Wire.VERSION);
     writer.u8(TYPES[message.t]);
+    for (const seat of [message._seat, message._targetSeat]) {
+      if (seat != null && (!Number.isInteger(seat) || seat < 0 || seat > 3)) fail();
+      writer.u8(seat == null ? 255 : seat);
+    }
     writer.u8(sector);
     writer.u8(life);
     if (message._targetLife == null) writer.u8(255);
@@ -242,11 +246,16 @@
     const version = reader.u8();
     if (version !== Wire.VERSION) fail();
     const type = reader.u8();
+    const seat = reader.u8();
+    const targetSeat = reader.u8();
+    if ((seat !== 255 && seat > 3) || (targetSeat !== 255 && targetSeat > 3)) fail();
     const message = {
       t: TYPE_NAME[type],
       _sector: reader.u8(),
       _life: reader.u8()
     };
+    if (seat !== 255) message._seat = seat;
+    if (targetSeat !== 255) message._targetSeat = targetSeat;
     if (!message.t) fail();
     const target = reader.u8();
     if (target !== 255) message._targetLife = target;
@@ -931,7 +940,36 @@
     return reader.u8() ? reader.f32() : null;
   }
 
+  function writeAvatars(message) {
+    if (!Array.isArray(message.players) || message.players.length > 3) fail();
+    writer.u8(message.players.length);
+    const seats = new Set();
+    for (const player of message.players) {
+      if (!Number.isInteger(player._seat) || player._seat < 0 || player._seat > 3 || seats.has(player._seat)) fail();
+      seats.add(player._seat);
+      writer.u8(player._seat);
+      writeState(player);
+      writeNullable(player.seconds);
+    }
+  }
+  function readAvatars(message) {
+    const count = reader.u8();
+    if (count > 3) fail();
+    message.players = [];
+    const seats = new Set();
+    for (let index = 0; index < count; index++) {
+      const seat = reader.u8();
+      if (seat > 3 || seats.has(seat)) fail();
+      seats.add(seat);
+      const player = { _seat: seat };
+      readState(player);
+      player.seconds = readNullable();
+      message.players.push(player);
+    }
+  }
+
   const BODY = {
+    avatars: [writeAvatars, readAvatars],
     state: [writeState, readState],
     world: [writeWorld, readWorld],
     bullet: [function (message) { writeBatch(message.b); }, function (message) { message.b = readBatch(); }],

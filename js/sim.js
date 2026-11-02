@@ -329,7 +329,7 @@ G.damageEnemy=function(e,dmg,opts={}){
   if(p.stats.lifesteal>0){
     const heal=amount*p.stats.lifesteal;
     p.hp=Math.min(p.stats.maxHp,p.hp+heal);
-    if(N.Coop&&N.Coop.isHost()&&p!==G.player)N.Coop.sendHeal(heal);
+    if(N.Coop&&N.Coop.isHost()&&p!==G.player)N.Coop.sendHeal(heal,p);
   }
   G.addText(e.x+(Math.random()-.5)*e.r*.6,e.y-e.r*.7,(crit?'✦':'')+Math.round(amount),crit?'#fff':'#d8f4ff',crit?13:10);
   G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.32,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
@@ -674,11 +674,12 @@ G.updateGroundItems=function(dt){
     let collector=p.dead?null:p,collectorRadius=radius;
     let d=p.dead?Infinity:N.dist(it.x,it.y,p.x,p.y);
     if(coopHost){
-      const guest=N.Coop.remotePlayers[0];
+      for(const guest of N.Coop.remotePlayers){
       if(guest&&!guest.dead){
         const gd=N.dist(it.x,it.y,guest.x,guest.y);
         const gr=(guest.pickupRadius||guest.stats.pickupRadius||95)*(guest.magnet?5.5:1);
         if(gd<gr&&gd<d){collector=guest;collectorRadius=gr;d=gd;}
+      }
       }
     }
     if(collector===p&&magnet&&d<radius*1.5){
@@ -693,7 +694,7 @@ G.updateGroundItems=function(dt){
         // Banked/consumed items leave the floor; a full reward tray retains gear.
         if(it.collected)G.groundItems.splice(i,1);
         if(G.mode!=='playing') return;
-      }else if(!N.Coop.grantToGuest(it)){
+      }else if(!N.Coop.grantToGuest(it,collector)){
         it.grantHold=0.4;
       }else{
         it.grantPending=true;

@@ -482,7 +482,7 @@ G.killEnemy=function(e,opts={}){
   G.run.kills=(G.run.kills||0)+1;G.level.kills=(G.level.kills||0)+1;
   N.Rewards.onKill();
   if(!guestKill)G.addXp(e.xp||1);
-  if(N.Coop&&N.Coop.isHost())N.Coop.onHostKill(e.xp||0,!guestKill);
+  if(N.Coop&&N.Coop.isHost())N.Coop.onHostKill(e.xp||0,killer);
   G.addParticles(e.x,e.y,e.color,e.elite?32:12,{speed:e.elite?260:160,life:.7,size:e.elite?2.4:1.7,glow:true});
   G.addRing(e.x,e.y,e.r*2.2,e.color,e.elite?.55:.32,e.elite?3:1.5);
   G.addText(e.x,e.y-e.r-10,'+'+Math.round(e.xp||0)+' DATA','#6ad7ff',9);

@@ -46,7 +46,7 @@ function neon_coop_status(array $config, string $clientId): array
   if (!neon_coop_enabled($config, $servers)) {
     return ['ok' => true, 'enabled' => false, 'iceServers' => [], 'reason' => 'empty'];
   }
-  return ['ok' => true, 'enabled' => true, 'iceServers' => $servers];
+  return ['ok' => true, 'enabled' => true, 'iceServers' => $servers, 'protocol' => 2];
 }
 
 function neon_coop_sweep(string $path): void
@@ -79,6 +79,14 @@ function neon_coop_handle_http(): void
     $pdo = neon_coop_pdo(neon_coop_database_path($config));
     $now = time();
     $code = strtoupper(substr((string) ($request['code'] ?? ''), 0, 8));
+    if (in_array($action, ['host', 'join'], true) && ($request['protocol'] ?? null) !== 2) {
+      neon_coop_json(200, ['ok' => false, 'error' => 'version']);
+      return;
+    }
+    if ($action === 'roster') {
+      neon_coop_json(200, ['ok' => neon_coop_roster($pdo, $code, $clientId, $request['roster'] ?? null)]);
+      return;
+    }
     if ($action === 'host') {
       $row = neon_coop_create_lobby($pdo, $clientId, $now);
       neon_coop_json(200, ['ok' => true, 'code' => $row['code'], 'role' => 'host']);
@@ -95,6 +103,8 @@ function neon_coop_handle_http(): void
         'code' => $result['row']['code'],
         'role' => 'guest',
         'hostId' => $result['row']['host_id'],
+        'seat' => $result['seat'],
+        'protocol' => 2,
       ]);
       return;
     }
@@ -118,7 +128,7 @@ function neon_coop_handle_http(): void
         neon_coop_json(400, ['ok' => false, 'error' => 'card']);
         return;
       }
-      $stored = neon_coop_put_card($pdo, $code, $clientId, $card, $now);
+      $stored = neon_coop_put_card($pdo, $code, $clientId, $card, $now, (string) ($request['targetId'] ?? ''));
       if ($stored === null) {
         neon_coop_json(200, ['ok' => false, 'error' => 'notfound']);
         return;
@@ -127,7 +137,7 @@ function neon_coop_handle_http(): void
       return;
     }
     if ($action === 'poll') {
-      $since = (int) ($request['sinceRev'] ?? 0);
+      $since = $request['sinceRev'] ?? [];
       $view = neon_coop_poll($pdo, $code, $clientId, $since, $now);
       if ($view === null) {
         neon_coop_json(200, ['ok' => false, 'error' => 'notfound']);

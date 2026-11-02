@@ -92,6 +92,7 @@
     const selection = profileOf(profile || {});
     Object.assign(p, N.Ships.selection(selection));
     p.name = selection.name;
+    p.seat = index;
     p.remote = true;
     p.coopPlayer = true;
     const spawn = spawnOffset(level, index);
@@ -155,8 +156,9 @@
     return best;
   };
 
-  Coop.guestMirror = function () {
-    return Coop.host ? (Coop.remotePlayers[0] || null) : null;
+  Coop.guestMirror = function (clientId) {
+    if (!Coop.host) return null;
+    return clientId ? Coop.remotePlayers.find(player => player.clientId === clientId) || null : Coop.remotePlayers[0] || null;
   };
 
   Coop.blocksLocalDamage = function () {
@@ -231,8 +233,7 @@
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     G.newRun(Coop.localProfile, { seed: seed, coop: true, skill: Coop.lobby.skill,
       loadout: Coop.localProfile.loadout, sector: Coop.lobby.startSector, name: 'PLAYER 1' });
-    const mirror = makeRemotePlayer(Coop.peerProfile || { name: 'PLAYER 2' }, G.level, 1);
-    Coop.remotePlayers = N.Net.peer ? [mirror] : [];
+    Coop.remotePlayers = [];
     Coop.started = true;
     Coop._stateAt = 0;
     Coop._worldAt = 0;
@@ -247,7 +248,7 @@
     });
     if (N.UI) {
       N.UI.hideAll();
-      N.UI.toast('CO-OP LINK // PLAYER 2 CONNECTED', 'loot', 2200);
+      N.UI.toast('CO-OP LINK // ' + Coop.lobby.members.length + ' PLAYERS READY', 'loot', 2200);
     }
     return true;
   };
@@ -263,7 +264,7 @@
     Coop._ending = false;
     Coop.peerProfile = message.host || null;
     Coop._peerId = message.host && message.host.clientId ? message.host.clientId : null;
-    Coop.localProfile = profileOf(Object.assign({}, Coop.localProfile, { name: 'PLAYER 2' }));
+    Coop.localProfile = profileOf(Object.assign({}, Coop.localProfile, { name: 'PLAYER ' + (N.Net.seat + 1) }));
 
     G.run = {
       seed: seed,
@@ -281,10 +282,10 @@
     G.coopRun = true;
     G.player = G.makePlayer();
     Object.assign(G.player, N.Ships.selection(Coop.localProfile));
-    G.player.name = 'PLAYER 2';
+    G.player.name = 'PLAYER ' + (N.Net.seat + 1);
     G.player.coopGuest = true;
     G.level = G.generateLevel(levelNumber, null);
-    const spawn = spawnOffset(G.level, 1);
+    const spawn = spawnOffset(G.level, N.Net.seat || 1);
     G.player.x = spawn.x;
     G.player.y = spawn.y;
     G.player.vx = 0;
@@ -345,7 +346,7 @@
     G.camera.sy = 0;
     G.resetEntityArrays();
     const host = Coop.remotePlayers[0];
-    if (host) placeRemote(host, G.level, 1);
+    if (host) placeRemote(host, G.level, 0);
     G.time = 0;
     G.glitch = 0;
     G.level.elapsed = 0;
@@ -490,7 +491,7 @@
     ];
   }
 
-  Coop.sendWorld = function () {
+  Coop.sendWorld = function (targetId) {
     if (!Coop.isHost() || !G.level) return;
     const enemies = [];
     for (const enemy of G.enemies) {
@@ -527,7 +528,7 @@
       a: anchors,
       c: caches,
       g: items
-    });
+    }, targetId);
   };
 
   function bulletPayload(bullet) {
@@ -587,8 +588,7 @@
     if (!Coop.active) return;
     const now = clock();
     if (Coop.host) {
-      const mirror = Coop.remotePlayers[0];
-      if (mirror) {
+      for (const mirror of Coop.remotePlayers) {
         const follow = Math.min(1, dt * 18);
         mirror.x += (mirror.tx - mirror.x) * follow;
         mirror.y += (mirror.ty - mirror.y) * follow;
@@ -663,8 +663,7 @@
       cache.angle = (cache.angle || 0) + (cache.spin || 0) * dt;
       cache.hitFlash = Math.max(0, (cache.hitFlash || 0) - dt * 4);
     }
-    const host = Coop.remotePlayers[0];
-    if (host) {
+    for (const host of Coop.remotePlayers) {
       host.x += (host.tx - host.x) * follow;
       host.y += (host.ty - host.y) * follow;
       host.aim = N.lerpAngle(host.aim, host.ta, follow);
@@ -673,8 +672,8 @@
     }
   };
 
-  Coop.applyRemoteState = function (message) {
-    const mirror = Coop.remotePlayers[0];
+  Coop.applyRemoteState = function (message, clientId) {
+    const mirror = Coop.host ? Coop.guestMirror(clientId) : Coop.remotePlayers.find(player => player.seat === message._seat);
     if (!mirror) return;
     mirror.name = String(message.name || mirror.name).slice(0, 20);
     mirror.tx = finite(message.x, mirror.x);
@@ -696,8 +695,8 @@
     mirror.pickupRadius = finite(message.pickupRadius, mirror.pickupRadius || 95);
   };
 
-  Coop.applyLoadout = function (message) {
-    const mirror = Coop.guestMirror();
+  Coop.applyLoadout = function (message, clientId) {
+    const mirror = Coop.guestMirror(clientId);
     if (!mirror) return;
     mirror.weapons = (message.weapons || []).filter(function (weapon) {
       return weapon && N.WEAPON_BY_ID[weapon.id];
@@ -835,25 +834,25 @@
     G.level.groundItems = ground;
   };
 
-  Coop.onMessage = function (message) {
+  Coop.onMessage = function (message, clientId) {
     if (!message || typeof message !== 'object') return;
     switch (message.t) {
       case 'stats_end_request':
         N.PlayerStats.answerEnd(message);break;
       case 'stats_end_ack':
-        N.PlayerStats.finishEnd();break;
+        N.PlayerStats.finishEnd(clientId);break;
       case 'book_sync':
         N.Logbook.receive(message);break;
       case 'stats_row':
-        N.PlayerStats.receiveRow(message);break;
+        N.PlayerStats.receiveRow(message, clientId);break;
       case 'start':
         Coop.startGuestRun(message);
         break;
       case 'state':
-        Coop.applyRemoteState(message);
+        Coop.applyRemoteState(message, clientId);
         break;
       case 'loadout':
-        Coop.applyLoadout(message);
+        Coop.applyLoadout(message, clientId);
         break;
       case 'world':
         Coop.applyWorld(message);
@@ -871,7 +870,7 @@
         applyStrikeBatch(message.b);
         break;
       case 'fire':
-        Coop.onGuestFire(message);
+        Coop.onGuestFire(message, clientId);
         break;
       case 'hit':
         Coop.applyRemoteHit(message);
@@ -880,7 +879,7 @@
         Coop.applyGrant(message);
         break;
       case 'grant_ack':
-        Coop.applyGrantAck(message);
+        Coop.applyGrantAck(message, clientId);
         break;
       case 'xp':
         G.addXp(Math.max(0, finite(message.amount, 0)));
@@ -963,17 +962,17 @@
     }
   }
 
-  Coop.onGuestFire = function (message) {
+  Coop.onGuestFire = function (message, clientId) {
     if (!Coop.isHost()) return;
-    const mirror = Coop.guestMirror();
+    const mirror = Coop.guestMirror(clientId);
     if (!mirror || mirror.dead) return;
     const now = clock();
-    if (now - Coop._fireWindow > 1000) {
-      Coop._fireWindow = now;
-      Coop._fireCount = 0;
+    if (now - (mirror.fireWindow || 0) > 1000) {
+      mirror.fireWindow = now;
+      mirror.fireCount = 0;
     }
-    if (Coop._fireCount >= FIRE_BUDGET_PER_SECOND) return;
-    Coop._fireCount++;
+    if ((mirror.fireCount || 0) >= FIRE_BUDGET_PER_SECOND) return;
+    mirror.fireCount = (mirror.fireCount || 0) + 1;
     const angle = finite(message.a, mirror.aim);
     mirror.x = finite(message.x, mirror.x);
     mirror.y = finite(message.y, mirror.y);
@@ -1018,15 +1017,15 @@
     }
   };
 
-  Coop.sendHeal = function (amount) {
+  Coop.sendHeal = function (amount, player) {
     if (!Coop.isHost() || !(amount > 0)) return;
-    N.Net.send({ t: 'heal', amount: round(amount, 1) });
+    N.Net.send({ t: 'heal', amount: round(amount, 1) }, player.clientId);
   };
 
   Coop.sendHit = function (player, amount, x, y, contact) {
     if (!Coop.isHost() || !player || player === G.player) return false;
     player.invuln = Math.max(player.invuln || 0, 0.68);
-    N.Net.send({ t: 'hit', amount: round(amount, 1), x: round(x, 1), y: round(y, 1), contact: !!contact });
+    N.Net.send({ t: 'hit', amount: round(amount, 1), x: round(x, 1), y: round(y, 1), contact: !!contact }, player.clientId);
     return true;
   };
 
@@ -1097,8 +1096,11 @@
     item.grantHold = 0.75;
   };
 
-  Coop.grantToGuest = function (item) {
+  Coop.grantToGuest = function (item, player) {
     if (!Coop.isHost() || !item) return false;
+    player = player || Coop.guestMirror(item.grantOwner);
+    if (!player || !player.clientId || item.grantOwner && item.grantOwner !== player.clientId) return false;
+    item.grantOwner = player.clientId;
     if (!cleanGrantId(item.grantId)) {
       Coop._grantSerial = (Coop._grantSerial || 0) + 1;
       item.grantId = 'g' + Coop._grantSerial;
@@ -1116,7 +1118,7 @@
         color: item.color,
         label: item.label || null
       }
-    });
+    }, player.clientId);
   };
 
   function bounded(value, fallback, min, max) {
@@ -1381,9 +1383,11 @@
     N.Net.send({ t: 'fx', kind: 'explode', x: round(x, 1), y: round(y, 1), r: round(radius, 1), color: color });
   };
 
-  Coop.onHostKill = function (xp, byHost) {
+  Coop.onHostKill = function (xp, killer) {
     if (!Coop.isHost()) return;
-    N.Net.send({ t: 'kill', xp: byHost ? 0 : round(xp, 0) });
+    for (const player of Coop.remotePlayers) {
+      N.Net.send({ t: 'kill', xp: player === killer ? round(xp, 0) : 0 }, player.clientId);
+    }
   };
 
   Coop.onHostComplete = function (summary) {

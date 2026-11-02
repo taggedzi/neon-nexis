@@ -1,68 +1,21 @@
-/* NEON NEXUS — co-op client transport.
- *
- * Single-player never calls host()/join(). PHP introduces the two browsers.
- * Gameplay and room control travel on the WebRTC data channel only. There is
- * no gameplay relay: a direct link that never opens stays on the connecting
- * screen, and a dropped link is introduced again through PHP.
- */
+/* Host-centered WebRTC transport. PHP exchanges per-seat introduction cards only. */
 (function () {
   'use strict';
-
   const N = window.NEON;
   const Net = N.Net = {};
-
-  const POLL_MS = 500;
-  const CHECKIN_MS = 30000;
-  const REINTRODUCE_MS = 1500;
-  const ROOM_CONTROL = {
-    lobby_state: true,
-    launch: true,
-    global_pause: true,
-    ready_state: true,
-    countdown_start: true,
-    global_resume: true
-  };
-
-  Net.state = 'idle';
-  Net.role = 'solo';
-  Net.code = '';
-  Net.peer = null;
-  Net.peerId = null;
-  Net.transport = 'none';
-  Net.iceServers = [];
-  Net.available = false;
-  Net.statusKnown = false;
-
-  Net.onStatus = null;
-  Net.onMessage = null;
-  Net.onPeer = null;
-  Net.onError = null;
-  Net.onSocketOpen = null;
-  Net.onAvailability = null;
-
-  const clientId = makeClientId();
-  let peerConnection = null;
-  let channel = null;
-  let localCandidates = [];
-  let appliedCandidates = 0;
-  let localSession = '';
-  let remoteCard = null;
-  let seenPeerRev = 0;
-  let negotiatedGuestId = '';
-  let pollTimer = null;
-  let checkinTimer = null;
-  let cardTimer = null;
-  let recoverTimer = null;
-  let manualClose = false;
-  let linkUp = false;
-  let sendSequence = 0;
-  let receiveSequence = 0;
-  let wireRejected = false;
+  const PROTOCOL = 2;
+  const ROOM_CONTROL = new Set(['lobby_state', 'launch', 'global_pause', 'ready_state', 'countdown_start', 'global_resume']);
+  Object.assign(Net, { state: 'idle', role: 'solo', code: '', peer: null, peerId: null,
+    peers: new Map(), seat: 0, transport: 'none', iceServers: [], available: false, statusKnown: false });
+  const links = new Map();
+  const clientId = Net.clientId = makeClientId();
   let intent = null;
   let authority = null;
-  let statusPromise = null;
-
-  Net.clientId = clientId;
+  let pollTimer = null;
+  let generation = 0;
+  let polling = false;
+  let rosterPromise = Promise.resolve();
+  let rosterKey = '';
 
   function makeClientId() {
     const key = 'neon-coop-identity-v1';
@@ -78,561 +31,421 @@
     return id;
   }
 
-  function makeSessionId() {
-    return Math.random().toString(36).slice(2, 12);
-  }
 
   function normalizeProfile(profile) {
     return {
-      name: String(profile && profile.name || 'PLAYER').slice(0, 20),
-      shipType: String(profile && profile.shipType || 'dart').slice(0, 16),
-      shipColor: String(profile && profile.shipColor || '#00f0ff').slice(0, 16),
+      name: String(profile?.name || 'PLAYER').slice(0, 20),
+      shipType: String(profile?.shipType || 'dart').slice(0, 16),
+      shipColor: String(profile?.shipColor || '#00f0ff').slice(0, 16),
       loadout: profile?.loadout && N.Loadouts?.validateShip(profile.loadout) ? N.deepClone(profile.loadout) : null,
       loadoutInvalid: !!profile?.loadout && !N.Loadouts?.validateShip(profile.loadout)
     };
   }
 
   Net.introUrl = function () {
-    const override = new URLSearchParams(window.location.search).get('intro');
-    if (override) return override;
-    return new URL('php/coop.php', window.location.href).href;
+    return new URLSearchParams(window.location.search).get('intro') || new URL('php/coop.php', window.location.href).href;
   };
 
-  function emitStatus(detail) {
-    if (typeof Net.onStatus === 'function') {
-      Net.onStatus({
-        state: Net.state,
-        role: Net.role,
-        code: Net.code,
-        peer: Net.peer,
-        transport: Net.transport,
-        detail: detail || ''
-      });
-    }
-  }
-
-  function setState(state, detail) {
+  function status(state, detail = '') {
     Net.state = state;
-    emitStatus(detail);
+    Net.transport = Array.from(links.values()).some(link => link.online) ? 'p2p' : 'none';
+    Net.onStatus?.({ state, role: Net.role, code: Net.code, peer: Net.peer, transport: Net.transport, detail });
   }
 
-  function emitAvailability() {
-    if (typeof Net.onAvailability === 'function') {
-      Net.onAvailability({ available: Net.available });
+  function post(body) {
+    return fetch(Net.introUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, protocol: PROTOCOL, ...body }), cache: 'no-store' })
+      .then(response => response.json());
+  }
+
+  Net.refreshStatus = async function () {
+    try {
+      const url = Net.introUrl();
+      const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=status&clientId=' + encodeURIComponent(clientId), { cache: 'no-store' });
+      const body = await response.json();
+      Net.available = response.ok && body.enabled === true && body.protocol === PROTOCOL && Array.isArray(body.iceServers) && body.iceServers.length > 0;
+      Net.iceServers = Net.available ? body.iceServers : [];
+    } catch (error) {
+      Net.available = false;
+      Net.iceServers = [];
     }
-  }
-
-  Net.refreshStatus = function () {
-    const base = Net.introUrl();
-    const join = base.indexOf('?') === -1 ? '?' : '&';
-    statusPromise = fetch(base + join + 'action=status&clientId=' + encodeURIComponent(clientId), { cache: 'no-store' })
-      .then(function (response) {
-        if (!response.ok) throw new Error('status');
-        return response.json();
-      })
-      .then(function (body) {
-        const servers = body && body.enabled === true && Array.isArray(body.iceServers) ? body.iceServers : [];
-        Net.available = servers.length > 0;
-        Net.iceServers = Net.available ? servers : [];
-        Net.statusKnown = true;
-        emitAvailability();
-        return Net.available;
-      })
-      .catch(function () {
-        Net.available = false;
-        Net.iceServers = [];
-        Net.statusKnown = true;
-        emitAvailability();
-        return false;
-      });
-    return statusPromise;
+    Net.statusKnown = true;
+    Net.onAvailability?.({ available: Net.available });
+    return Net.available;
   };
 
-  function postJson(body) {
-    return fetch(Net.introUrl(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ clientId: clientId }, body)),
-      cache: 'no-store'
-    }).then(function (response) { return response.json(); });
+  function refreshPeers(link, online) {
+    const previous = Net.peers.get(link.id);
+    if (online) Net.peers.set(link.id, { clientId: link.id, seat: link.seat, profile: link.card?.profile });
+    else Net.peers.delete(link.id);
+    Net.peer = Net.peers.values().next().value || null;
+    Net.peerId = Net.peer?.clientId || null;
+    // The second argument identifies the changed seat, including departures.
+    if (previous || online || link.registered) Net.onPeer?.(online ? Net.peers.get(link.id) : null, link.id);
+    link.registered = online;
+    status(Net.peers.size ? 'connected' : Net.role === 'host' ? 'waiting' : 'connecting');
+  }
+
+  function closeConnection(link) {
+    if (link.cardTimer) clearTimeout(link.cardTimer);
+    link.cardTimer = null;
+    if (link.channel) {
+      link.channel.onopen = link.channel.onclose = link.channel.onmessage = null;
+      try { link.channel.close(); } catch (error) { /* Already closed. */ }
+    }
+    if (link.connection) {
+      link.connection.onicecandidate = link.connection.onconnectionstatechange = link.connection.ondatachannel = null;
+      try { link.connection.close(); } catch (error) { /* Already closed. */ }
+    }
+    link.channel = link.connection = null;
+    link.candidates = [];
+    link.appliedCandidates = 0;
+  }
+
+  function removeLink(id) {
+    const link = links.get(id);
+    if (!link) return;
+    closeConnection(link);
+    links.delete(id);
+    refreshPeers(link, false);
   }
 
   function fail(message) {
-    const code = Net.code;
-    const role = Net.role;
-    manualClose = true;
-    if (typeof Net.onError === 'function') Net.onError(message);
-    Net.state = 'error';
-    emitStatus(message);
-    stopTimers();
-    closePeerConnection();
-    if (authority) {
-      authority.close();
-      authority = null;
-    }
-    if (code && role === 'host') postJson({ action: 'leave', code: code }).catch(function () {});
-    intent = null;
+    Net.leave(true);
+    Net.onError?.(message);
+    // Session cleanup can emit idle; keep the final actionable error visible.
+    status('error', message);
   }
 
-  function stopTimers() {
-    if (pollTimer) clearTimeout(pollTimer);
-    if (checkinTimer) clearTimeout(checkinTimer);
-    if (cardTimer) clearTimeout(cardTimer);
-    if (recoverTimer) clearTimeout(recoverTimer);
-    pollTimer = null;
-    checkinTimer = null;
-    cardTimer = null;
-    recoverTimer = null;
+  function makeLink(id, seat) {
+    const link = { id, seat, connection: null, channel: null, candidates: [], appliedCandidates: 0,
+      session: '', card: null, revision: 0, cardTimer: null, online: false,
+      sendSequence: 0, receiveSequence: 0, retryAt: 0 };
+    links.set(id, link);
+    return link;
   }
 
-  function setPeer(peer) {
-    const changed = !Net.peer || !peer || Net.peer.clientId !== peer.clientId;
-    Net.peer = peer || null;
-    Net.peerId = peer ? peer.clientId : null;
-    if (changed) receiveSequence = 0;
-    if (typeof Net.onPeer === 'function') Net.onPeer(Net.peer);
+  function lost(link) {
+    if (!intent || links.get(link.id) !== link) return;
+    link.online = false;
+    Net.peers.delete(link.id);
+    Net.peer = Net.peers.values().next().value || null;
+    Net.peerId = Net.peer?.clientId || null;
+    link.retryAt = performance.now() + 1500;
+    if (authority) authority.markOffline(link.id);
+    // Keep the host mirror until the authority's offline grace expires.
+    if (Net.role === 'guest') status('connecting', 'DIRECT LINK LOST // REINTRODUCING');
+    else status(Net.peers.size > 0 ? 'connected' : 'waiting', 'DIRECT LINK LOST // REINTRODUCING');
   }
 
-  function deliverRoom(member, message) {
-    if (!member) return;
-    if (member.clientId === clientId) {
-      if (typeof Net.onMessage === 'function') Net.onMessage(message);
-      return;
-    }
-    if (channel && channel.readyState === 'open') {
-      try { channel.send(JSON.stringify(message)); } catch (error) { /* The next introduction retries the room state. */ }
-    }
-  }
-
-  function scheduleCard() {
-    if (cardTimer || manualClose || !Net.code || !peerConnection || !peerConnection.localDescription) return;
-    cardTimer = setTimeout(function () {
-      cardTimer = null;
-      if (manualClose || !peerConnection || !peerConnection.localDescription) return;
-      postJson({
-        action: 'card',
-        code: Net.code,
-        card: {
-          session: localSession,
-          sdp: { type: peerConnection.localDescription.type, sdp: peerConnection.localDescription.sdp },
-          candidates: localCandidates.slice(),
-          profile: intent ? intent.profile : null
-        }
-      }).catch(function () {});
+  function publishCard(link) {
+    if (link.cardTimer || !link.connection?.localDescription || !intent) return;
+    const currentGeneration = generation;
+    link.cardTimer = setTimeout(() => {
+      link.cardTimer = null;
+      if (generation !== currentGeneration || !link.connection?.localDescription) return;
+      const description = link.connection.localDescription;
+      post({ action: 'card', code: Net.code, targetId: link.id,
+        card: { session: link.session, sdp: { type: description.type, sdp: description.sdp },
+          candidates: link.candidates.slice(), profile: intent.profile } }).catch(() => {});
     }, 40);
   }
 
-  function ensurePeerConnection() {
-    if (peerConnection) return peerConnection;
-    const connection = new RTCPeerConnection({ iceServers: Net.iceServers });
-    peerConnection = connection;
-    connection.onicecandidate = function (event) {
-      if (!event.candidate) {
-        scheduleCard();
+  function attachChannel(link, channel) {
+    link.channel = channel;
+    link.receiveSequence = 0;
+    channel.binaryType = 'arraybuffer';
+    channel.onopen = () => {
+      if (!intent || link.channel !== channel) return;
+      if (authority && !authority.setGuest(link.id, link.card?.profile, link.seat)) {
+        removeLink(link.id);
         return;
       }
-      const init = typeof event.candidate.toJSON === 'function' ? event.candidate.toJSON() : {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid,
-        sdpMLineIndex: event.candidate.sdpMLineIndex
-      };
-      localCandidates.push(init);
-      scheduleCard();
+      link.online = true;
+      refreshPeers(link, true);
+      if (Net.role === 'guest') Net.sendControl({ t: 'lobby_profile', profile: intent.profile });
+      Net.onSocketOpen?.(link.id);
     };
-    connection.onconnectionstatechange = function () {
-      if (connection !== peerConnection) return;
-      if (connection.connectionState === 'failed') onLinkLost();
+    channel.onclose = () => { if (link.channel === channel) lost(link); };
+    channel.onmessage = event => {
+      if (link.channel !== channel || !intent) return;
+      let message;
+      try {
+        message = typeof event.data === 'string' ? JSON.parse(event.data) : N.Wire.decode(event.data);
+      } catch (error) { return; }
+      if (!message || typeof message !== 'object') return;
+      if (message.versionMismatch) { fail('INCOMPATIBLE CO-OP VERSION // UPDATE ALL CLIENTS'); return; }
+      if (message.t === 'ctrl') {
+        if (authority) authority.handle(link.id, message.body);
+        return;
+      }
+      if (message.t === 'peer-left') {
+        if (Net.role === 'guest') fail('HOST LEFT // LOBBY CLOSED');
+        return;
+      }
+      if (ROOM_CONTROL.has(message.t)) {
+        if (Net.role === 'guest') Net.onMessage?.(message, link.id);
+        return;
+      }
+      if (typeof message._s === 'number') {
+        if (message._s <= link.receiveSequence) return;
+        link.receiveSequence = message._s;
+      }
+      Net.onMessage?.(message, link.id);
     };
-    connection.ondatachannel = function (event) {
-      attachChannel(event.channel);
+  }
+
+  function connectionFor(link) {
+    const connection = new RTCPeerConnection({ iceServers: Net.iceServers });
+    link.connection = connection;
+    connection.onicecandidate = event => {
+      if (link.connection !== connection) return;
+      if (event.candidate) link.candidates.push(event.candidate.toJSON());
+      publishCard(link);
+    };
+    connection.onconnectionstatechange = () => {
+      if (link.connection === connection && connection.connectionState === 'failed') lost(link);
+    };
+    connection.ondatachannel = event => {
+      if (link.connection === connection) attachChannel(link, event.channel);
     };
     return connection;
   }
 
-  function decodeChannel(data) {
-    if (typeof data === 'string') {
-      try { return JSON.parse(data); } catch (error) { return null; }
+  function syncCandidates(link) {
+    if (!link.connection?.remoteDescription || !Array.isArray(link.card?.candidates)) return;
+    for (const candidate of link.card.candidates.slice(link.appliedCandidates)) {
+      link.connection.addIceCandidate(candidate).catch(() => {});
     }
-    if (!(data instanceof ArrayBuffer) || !N.Wire || !N.Wire.decode) return null;
-    const message = N.Wire.decode(data);
-    if (message && message.versionMismatch) {
-      if (!wireRejected) {
-        wireRejected = true;
-        fail('INCOMPATIBLE CO-OP VERSION // UPDATE BOTH CLIENTS');
-      }
-      return null;
-    }
-    return message;
+    link.appliedCandidates = link.card.candidates.length;
   }
 
-  function attachChannel(nextChannel) {
-    channel = nextChannel;
-    receiveSequence = 0;
-    wireRejected = false;
-    nextChannel.binaryType = 'arraybuffer';
-    nextChannel.onopen = function () {
-      if (channel !== nextChannel) return;
-      onLinkOpen();
-    };
-    nextChannel.onclose = function () {
-      if (channel !== nextChannel) return;
-      channel = null;
-      onLinkLost();
-    };
-    nextChannel.onmessage = function (event) {
-      const message = decodeChannel(event.data);
-      if (!message || typeof message !== 'object') return;
-      if (message.t === 'ctrl') {
-        if (Net.role === 'host' && authority && message.body && Net.peerId) authority.handle(Net.peerId, message.body);
-        return;
-      }
-      if (message.t === 'peer-left') {
-        if (Net.role === 'guest') setPeer(null);
-        return;
-      }
-      if (ROOM_CONTROL[message.t]) {
-        if (Net.role === 'guest' && typeof Net.onMessage === 'function') Net.onMessage(message);
-        return;
-      }
-      receive(message);
-    };
+  async function offer(link) {
+    closeConnection(link);
+    link.session = crypto.randomUUID().replace(/-/g, '');
+    const connection = connectionFor(link);
+    attachChannel(link, connection.createDataChannel('game', { ordered: true }));
+    try {
+      const description = await connection.createOffer();
+      if (link.connection !== connection) return;
+      await connection.setLocalDescription(description);
+      if (link.connection === connection) publishCard(link);
+    } catch (error) { if (link.connection === connection) lost(link); }
   }
 
-  function closePeerConnection() {
-    const current = channel;
-    channel = null;
-    if (current) {
-      current.onopen = null;
-      current.onclose = null;
-      current.onmessage = null;
-      try { current.close(); } catch (error) { /* ignore */ }
-    }
-    if (peerConnection) {
-      peerConnection.onicecandidate = null;
-      peerConnection.onconnectionstatechange = null;
-      peerConnection.ondatachannel = null;
-      try { peerConnection.close(); } catch (error) { /* ignore */ }
-      peerConnection = null;
-    }
-    localCandidates = [];
-    appliedCandidates = 0;
-    if (Net.transport === 'p2p') Net.transport = 'none';
-  }
-
-  function syncCandidates(card) {
-    if (!peerConnection || !peerConnection.remoteDescription || !card || !Array.isArray(card.candidates)) return;
-    const pending = card.candidates.slice(appliedCandidates);
-    appliedCandidates = card.candidates.length;
-    for (let index = 0; index < pending.length; index++) {
-      peerConnection.addIceCandidate(pending[index]).catch(function () {});
+  async function applyCard(link, card) {
+    if (!card || card.protocol !== PROTOCOL) return;
+    const changed = !link.card || card.session !== link.card.session;
+    // A second browser using the same stored identity cannot replace a live ship.
+    // A real reconnect waits until the existing channel reports its loss.
+    if (Net.role === 'host' && changed && link.online) return;
+    link.card = card;
+    link.revision = card.rev;
+    if (!changed) { syncCandidates(link); return; }
+    if (Net.role === 'host' && card.sdp?.type === 'offer') {
+      if (link.online) authority.markOffline(link.id);
+      link.online = false;
+      closeConnection(link);
+      link.session = card.session;
+      authority.holdOfflineGrace(link.id);
+      const connection = connectionFor(link);
+      try {
+        await connection.setRemoteDescription(card.sdp);
+        if (link.connection !== connection) return;
+        syncCandidates(link);
+        const answer = await connection.createAnswer();
+        if (link.connection !== connection) return;
+        await connection.setLocalDescription(answer);
+        if (link.connection === connection) publishCard(link);
+      } catch (error) { if (link.connection === connection) lost(link); }
+    } else if (Net.role === 'guest' && card.sdp?.type === 'answer' && card.session === link.session) {
+      const connection = link.connection;
+      try {
+        await connection.setRemoteDescription(card.sdp);
+        if (link.connection === connection) syncCandidates(link);
+      } catch (error) { /* A newer offer will retry. */ }
     }
   }
 
-  function handleOffer(card) {
-    if (Net.role !== 'host' || !card || !card.sdp) return;
-    localSession = card.session || makeSessionId();
-    closePeerConnection();
-    appliedCandidates = 0;
-    const connection = ensurePeerConnection();
-    if (authority && card.clientId) authority.holdOfflineGrace(card.clientId);
-    connection.setRemoteDescription(card.sdp).then(function () {
-      syncCandidates(card);
-      return connection.createAnswer();
-    }).then(function (answer) {
-      return connection.setLocalDescription(answer);
-    }).then(function () {
-      scheduleCard();
-    }).catch(function () {
-      onLinkLost();
+  function synchronizeRoster(message) {
+    if (message.t !== 'lobby_state') return;
+    const roster = message.phase === 'run' ? Object.fromEntries(Array.from(authority.room.roster).filter(([id]) => id !== clientId)) : null;
+    const key = JSON.stringify(roster);
+    if (key === rosterKey) return;
+    rosterKey = key;
+    const code = Net.code;
+    rosterPromise = rosterPromise.then(() => post({ action: 'roster', code, roster })).then(body => {
+      if (!body.ok) throw new Error('Roster lock failed');
     });
+    rosterPromise.catch(() => { if (intent && Net.code === code) fail('LOBBY ROSTER UPDATE FAILED'); });
   }
 
-  function handleAnswer(card) {
-    if (Net.role !== 'guest' || !peerConnection || !card || !card.sdp) return;
-    // A reload can poll the host's previous answer before this offer is exchanged.
-    if (!localSession || card.session !== localSession) return;
-    peerConnection.setRemoteDescription(card.sdp).then(function () {
-      syncCandidates(card);
-    }).catch(function () {});
-  }
-
-  function applyCard(card) {
-    if (!card || typeof card !== 'object') return;
-    const sessionChanged = !remoteCard || remoteCard.session !== card.session || !remoteCard.sdp || !card.sdp || remoteCard.sdp.type !== card.sdp.type;
-    remoteCard = card;
-    seenPeerRev = card.rev || seenPeerRev;
-    if (card.sdp && sessionChanged) {
-      if (card.sdp.type === 'offer') handleOffer(card);
-      else if (card.sdp.type === 'answer') handleAnswer(card);
-    } else {
-      syncCandidates(card);
-    }
-  }
-
-  function poll() {
-    if (manualClose || !intent || !Net.code) return;
-    postJson({ action: 'poll', code: Net.code, sinceRev: seenPeerRev }).then(function (body) {
-      if (manualClose || !intent) return;
-      if (!body || body.ok === false) {
-        if (body && body.error === 'notfound') fail(Net.role === 'guest' ? 'JOIN CODE NOT FOUND' : 'LOBBY CLOSED');
-        return;
-      }
-      if (Net.role === 'host') {
-        const guestId = body.guestId || '';
-        if (guestId !== negotiatedGuestId) {
-          negotiatedGuestId = guestId;
-          remoteCard = null;
-          seenPeerRev = 0;
-          if (!guestId && authority && authority.room.guest) {
-            authority.clearGuest();
-            if (Net.peer) setPeer(null);
-          }
+  function deliverRoom(member, message) {
+    synchronizeRoster(message);
+    const currentGeneration = generation;
+    const deliver = () => {
+      if (!intent || generation !== currentGeneration) return;
+      if (member.clientId === clientId) Net.onMessage?.(message, clientId);
+      else {
+        const channel = links.get(member.clientId)?.channel;
+        if (channel?.readyState === 'open') {
+          try { channel.send(JSON.stringify(message)); } catch (error) { /* Reconnect resynchronizes. */ }
         }
       }
-      if (body.peerCard) applyCard(body.peerCard);
-    }).catch(function () {});
-  }
-
-  function checkIn() {
-    if (manualClose || Net.role !== 'host' || !Net.code) return;
-    postJson({ action: 'checkin', code: Net.code }).catch(function () {});
-    checkinTimer = setTimeout(checkIn, CHECKIN_MS);
-  }
-
-  function startHousekeeping() {
-    stopTimers();
-    const tick = function () {
-      if (manualClose || !intent) return;
-      poll();
-      pollTimer = setTimeout(tick, POLL_MS);
     };
-    tick();
-    if (Net.role === 'host') checkinTimer = setTimeout(checkIn, CHECKIN_MS);
+    if (message.t === 'launch') rosterPromise.then(deliver).catch(() => {});
+    else deliver();
   }
 
-  function onLinkOpen() {
-    linkUp = true;
-    Net.transport = 'p2p';
-    if (recoverTimer) {
-      clearTimeout(recoverTimer);
-      recoverTimer = null;
-    }
-    setState('connected', 'P2P LINK READY');
-    if (remoteCard && remoteCard.clientId) {
-      if (Net.role === 'host' && authority) {
-        authority.setGuest(remoteCard.clientId, remoteCard.profile);
+  async function poll() {
+    if (!intent || polling) return;
+    polling = true;
+    const currentGeneration = generation;
+    try {
+      const sinceRev = Object.fromEntries(Array.from(links, ([id, link]) => [id, link.revision]));
+      const body = await post({ action: 'poll', code: Net.code, sinceRev });
+      if (generation !== currentGeneration || !intent) return;
+      if (!body.ok || body.protocol !== PROTOCOL) {
+        fail(body.error === 'locked' ? 'MATCH STARTED // ROSTER LOCKED' : 'LOBBY CLOSED OR INCOMPATIBLE');
+        return;
       }
-      setPeer({ clientId: remoteCard.clientId, profile: remoteCard.profile });
-    }
-    if(Net.role==='guest' && intent) Net.sendControl({t:'lobby_profile',profile:intent.profile});
-    if (typeof Net.onSocketOpen === 'function') Net.onSocketOpen();
-  }
-
-  function onLinkLost() {
-    if (manualClose) return;
-    linkUp = false;
-    Net.transport = 'none';
-    if (Net.role === 'host' && authority && remoteCard && remoteCard.clientId) {
-      authority.markOffline(remoteCard.clientId);
-    }
-    setState(Net.role === 'host' && Net.code ? 'waiting' : 'connecting', Net.role === 'host' ? 'DIRECT LINK LOST // REINTRODUCING' : '');
-    if (recoverTimer) return;
-    recoverTimer = setTimeout(function () {
-      recoverTimer = null;
-      if (!manualClose && !linkUp) beginNegotiation();
-    }, REINTRODUCE_MS);
-  }
-
-  function beginNegotiation() {
-    if (manualClose || !intent) return;
-    if (Net.role === 'guest') startOffer();
-  }
-
-  function startOffer() {
-    if (Net.role !== 'guest' || manualClose || !intent) return;
-    closePeerConnection();
-    localSession = makeSessionId();
-    localCandidates = [];
-    const connection = ensurePeerConnection();
-    attachChannel(connection.createDataChannel('game', { ordered: true }));
-    connection.createOffer().then(function (offer) {
-      return connection.setLocalDescription(offer);
-    }).then(function () {
-      scheduleCard();
-    }).catch(function () {
-      onLinkLost();
-    });
-  }
-
-  function receive(message) {
-    if (!message || typeof message !== 'object') return;
-    if (typeof message._s === 'number') {
-      if (message._s <= receiveSequence) return;
-      receiveSequence = message._s;
-    }
-    if (typeof Net.onMessage === 'function') Net.onMessage(message);
-  }
-
-  function busy() {
-    return Net.state === 'connecting' || Net.state === 'connected' || Net.state === 'waiting' || Net.state === 'reconnecting';
-  }
-
-  Net.host = function (profile) {
-    if (busy()) return false;
-    manualClose = false;
-    linkUp = false;
-    remoteCard = null;
-    seenPeerRev = 0;
-    negotiatedGuestId = '';
-    intent = { role: 'host', code: '', profile: normalizeProfile(profile) };
-    Net.role = 'host';
-    Net.code = '';
-    Net.peer = null;
-    Net.peerId = null;
-    Net.transport = 'none';
-    setState('connecting', '');
-    Net.refreshStatus().then(function (ok) {
-      if (!intent || intent.role !== 'host') return null;
-      if (!ok) {
-        fail('CO-OP IS UNAVAILABLE');
-        return null;
+      const present = new Set(body.peers.map(peer => peer.clientId));
+      for (const id of links.keys()) {
+        if (!present.has(id)) {
+          if (authority) authority.clearGuest(id);
+          removeLink(id);
+        }
       }
-      return postJson({ action: 'host' });
-    }).then(function (body) {
-      if (!intent || intent.role !== 'host' || manualClose) return;
-      if (!body || !body.ok || !body.code) {
-        fail('CO-OP IS UNAVAILABLE');
+      for (const peer of body.peers) {
+        const link = links.get(peer.clientId) || makeLink(peer.clientId, peer.seat);
+        if (peer.card) {
+          // Negotiation belongs to this link; a slow ICE/SDP operation must not
+          // prevent the host polling and introducing the other two guests.
+          applyCard(link, peer.card).catch(() => lost(link));
+        }
+        if (Net.role === 'guest' && !link.online && (!link.connection || performance.now() >= link.retryAt && link.retryAt > 0)) {
+          link.retryAt = 0;
+          offer(link);
+        }
+      }
+    } catch (error) { /* Introduction polls retry without discarding the live room. */ }
+    finally { polling = false; }
+  }
+
+  function housekeeping() {
+    if (!intent) return;
+    poll();
+    pollTimer = setTimeout(housekeeping, 500);
+  }
+
+  function begin(role, code, profile) {
+    if (intent) return false;
+    const currentGeneration = ++generation;
+    intent = { role, profile: normalizeProfile(profile) };
+    Net.role = role;
+    Net.code = code;
+    Net.seat = 0;
+    rosterKey = '';
+    rosterPromise = Promise.resolve();
+    status('connecting');
+    Net.refreshStatus().then(async available => {
+      if (generation !== currentGeneration) return;
+      if (!available) { fail('CO-OP IS UNAVAILABLE OR NEEDS AN UPDATE'); return; }
+      const body = await post({ action: role === 'host' ? 'host' : 'join', code });
+      if (generation !== currentGeneration) return;
+      if (!body.ok) {
+        const errors = { full: 'ROOM IS FULL', locked: 'MATCH STARTED // ROSTER LOCKED', version: 'INCOMPATIBLE CO-OP VERSION // UPDATE ALL CLIENTS' };
+        fail(errors[body.error] || 'JOIN CODE NOT FOUND');
         return;
       }
       Net.code = body.code;
-      intent.code = body.code;
-      authority = N.CoopHost.createAuthority();
-      authority.setDeliver(deliverRoom);
-      authority.setOnGuestCleared(function () {
-        if (Net.peer) setPeer(null);
-      });
-      authority.setHost(clientId, intent.profile);
-      authority.handle(clientId, { t: 'lobby_skill', skill: N.Game.settings.skill });
-      setState('waiting', 'ROOM OPEN // SHARE THE CODE');
-      startHousekeeping();
-    }).catch(function () {
-      if (intent) fail('INTRODUCTION UNAVAILABLE');
-    });
+      if (role === 'host') {
+        authority = N.CoopHost.createAuthority();
+        authority.setDeliver(deliverRoom);
+        authority.setOnGuestCleared(id => removeLink(id));
+        authority.setHost(clientId, intent.profile);
+        authority.handle(clientId, { t: 'lobby_skill', skill: N.Game.settings.skill });
+        status('waiting', 'ROOM OPEN // SHARE THE CODE');
+      } else {
+        Net.seat = body.seat;
+        const link = makeLink(body.hostId, 0);
+        offer(link);
+      }
+      housekeeping();
+    }).catch(() => { if (generation === currentGeneration) fail('INTRODUCTION UNAVAILABLE'); });
     return true;
-  };
+  }
 
+  Net.host = profile => begin('host', '', profile);
   Net.join = function (code, profile) {
     const clean = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-    if (clean.length < 4) {
-      fail('JOIN CODE MUST BE 4-6 CHARACTERS');
-      return false;
-    }
-    if (busy()) return false;
-    manualClose = false;
-    linkUp = false;
-    remoteCard = null;
-    seenPeerRev = 0;
-    negotiatedGuestId = '';
-    intent = { role: 'guest', code: clean, profile: normalizeProfile(profile) };
-    Net.role = 'guest';
-    Net.code = clean;
-    Net.peer = null;
-    Net.peerId = null;
-    Net.transport = 'none';
-    setState('connecting', '');
-    Net.refreshStatus().then(function (ok) {
-      if (!intent || intent.role !== 'guest') return null;
-      if (!ok) {
-        fail('CO-OP IS UNAVAILABLE');
-        return null;
-      }
-      return postJson({ action: 'join', code: clean });
-    }).then(function (body) {
-      if (!intent || intent.role !== 'guest' || manualClose) return;
-      if (!body || !body.ok) {
-        fail(body && body.error === 'full' ? 'ROOM IS FULL' : 'JOIN CODE NOT FOUND');
-        return;
-      }
-      setState('connecting', 'OPENING DIRECT LINK');
-      startHousekeeping();
-      startOffer();
-    }).catch(function () {
-      if (intent) fail('INTRODUCTION UNAVAILABLE');
-    });
-    return true;
+    if (clean.length < 4) { fail('JOIN CODE MUST BE 4-6 CHARACTERS'); return false; }
+    return begin('guest', clean, profile);
   };
 
-  Net.send = function (message) {
-    if (!Net.peerId || !message || typeof message !== 'object') return false;
-    if (N.Coop && N.Coop.stampMessage) N.Coop.stampMessage(message);
-    message._s = ++sendSequence;
-    if (channel && channel.readyState === 'open') {
-      const encoded = N.Wire && N.Wire.encode ? N.Wire.encode(message) : null;
-      try {
-        channel.send(encoded || JSON.stringify(message));
-        return true;
-      } catch (error) { /* A dropped link has no relay. */ }
+  Net.send = function (message, targetId) {
+    if (!message || typeof message !== 'object') return false;
+    let sent = false;
+    for (const link of links.values()) {
+      if (targetId && link.id !== targetId || link.channel?.readyState !== 'open') continue;
+      const outgoing = { ...message };
+      N.Coop?.stampMessage?.(outgoing, link.id);
+      outgoing._s = ++link.sendSequence;
+      const encoded = N.Wire?.encode(outgoing);
+      try { link.channel.send(encoded || JSON.stringify(outgoing)); sent = true; }
+      catch (error) { /* Session acknowledgements retry targeted events. */ }
     }
-    return false;
+    return sent;
   };
 
   Net.sendControl = function (message) {
-    if (message && message.t === 'lobby_profile' && intent) intent.profile = normalizeProfile(message.profile);
-    if (message && N.Coop && ['pause_request', 'ready_signal', 'pause_sync'].includes(message.t)) {
+    if (!message || typeof message !== 'object') return false;
+    if (message.t === 'lobby_profile' && intent) intent.profile = normalizeProfile(message.profile);
+    if (N.Coop && ['pause_request', 'ready_signal', 'pause_sync'].includes(message.t)) {
       message.runId = N.Coop.runId;
       message.epoch = N.Coop.pauseEpoch || 0;
     }
-    if (!message || typeof message !== 'object') return false;
-    if (Net.role === 'host' && authority) {
-      authority.handle(clientId, message);
-      return true;
-    }
-    if (channel && channel.readyState === 'open') {
-      try {
-        channel.send(JSON.stringify({ t: 'ctrl', body: message }));
-        return true;
-      } catch (error) { return false; }
-    }
-    return false;
+    if (authority) { authority.handle(clientId, message); return true; }
+    const link = links.values().next().value;
+    if (link?.channel?.readyState !== 'open') return false;
+    try { link.channel.send(JSON.stringify({ t: 'ctrl', body: message })); return true; }
+    catch (error) { return false; }
   };
 
   Net.leave = function (silent) {
-    manualClose = true;
     if (!silent) Net.send({ t: 'bye' });
     if (Net.role === 'guest') Net.sendControl({ t: 'leave' });
-    if (Net.role === 'host' && channel && channel.readyState === 'open') {
-      try { channel.send(JSON.stringify({ t: 'peer-left' })); } catch (error) { /* The guest also sees the lobby row disappear. */ }
+    if (Net.role === 'host') {
+      for (const link of links.values()) {
+        try { if (link.channel?.readyState === 'open') link.channel.send(JSON.stringify({ t: 'peer-left' })); }
+        catch (error) { /* Guests also observe the removed introduction row. */ }
+      }
     }
-    const code = Net.code;
-    if (code) postJson({ action: 'leave', code: code }).catch(function () {});
-    if (authority) {
-      authority.close();
-      authority = null;
-    }
-    closePeerConnection();
-    stopTimers();
+    if (Net.code) post({ action: 'leave', code: Net.code }).catch(() => {});
+    generation++;
     intent = null;
-    negotiatedGuestId = '';
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    authority?.close();
+    authority = null;
+    for (const link of links.values()) closeConnection(link);
+    links.clear();
+    Net.peers.clear();
+    Net.peer = Net.peerId = null;
     Net.role = 'solo';
     Net.code = '';
-    Net.transport = 'none';
-    linkUp = false;
-    remoteCard = null;
-    setPeer(null);
-    setState('idle', 'CO-OP LINK CLOSED');
+    Net.seat = 0;
+    status('idle', 'CO-OP LINK CLOSED');
   };
 
   Net.reconnect = function () {
-    if (!intent || manualClose) return false;
-    linkUp = false;
-    beginNegotiation();
+    if (!intent || Net.role !== 'guest') return false;
+    const link = links.values().next().value;
+    if (!link) return false;
+    link.online = false;
+    offer(link);
     return true;
   };
-
-  Net.label = function () {
-    if (Net.transport === 'p2p') return 'P2P';
-    return 'OFFLINE';
-  };
-
+  Net.label = () => Net.transport === 'p2p' ? 'P2P' : 'OFFLINE';
   Net.refreshStatus();
 })();

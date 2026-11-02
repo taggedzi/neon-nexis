@@ -37,7 +37,7 @@ in [the decision log](../decisions.md).
 | 025 | [Track player stats and an end-of-run tally](025-player-stats.md) | Done |
 | 026 | [Add an enemy logbook](026-enemy-logbook.md) | Done |
 | 027 | [Enemy friendly fire declined](027-enemy-friendly-fire.md) | Done |
-| 028 | [Raise co-op capacity to 4](028-coop-four-players.md) | Planned |
+| 028 | [Raise co-op capacity to 4](028-coop-four-players.md) | Implemented — needs validation |
 | 029 | [Give ships stats and decide what colors mean](029-ship-stats-and-colors.md) | Planned |
 | 030 | [Add an About page](030-about-page.md) | Planned |
 | 031 | [Add a README screenshot](031-readme-screenshot.md) | Planned |
@@ -62,7 +62,10 @@ Issue 026 is Done: the lifetime enemy logbook follows owner-approved discovery
 and co-op credit rules, with profile migration, backup and browser checks passing.
 Issue 027 is Done as a decision: the owner declined enemy friendly fire on
 2026-11-02; no gameplay implementation is planned.
-Issues 028 through 037 remain plans only and do not change play.
+Issue 028 is implemented with four seats, a locked starting roster, and optional
+host-approved saved ships. Automated Chromium/Firefox checks passed; owner
+multiplayer/WAN and real-player performance validation remain pending.
+Issues 029 through 037 remain plans only and do not change play.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
 2026-11-01. See the issue follow-up for evidence.

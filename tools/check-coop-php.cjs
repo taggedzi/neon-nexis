@@ -114,7 +114,7 @@ async function post(base, body) {
   const response = await fetch(base + '/php/coop.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ protocol: 2, ...body })
   });
   const text = await response.text();
   return { status: response.status, text, body: JSON.parse(text) };
@@ -236,12 +236,19 @@ async function main() {
   check(host.body.ok === true && /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}$/.test(host.body.code), 'host room code');
   const code = host.body.code;
   const columns = sql(db, 'columns');
-  check(columns === 'code host_id guest_id host_card guest_card created_at checked_in_at', 'lobby columns are introduction only');
+  check(columns === 'code host_id guest_id host_card guest_card created_at checked_in_at protocol roster', 'lobby columns are introduction only');
   const guestId = 'nn_' + 'cd'.repeat(16);
   const joined = await post(live.base, { action: 'join', code, clientId: guestId });
   check(joined.body.ok === true && joined.body.hostId === clientId, 'guest join');
+  const extraIds = ['nn_second', 'nn_third'];
+  for (const [index, id] of extraIds.entries()) {
+    const extra = await post(live.base, { action: 'join', code, clientId: id });
+    check(extra.body.ok && extra.body.seat === index + 2, 'allocate distinct guest seat');
+  }
   const other = await post(live.base, { action: 'join', code, clientId: 'nn_other' });
-  check(other.body.ok === false && other.body.error === 'full', 'second guest is refused');
+  check(other.body.ok === false && other.body.error === 'full', 'fourth guest is refused');
+  const oldClient = await post(live.base, { action: 'join', code, clientId: 'nn_old', protocol: 1 });
+  check(oldClient.body.error === 'version', 'previous protocol is explicitly refused');
   sql(db, 'age-checkin', code);
   const guestCheck = await post(live.base, { action: 'checkin', code, clientId: guestId });
   check(guestCheck.body.ok === false, 'guest check-in is not a host check-in');
@@ -256,20 +263,47 @@ async function main() {
   });
   check(firstCard.body.ok === true && firstCard.body.rev === 1, 'first connection card');
   const seen = await post(live.base, { action: 'poll', code, clientId, sinceRev: 0 });
-  check(seen.body.peerCard.sdp.sdp === 'v=0 offer' && seen.body.peerCard.rev === 1, 'host reads the guest card');
+  check(seen.body.peers[0].card.sdp.sdp === 'v=0 offer' && seen.body.peers[0].card.rev === 1, 'host reads the guest card');
   check(!JSON.stringify(seen.body).includes('shots') && !JSON.stringify(seen.body).includes('pause'), 'poll does not relay gameplay or pause');
   const second = await post(live.base, {
     action: 'card', code, clientId: guestId,
     card: { session: 'two', sdp: { type: 'offer', sdp: 'v=0 again' }, candidates: [{ candidate: 'cand-2' }] }
   });
   const replacement = await post(live.base, { action: 'poll', code, clientId, sinceRev: 1 });
-  check(second.body.rev === 2 && replacement.body.peerCard.session === 'two', 'replacement card while the row exists');
+  check(second.body.rev === 2 && replacement.body.peers[0].card.session === 'two', 'replacement card while the row exists');
+
+  const answer = await post(live.base, { action: 'card', code, clientId, targetId: guestId,
+    card: { session: 'two', sdp: { type: 'answer', sdp: 'answer for first' } } });
+  check(answer.body.ok, 'host posts targeted answer');
+  const firstView = await post(live.base, { action: 'poll', code, clientId: guestId });
+  const secondView = await post(live.base, { action: 'poll', code, clientId: extraIds[0] });
+  check(firstView.body.peers[0].card.sdp.sdp === 'answer for first', 'intended guest receives answer');
+  check(secondView.body.peers[0].card === null, 'another guest cannot receive that answer');
+  const roster = { [guestId]: 1, [extraIds[0]]: 2, [extraIds[1]]: 3 };
+  const unauthorized = await post(live.base, { action: 'roster', code, clientId: guestId, roster });
+  check(!unauthorized.body.ok, 'guest cannot lock roster');
+  check((await post(live.base, { action: 'roster', code, clientId, roster })).body.ok, 'host locks starting roster');
+  await post(live.base, { action: 'leave', code, clientId: extraIds[0] });
+  check((await post(live.base, { action: 'join', code, clientId: 'nn_other' })).body.error === 'locked', 'empty seat is reserved during run');
+  const returning = await post(live.base, { action: 'join', code, clientId: extraIds[0] });
+  check(returning.body.ok && returning.body.seat === 2, 'starting player reclaims same seat');
+  check((await post(live.base, { action: 'roster', code, clientId, roster: null })).body.ok, 'host unlocks between runs');
+  for (const id of extraIds) await post(live.base, { action: 'leave', code, clientId: id });
 
   const guestLeave = await post(live.base, { action: 'leave', code, clientId: guestId });
   const still = sql(db, 'guest');
   check(guestLeave.body.deleted === false && still.startsWith('1 none'), 'guest leave keeps the lobby');
   const hostLeave = await post(live.base, { action: 'leave', code, clientId });
   check(hostLeave.body.deleted === true && sql(db, 'count') === '0', 'host leave deletes the lobby');
+
+  const pendingRoom = await post(live.base, { action: 'host', clientId });
+  const pendingCode = pendingRoom.body.code;
+  await post(live.base, { action: 'join', code: pendingCode, clientId: guestId });
+  await post(live.base, { action: 'join', code: pendingCode, clientId: extraIds[0] });
+  await post(live.base, { action: 'roster', code: pendingCode, clientId, roster: { [guestId]: 1 } });
+  check((await post(live.base, { action: 'poll', code: pendingCode, clientId: extraIds[0] })).body.error === 'locked', 'an unfinished introduction is refused when launch locks a smaller roster');
+  check((await post(live.base, { action: 'join', code: pendingCode, clientId: extraIds[0] })).body.error === 'locked', 'a preallocated seat cannot bypass the locked roster');
+  await post(live.base, { action: 'leave', code: pendingCode, clientId });
 
   const doomed = await post(live.base, { action: 'host', clientId });
   const doomedCode = doomed.body.code;

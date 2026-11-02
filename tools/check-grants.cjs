@@ -50,6 +50,7 @@ const player = {
   dead: false
 };
 const guest = {
+  clientId: 'guest',
   x: 0,
   y: 0,
   dead: false,
