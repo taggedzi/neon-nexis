@@ -53,7 +53,9 @@ in [the decision log](../decisions.md).
 Issue 020 is done. It adds a voluntary save-file backup and does not change
 combat. Issues 021 through 037 are plans only. They do not change how the game
 plays.
-Issue 019 is done. The owner played it on 2026-11-01 and approved it.
+Issue 019 is done, including the crosshair reset follow-up. The fix passed
+the full automated suite, and the owner confirmed it works perfectly on
+2026-11-01. See the issue follow-up for evidence.
 Issue 017 keeps the TURN REST password formula and does not change play.
 Issue 018 overrides a development-only dependency and does not change play.
 The numeric order is the proposed priority in [the todo list](../TODO.md).

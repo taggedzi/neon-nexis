@@ -77,6 +77,32 @@ test('playfield click locks the pointer and pause releases it', async ({ page, b
   expect(errors).toEqual([]);
 });
 
+test('repeated firing preserves the aim reached while locked', async ({ page }) => {
+  const errors = await startRun(page);
+  await page.mouse.click(400, 420);
+  await expect.poll(() => page.evaluate(() => document.pointerLockElement?.id)).toBe('game');
+  await page.mouse.move(560, 300);
+  const aim = await page.evaluate(() => {
+    const { x, y } = window.NEON.Input.getMouse();
+    return { x, y };
+  });
+  expect(Math.abs(aim.x - 400) + Math.abs(aim.y - 420)).toBeGreaterThan(20);
+
+  for (let press = 0; press < 3; press++) {
+    await page.mouse.down();
+    expect(await page.evaluate(() => {
+      const { x, y, down } = window.NEON.Input.getMouse();
+      return { x, y, down };
+    })).toEqual({ ...aim, down: true });
+    await page.mouse.up();
+    expect(await page.evaluate(() => {
+      const { x, y, down } = window.NEON.Input.getMouse();
+      return { x, y, down };
+    })).toEqual({ ...aim, down: false });
+  }
+  expect(errors).toEqual([]);
+});
+
 test('turning capture off still pauses when focus leaves', async ({ page }) => {
   const errors = await startRun(page);
   await page.evaluate(() => {
