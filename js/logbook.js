@@ -54,9 +54,12 @@
   B.spawned = function(enemy) {
     if (!enemy || C.isGuest() || excluded()) { return; }
     own(enemy.style);
-    if (C.isHost() && peerId()) {
-      B.selectPeer(peerId());
-      entry(peers.get(peerId()), enemy.style);
+    if (C.isHost()) {
+      for (const player of C.remotePlayers) {
+        const id = player.clientId || player.statsPeerId || peerId();
+        B.selectPeer(id);
+        if (peers.has(id)) entry(peers.get(id), enemy.style);
+      }
     }
   };
   B.destroyed = function(enemy, player) {
@@ -99,12 +102,15 @@
     }
   };
   B.send = function(force = false) {
-    if (!C.isHost() || !peerId()) { return; }
+    if (!C.isHost()) { return; }
     const now = performance.now();
     if (!force && now - lastSend < 500) { return; }
     lastSend = now;
-    B.selectPeer(peerId());
-    N.Net.send({t: 'book_sync', book: peers.get(peerId()) || {}});
+    for (const player of C.remotePlayers) {
+      const id = player.clientId || player.statsPeerId || peerId();
+      B.selectPeer(id);
+      N.Net.send({t: 'book_sync', book: peers.get(id) || {}}, id);
+    }
   };
   function wrap(object, name, action) {
     const original = object[name];

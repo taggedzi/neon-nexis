@@ -23,7 +23,7 @@ for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
 
 const N = sandbox.NEON;
 const Wire = N.Wire;
-assert.equal(Wire.VERSION, 5);
+assert.equal(Wire.VERSION, 6);
 assert.equal(typeof Wire.encode, 'function');
 assert.equal(typeof Wire.decode, 'function');
 
@@ -38,6 +38,8 @@ function stable(value) {
 }
 
 function stamp(message, host) {
+  message._seat = host ? 0 : 3;
+  if (host) message._targetSeat = 3;
   message._sector = 4;
   message._life = 1;
   message._run = 7;
@@ -206,7 +208,13 @@ const state = stamp({
   pickupRadius: 134.9
 }, true);
 const stateBytes = roundTrip(state);
-assert.ok(stateBytes <= 64, 'state ' + stateBytes);
+assert.ok(stateBytes <= 66, 'state ' + stateBytes);
+
+const avatar = { ...state, seconds: null };
+for (const key of ['t', '_s', '_run', '_sector', '_life', '_targetLife', '_targetSeat']) delete avatar[key];
+const avatarsBytes = roundTrip(stamp({ t: 'avatars', players: [avatar, { ...avatar, _seat: 1 }, { ...avatar, _seat: 2 }] }, true));
+assert.ok(avatarsBytes <= 190, 'three remote avatars ' + avatarsBytes);
+assert.equal(Wire.encode(stamp({ t: 'avatars', players: [avatar, avatar] }, true)), null, 'duplicate avatar seats stay out of binary');
 
 const deathState = stamp({
   t: 'state',
@@ -396,7 +404,7 @@ assert.equal(Wire.encode(stamp({
 const encoded = Wire.encode(state);
 const mismatch = new Uint8Array(encoded.byteLength);
 mismatch.set(new Uint8Array(encoded));
-mismatch[0] = 1;
+mismatch[0] = 5;
 const mismatchResult = Wire.decode(mismatch.buffer);
 assert.equal(mismatchResult.versionMismatch, true);
 assert.deepEqual(Object.keys(mismatchResult), ['versionMismatch']);

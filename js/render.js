@@ -732,11 +732,13 @@ function drawHUD(c,theme){
     txt(c,Math.ceil(frac*100)+'%',bx+bw,by+bh/2,7*u,'#fff','right',FONT_M,700);
   }
   // co-op teammate status above the weapon card
-  if(N.Coop&&N.Coop.isActive()&&N.Coop.remotePlayers[0]){
-    const mate=N.Coop.remotePlayers[0];
+  if(N.Coop&&N.Coop.isActive()){
+    for(const [index,mate] of N.Coop.remotePlayers.entries()){
     const mw=Math.min(300*u,G.w*.58),mh=44*u;
     const weaponTop=G.h-14*u-(compact?62*u:70*u);
-    const mbx=14*u,mby=weaponTop-10*u-mh;
+    // Keep the DOM respawn line clear at every canvas HUD scale.
+    const stackIndex=N.Coop.remotePlayers.length-1-index;
+    const mbx=14*u,mby=weaponTop-48-mh-stackIndex*(mh+8*u);
     panel(c,mbx,mby,mw,mh,'rgba(2,8,14,.76)',N.withAlpha(mate.shipColor||'#00f0ff',.35),7*u);
     txt(c,(mate.name||'PLAYER 2')+'  //  '+(N.Net?N.Net.label():'LINK'),mbx+10*u,mby+12*u,8*u,mate.shipColor||'#00f0ff','left',FONT_M,700);
     const mhp=clamp(mate.hp/Math.max(1,mate.stats.maxHp),0,1);
@@ -748,6 +750,7 @@ function drawHUD(c,theme){
     c.fillStyle='#00f0ff';c.fillRect(mhx,mhy+7*u,mhw*msh,2.5*u);
     txt(c,'HP '+Math.ceil(mate.hp)+'/'+Math.round(mate.stats.maxHp),mhx,mby+36*u,6.5*u,N.withAlpha('#7394a8',.95),'left',FONT_M);
     txt(c,'SHIELD '+Math.ceil(mate.shield),mbx+mw-10*u,mby+36*u,6.5*u,N.withAlpha('#00f0ff',.8),'right',FONT_M);
+    }
   }
   // bottom-left weapon card
   const active=p.weapons[p.activeWeapon];

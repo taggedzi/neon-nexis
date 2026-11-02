@@ -394,3 +394,19 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   [issue 027](work-to-be-done/027-enemy-friendly-fire.md).
 - Supersedes: The unapproved feature proposals and open questions in issue 027.
   Any future implementation requires a new owner decision.
+
+## 2026-11-02 — Four-player co-op scope
+
+- Decision: Fixed capacity of four, actual roster determined by connected ready
+  players at launch; no count selector. Lock that roster during each run and
+  allow its participants to reconnect. Use a host-centered star and a new wire
+  version that refuses older clients. Keep respawn and difficulty rules unchanged.
+- Rationale: The owner wants invitations to determine group size and explicit
+  control over bringing earned ships into a match.
+- Approval: Owner instruction and answers in chat on 2026-11-02; see
+  [issue 028](work-to-be-done/028-coop-four-players.md).
+- Consequences: Host-controlled saved loadouts default off. When enabled, each
+  player explicitly opts into a saved ship; otherwise they start fresh. Protocol,
+  PHP introduction, and client updates must ship together. Merge is authorized;
+  deployment remains separate. Owner multiplayer validation is still required.
+- Supersedes: Issue 028's proposed count selector and per-player respawn formula.

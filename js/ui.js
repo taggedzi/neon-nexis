@@ -490,6 +490,7 @@ UI.updateLobby=function(){
   if(lobby&&N.Net.code){
     N.LoadoutUI.updateCoop(lobby);
     const ready=lobby.ready.includes(N.Net.clientId);
+    $('coop-capacity').textContent=lobby.members.length+' / 4 PLAYERS CONNECTED // '+(lobby.phase==='lobby'?'EVERYONE MUST BE READY':'ROSTER LOCKED FOR THIS RUN');
     const skill=lobby.skill||'medium';
     // Preserve focus while periodic lobby updates refresh the selected skill.
     const choices=$('coop-skills');
@@ -888,16 +889,18 @@ UI.updateCoopPause=function(data){
   if(!coop||!coop.isActive())return;
   const ready=Array.isArray(data&&data.ready)?data.ready:[];
   const selfId=N.Net&&N.Net.clientId;
-  const peerId=coop._peerId;
-  const selfReady=!!selfId&&ready.indexOf(selfId)>=0;
-  const peerReady=!!peerId&&ready.indexOf(peerId)>=0;
+  const selfReady=!!selfId&&ready.includes(selfId);
   const statusEl=$('pause-coop-status');
   if(statusEl){
-    const selfLabel=coop.host?'PLAYER 1 (YOU)':'PLAYER 2 (YOU)';
-    const peerLabel=coop.host?'PLAYER 2':'PLAYER 1';
-    statusEl.innerHTML=
-      '<span class="'+(selfReady?'ready':'')+'">'+selfLabel+': '+(selfReady?'READY':'WAITING')+'</span>'+
-      '<span class="'+(peerReady?'ready':'')+'">'+peerLabel+': '+(peerReady?'READY':'WAITING')+'</span>';
+    const members=coop.lobby?.members||[];
+    const rows=members.map(member=>{
+      const row=document.createElement('span');
+      const isReady=ready.includes(member.clientId);
+      row.className=isReady?'ready':'';
+      row.textContent='PLAYER '+(member.seat+1)+(member.clientId===selfId?' (YOU)':'')+': '+(isReady?'READY':'WAITING');
+      return row;
+    });
+    statusEl.replaceChildren(...rows);
   }
   const resumeBtn=$('btn-resume');
   if(resumeBtn){resumeBtn.textContent=selfReady?'WAITING FOR PLAYERS':'READY';resumeBtn.disabled=selfReady;}

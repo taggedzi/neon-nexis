@@ -15,16 +15,14 @@
   C.remainingRespawns = 4;
   C.records = new Map();
   C.lastGame = null;
-  let syncPending = false;
+  const setups = new Map();
+  const revives = new Map();
   let lastNetworkAt = 0;
   let localLife = 0;
-  let guestLife = 0;
   let deathPending = null;
-  let respawnPending = null;
   let returnPending = false;
   let launchSetup = false;
   let syncSerial = 0;
-  let lastSyncAt = -Infinity;
   let receivedSync = -1;
   let awaitingWorld = null;
   let eventSerial = 0;
@@ -38,7 +36,7 @@
     result.weapons = player.weapons.map(w => ({ id: w.id, tier: w.tier, level: w.level }));
     result.rewards = copy(local ? N.Rewards.snapshot() : (player.rewards || { pending: [] }));
     result.pendingLevelUps = local ? G.pendingLevelUps : (player.pendingLevelUps || 0);
-    result.life = local ? localLife : guestLife;
+    result.life = local ? localLife : (player.coopLife || 0);
     result.acceptedEvents = local ? Array.from(acceptedEvents) : (player.acceptedEvents || []);
     result.respawnSeconds = player.respawnSeconds ?? null;
     result.acceptedGrants = local ? Array.from(C._acceptedGrants) : (player.acceptedGrants || []);
@@ -72,6 +70,7 @@
     player.tx = player.x;
     player.ty = player.y;
     player.ta = player.aim;
+    if (!local) player.coopLife = data.life;
     if (local) {
       localLife = data.life || 0;
       acceptedEvents = new Set(player.acceptedEvents);
@@ -84,28 +83,30 @@
   }
 
   function rememberGuest() {
-    const player = C.guestMirror();
-    if (player && C._peerId) {
-      C.records.set(C._peerId, { runId: C.runId, sector: G.level.number, player: snapshot(player, false) });
+    for (const player of C.remotePlayers) {
+      if (player.clientId) C.records.set(player.clientId, {
+        runId: C.runId, sector: G.level.number, player: snapshot(player, false)
+      });
     }
   }
 
-  function attachGuest() {
-    if (!C.isHost() || !N.Net.peer) return;
-    const retained = C.records.get(N.Net.peer.clientId);
-    const profile=C.lobby.members.find(member=>member.clientId===N.Net.peer.clientId)?.profile||N.Net.peer.profile;
-    const player = C.makeRemotePlayer(profile, G.level, 1);
-    player.statsPeerId=N.Net.peer.clientId;
-    N.PlayerStats?.selectPeer(N.Net.peer.clientId);
-    N.Logbook?.selectPeer(N.Net.peer.clientId, true);
-    if(profile.loadout && C.lobby.allowLoadouts && G.run.skill!=='hardcore'){
-      N.Loadouts.apply(player,profile.loadout);
-      player.pendingLevelUps=Math.max(0,player.level-1-player.core.length);
+  function attachGuest(peer) {
+    if (!C.isHost() || !peer) return;
+    const retained = C.records.get(peer.clientId);
+    const profile = C.lobby.members.find(member => member.clientId === peer.clientId)?.profile || peer.profile;
+    const player = C.makeRemotePlayer(profile, G.level, peer.seat);
+    player.clientId = player.statsPeerId = peer.clientId;
+    player.seat = peer.seat;
+    player.name = 'PLAYER ' + (peer.seat + 1);
+    player.coopLife = 0;
+    N.PlayerStats?.selectPeer(peer.clientId);
+    N.Logbook?.selectPeer(peer.clientId, true);
+    if (profile.loadout && C.lobby.allowLoadouts && G.run.skill !== 'hardcore') {
+      N.Loadouts.apply(player, profile.loadout);
+      player.pendingLevelUps = Math.max(0, player.level - 1 - player.core.length);
     }
-    guestLife = 0;
     if (retained && retained.runId === C.runId) {
       restore(player, retained.player, false);
-      guestLife = retained.player.life;
       if (retained.sector !== G.level.number) {
         const spawn = G.level.layout ? G.level.layout.spawn : { x: G.level.cx, y: G.level.cy };
         player.x = player.tx = spawn.x;
@@ -113,32 +114,32 @@
         player.respawnSeconds = null;
       }
     }
-    C.remotePlayers = [player];
-    C._peerId = N.Net.peer.clientId;
-    C.peerProfile = N.Net.peer.profile;
-    syncPending = true;
-    syncSerial++;
-    lastSyncAt = -Infinity;
+    C.remotePlayers = C.remotePlayers.filter(item => item.clientId !== peer.clientId);
+    C.remotePlayers.push(player);
+    C.remotePlayers.sort((a, b) => a.seat - b.seat);
+    setups.set(peer.clientId, { serial: ++syncSerial, lastAt: -Infinity });
     C.requestGlobalPause();
     C.applyGlobalPause(N.Net.clientId);
     sendSync();
   }
 
   function sendSync() {
-    const player = C.guestMirror();
-    if (!player || !syncPending) return;
     const now = performance.now();
-    if (now - lastSyncAt < 1000) return;
-    lastSyncAt = now;
-    N.Net.send({ t: 'session_sync', syncId: syncSerial, seed: G.run.seed, level: G.level.number,
-      host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
-      autoReady: launchSetup, statsPeer: N.PlayerStats?.peerRow(N.Net.peerId) || null, run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
-      complete: G.mode === 'complete', summary: G.lastSummary });
-    C.sendWorld();
-    const hazards = C.captureHazards();
-    const total = Math.max(1, Math.ceil(hazards.length / 24));
-    for (let index = 0; index < total; index++) {
-      N.Net.send({ t: 'sync_entities', syncId: syncSerial, index, total, entries: hazards.slice(index * 24, (index + 1) * 24) });
+    for (const [id, setup] of setups) {
+      const player = C.guestMirror(id);
+      if (!player || now - setup.lastAt < 1000) continue;
+      setup.lastAt = now;
+      N.Net.send({ t: 'session_sync', syncId: setup.serial, seed: G.run.seed, level: G.level.number,
+        host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
+        autoReady: launchSetup, statsPeer: N.PlayerStats?.peerRow(id) || null,
+        run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
+        complete: G.mode === 'complete', summary: G.lastSummary }, id);
+      C.sendWorld(id);
+      const hazards = C.captureHazards();
+      const total = Math.max(1, Math.ceil(hazards.length / 24));
+      for (let index = 0; index < total; index++) {
+        N.Net.send({ t: 'sync_entities', syncId: setup.serial, index, total, entries: hazards.slice(index * 24, (index + 1) * 24) }, id);
+      }
     }
   }
 
@@ -153,14 +154,19 @@
     if (setup.autoReady) C.sendReady();
   }
 
-  C.stampMessage = function (message) {
+  C.stampMessage = function (message, targetId) {
     message._run = C.runId;
     message._sector = G.level ? G.level.number : 0;
     message._life = localLife;
-    if (C.host) message._targetLife = guestLife;
+    message._seat = N.Net.seat || 0;
+    if (C.host) {
+      const target = C.guestMirror(targetId);
+      message._targetLife = target?.coopLife || 0;
+      message._targetSeat = target?.seat;
+    }
     if (C.isHost() && ['hit', 'heal', 'kill', 'xp'].includes(message.t) && !message.eventId) {
       message.eventId = ++eventSerial;
-      pendingEvents.set(message.eventId, { owner: C._peerId, message: copy(message) });
+      pendingEvents.set(message.eventId, { owner: targetId, message: copy(message) });
     }
     if (C.isGuest() && G.player && message.t === 'grant_ack') message.participant = deathPending || snapshot(G.player, true);
     if (C.isGuest() && G.player && message.t === 'state' && deathPending) message.participant = deathPending;
@@ -183,8 +189,8 @@
     C.resetPauseState();
     C.remotePlayers = [];
     deathPending = null;
-    respawnPending = null;
-    syncPending = false;
+    revives.clear();
+    setups.clear();
     G.setMode('menu');
     N.Input.resetFire();
     if (N.UI) N.UI.showCoop();
@@ -208,28 +214,29 @@
     acceptedEvents.clear();
     C._acceptedGrants = new Set();
     C._grantSerial = 0;
-    localLife = guestLife = 0;
+    localLife = 0;
+    setups.clear();
+    revives.clear();
     C.remainingRespawns = C.lobby.respawns;
     C.resetPauseState();
-    launchSetup = !!N.Net.peer;
+    launchSetup = N.Net.peers.size > 0;
     const started = originalStartHost();
-    if (started && N.Net.peer) attachGuest();
+    if (started) {
+      for (const peer of N.Net.peers.values()) attachGuest(peer);
+    }
     return started;
   };
 
-  C.onPeer = function (peer) {
+  C.onPeer = function (peer, clientId) {
     if (C.isHost()) {
       rememberGuest();
       if (!peer) {
-        C.remotePlayers = [];
-        C._peerId = null;
-        C.peerProfile = null;
-        syncPending = false;
-        respawnPending = null;
+        C.remotePlayers = C.remotePlayers.filter(player => player.clientId !== clientId);
+        setups.delete(clientId);
+        revives.delete(clientId);
         if (G.mode === 'complete') C.resetPauseState();
-        else C.applyGlobalResume();
-      } else if (peer.clientId !== C._peerId || !C.remotePlayers.length) {
-        attachGuest();
+      } else {
+        attachGuest(peer);
       }
     } else if (C.isGuest() && !peer) {
       C.endSession('HOST LEFT // LOBBY CLOSED');
@@ -328,9 +335,10 @@
       replaceShip(player);
       if (player === G.player) localLife++;
       else {
-        guestLife++;
-        respawnPending = snapshot(player, false);
-        N.Net.send({ t: 'revive', player: respawnPending, pool: C.remainingRespawns });
+        player.coopLife = (player.coopLife || 0) + 1;
+        const replacement = snapshot(player, false);
+        revives.set(player.clientId, replacement);
+        N.Net.send({ t: 'revive', player: replacement, pool: C.remainingRespawns }, player.clientId);
       }
       rememberGuest();
       C.requestGlobalPause();
@@ -340,9 +348,10 @@
   };
 
   function sendLives() {
-    const guest = C.guestMirror();
-    N.Net.send({ t: 'lives', pool: C.remainingRespawns,
-      seconds: guest ? guest.respawnSeconds : null, hostSeconds: G.player.respawnSeconds });
+    for (const player of C.remotePlayers) {
+      N.Net.send({ t: 'lives', pool: C.remainingRespawns,
+        seconds: player.respawnSeconds, hostSeconds: G.player.respawnSeconds }, player.clientId);
+    }
   }
 
   C.cameraTarget = function () {
@@ -362,16 +371,17 @@
     if (C.host) {
       sendSync();
       sendLives();
-      if (!syncPending) {
-        for (const [id, event] of pendingEvents) {
-          if (event.message._run !== C.runId || event.message._sector !== G.level.number) pendingEvents.delete(id);
-          else if (event.owner === C._peerId) {
-            if (event.message._targetLife !== guestLife) pendingEvents.delete(id);
-            else N.Net.send(copy(event.message));
-          }
+      for (const [id, event] of pendingEvents) {
+        if (event.message._run !== C.runId || event.message._sector !== G.level.number) pendingEvents.delete(id);
+        else if (!setups.has(event.owner)) {
+          const player = C.guestMirror(event.owner);
+          if (player && event.message._targetLife !== player.coopLife) pendingEvents.delete(id);
+          else if (player) N.Net.send(copy(event.message), event.owner);
         }
       }
-      if (respawnPending) N.Net.send({ t: 'revive', player: respawnPending, pool: C.remainingRespawns });
+      for (const [id, player] of revives) {
+        N.Net.send({ t: 'revive', player, pool: C.remainingRespawns }, id);
+      }
       rememberGuest();
     } else if (deathPending) {
       N.Net.send({ t: 'death', player: deathPending });
@@ -381,9 +391,47 @@
     C.sendState();
   };
 
+  function avatarState(player, seat) {
+    const state = { _seat: seat, maxHp: player.stats.maxHp, maxShield: player.stats.maxShield,
+      pickupRadius: player.stats.pickupRadius || 95, magnet: !!player.buffs?.magnet,
+      seconds: player.respawnSeconds ?? null };
+    for (const key of ['name', 'x', 'y', 'vx', 'vy', 'aim', 'heading', 'hp', 'shield', 'level', 'dead', 'invuln', 'shipType', 'shipColor']) {
+      state[key] = player[key];
+    }
+    return state;
+  }
+
+  const originalState = C.sendState;
+  C.sendState = function () {
+    if (!C.isHost()) return originalState();
+    if (!G.player) return;
+    const players = [avatarState(G.player, 0), ...C.remotePlayers.map(player => avatarState(player, player.seat))];
+    for (const player of C.remotePlayers) {
+      N.Net.send({ t: 'avatars', players: players.filter(state => state._seat !== player.seat) }, player.clientId);
+    }
+  };
+
+  function applyAvatars(message) {
+    if (!C.isGuest() || !Array.isArray(message.players) || message.players.length > 3) return;
+    const seen = new Set();
+    for (const state of message.players) {
+      if (!Number.isInteger(state._seat) || state._seat < 0 || state._seat > 3 || state._seat === N.Net.seat || seen.has(state._seat)) return;
+      seen.add(state._seat);
+    }
+    C.remotePlayers = message.players.map(state => {
+      const player = C.remotePlayers.find(item => item.seat === state._seat) || C.makeRemotePlayer(state, G.level, state._seat);
+      player.seat = state._seat;
+      return player;
+    });
+    for (const state of message.players) {
+      C.applyRemoteState(state);
+      C.remotePlayers.find(player => player.seat === state._seat).respawnSeconds = state.seconds;
+    }
+  }
+
   const originalReady = C.sendReady;
   C.sendReady = function () {
-    if ((C.isHost() && syncPending) || (C.isGuest() && awaitingWorld)) return false;
+    if ((C.isHost() && setups.size > 0) || (C.isGuest() && awaitingWorld)) return false;
     return originalReady();
   };
 
@@ -394,7 +442,7 @@
     C._acceptedGrants.clear();
     acceptedEvents.clear();
     pendingEvents.clear();
-    respawnPending = null;
+    revives.clear();
     for (const player of C.players()) {
       const dead = player.dead;
       if (dead && G.run.skill !== 'hardcore') replaceShip(player);
@@ -408,18 +456,18 @@
         const spawn = G.level.layout ? G.level.layout.spawn : { x: G.level.cx, y: G.level.cy };
         player.x = player.tx = spawn.x;
         player.y = player.ty = spawn.y;
-        guestLife++;
+        player.coopLife = (player.coopLife || 0) + 1;
         player.acceptedGrants = [];
         player.acceptedEvents = [];
       }
     }
     localLife++;
     originalAdvance();
-    if (N.Net.peer) {
+    if (N.Net.peers.size) {
       launchSetup = true;
-      syncPending = true;
-      syncSerial++;
-      lastSyncAt = -Infinity;
+      for (const player of C.remotePlayers) {
+        setups.set(player.clientId, { serial: ++syncSerial, lastAt: -Infinity });
+      }
       C.requestGlobalPause();
       C.applyGlobalPause(N.Net.clientId);
       sendSync();
@@ -427,10 +475,10 @@
   };
 
   const originalMessage = C.onMessage;
-  C.onMessage = function (message) {
+  C.onMessage = function (message, clientId) {
     if (!message || typeof message !== 'object') return;
     if (message.t === 'lobby_state') {
-      if(message.loadoutRules!==1){C.endSession('INCOMPATIBLE SAVED SHIP RULES // UPDATE BOTH CLIENTS');return;}
+      if(message.protocol!==2 || message.capacity!==4 || message.loadoutRules!==1){C.endSession('INCOMPATIBLE SAVED SHIP RULES // UPDATE BOTH CLIENTS');return;}
       if (!Object.hasOwn(N.SKILLS,message.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (C.lobby && message.runId < C.lobby.runId) return;
       C.lobby = message;
@@ -441,7 +489,11 @@
       }
       const own = message.members.find(member => member.clientId === N.Net.clientId);
       const peer = message.members.find(member => member.clientId !== N.Net.clientId);
-      if (own) C.localProfile = own.profile;
+      if (own) {
+        C.localProfile = own.profile;
+        N.Net.seat = own.seat;
+        C.localProfile.name = 'PLAYER ' + (own.seat + 1);
+      }
       C.peerProfile = peer ? peer.profile : null;
       if (N.UI && N.UI.updateLobby) N.UI.updateLobby();
       return;
@@ -453,7 +505,7 @@
     if (message.t === 'session_hello') {
       if (C.isHost()) {
         rememberGuest();
-        attachGuest();
+        attachGuest(N.Net.peers.get(clientId));
       }
       return;
     }
@@ -461,16 +513,17 @@
       if (message.runId !== undefined && message.runId !== C.runId) return;
       if (message.epoch !== undefined) C.pauseEpoch = message.epoch;
       if (message.t === 'global_resume' && G.mode === 'complete') { C.resetPauseState(); return; }
-      originalMessage(message);
+      originalMessage(message, clientId);
       if (message.t === 'ready_state' && Array.isArray(message.ready) && message.ready.includes(N.Net.clientId)) launchSetup = false;
       if (message.t === 'countdown_start' || message.t === 'global_resume') launchSetup = false;
       // A peer setup acknowledgment can arrive before the host's pause echo.
       // Keep automatic readiness pending until the host confirms it.
-      if (message.t === 'global_pause' && launchSetup && !syncPending && !awaitingWorld) C.sendReady();
+      if (message.t === 'global_pause' && launchSetup && setups.size === 0 && !awaitingWorld) C.sendReady();
       return;
     }
     if (message.t === 'bye') return; // Membership comes from the host browser.
     if (message._run !== C.runId) return;
+    if (C.isGuest() && message._targetSeat !== undefined && message._targetSeat !== N.Net.seat) return;
     if (message.t === 'mission_end' && N.Net.role === 'guest') {
       N.PlayerStats?.endLocal();
       returnToLobby(message.summary);
@@ -491,6 +544,7 @@
       if (!C.active) C.startGuestRun(message);
       else if (G.level.number !== message.level) C.startNextGuestLevel(message);
       if (!restore(G.player, message.player, true)) { C.endSession('INVALID RECOVERY STATE'); return; }
+      C.remotePlayers[0].seat = 0;
       restore(C.remotePlayers[0], message.hostPlayer, false);
       G.run = copy(message.run);
       G.run.highestSector=Math.max(message.level,G.player.loadoutHighestSector||1);
@@ -502,11 +556,13 @@
       return;
     }
     if (C.isGuest() && message.t === 'complete' && message._sector === G.level.number + 1) {
-      originalMessage(message); return;
+      originalMessage(message, clientId); return;
     }
     if (!C.active || message._sector !== G.level.number) return;
-    const mirror = C.guestMirror();
+    const mirror = C.guestMirror(clientId);
+    const guestLife = mirror?.coopLife || 0;
     switch (message.t) {
+      case 'avatars': applyAvatars(message); return;
       case 'start':
       case 'advance':
       case 'gameover': return;
@@ -520,31 +576,31 @@
         finishSetup();
         return;
       case 'world':
-        originalMessage(message);
+        originalMessage(message, clientId);
         if (C.isGuest() && awaitingWorld) {
           awaitingWorld.world = true;
           finishSetup();
         }
         return;
       case 'session_ack':
-        if (message.syncId !== syncSerial) return;
-        syncPending = false;
+        if (message.syncId !== setups.get(clientId)?.serial) return;
+        setups.delete(clientId);
         C._bulletQueue = [];
         C._enemyBulletQueue = [];
         C._mineQueue = [];
         C._strikeQueue = [];
-        if (launchSetup) C.sendReady();
+        if (launchSetup && setups.size === 0) C.sendReady();
         return;
       case 'event_ack': {
         const event = pendingEvents.get(message.eventId);
-        if (!event || event.owner !== C._peerId || message._life !== guestLife) return;
+        if (!event || event.owner !== clientId || message._life !== guestLife) return;
         if (mirror && !mirror.dead && message.player) restore(mirror, message.player, false);
         pendingEvents.delete(message.eventId);
         rememberGuest();
         return;
       }
       case 'participant':
-        if (mirror && !syncPending && !mirror.dead && message._life === guestLife) {
+        if (mirror && !setups.has(clientId) && !mirror.dead && message._life === guestLife) {
           restore(mirror, message.player, false);
           rememberGuest();
         }
@@ -555,7 +611,7 @@
           if (!restore(mirror, message.player, false)) return;
           markDeath(mirror, false);
         }
-        N.Net.send({ t: 'death_ack' });
+        N.Net.send({ t: 'death_ack' }, clientId);
         return;
       case 'death_ack': deathPending = null; return;
       case 'revive':
@@ -570,7 +626,7 @@
         N.Net.send({ t: 'revive_ack', life: localLife });
         return;
       case 'revive_ack':
-        if (respawnPending && message.life === respawnPending.life) respawnPending = null;
+        if (message.life === revives.get(clientId)?.life) revives.delete(clientId);
         return;
       case 'lives':
         if (C.isGuest()) {
@@ -582,7 +638,7 @@
       default: break;
     }
     if (C.isGuest() && ['hit', 'heal', 'grant', 'xp', 'kill'].includes(message.t) && message._targetLife !== localLife) return;
-    if (C.host && (syncPending || message._life !== guestLife)) return;
+    if (C.host && (!mirror || setups.has(clientId) || message._life !== guestLife)) return;
     if (C.host && mirror && !mirror.dead && message.participant) restore(mirror, message.participant, false);
     if (C.host && mirror && mirror.dead && ['state', 'loadout', 'fire'].includes(message.t)) return;
     if (C.isGuest() && message.t === 'grant' && G.player.dead && !C._acceptedGrants.has(message.grantId)) {
@@ -592,12 +648,12 @@
     if (C.isGuest() && message.t === 'hit' && !G.player.dead && G.mode !== 'playing') return;
     if (C.isGuest() && Number.isSafeInteger(message.eventId)) {
       if (!acceptedEvents.has(message.eventId)) {
-        originalMessage(message);
+        originalMessage(message, clientId);
         acceptedEvents.add(message.eventId);
       }
       N.Net.send({ t: 'event_ack', eventId: message.eventId, player: snapshot(G.player, true) });
     } else {
-      originalMessage(message);
+      originalMessage(message, clientId);
     }
   };
   N.Net.onMessage = C.onMessage;
@@ -614,23 +670,24 @@
       C.records.clear();
       pendingEvents.clear();
       acceptedEvents.clear();
-      syncPending = false;
+      setups.clear();
       returnPending = false;
       deathPending = null;
-      respawnPending = null;
+      revives.clear();
       return original(...args);
     };
   }
   const originalGrant = C.grantToGuest;
-  C.grantToGuest = function (item) {
-    if (!C._peerId || (item.grantOwner && item.grantOwner !== C._peerId)) return false;
-    item.grantOwner = C._peerId;
-    return originalGrant(item);
+  C.grantToGuest = function (item, player) {
+    const recipient = player || C.guestMirror(item.grantOwner);
+    if (!recipient || !recipient.clientId || (item.grantOwner && item.grantOwner !== recipient.clientId)) return false;
+    item.grantOwner = recipient.clientId;
+    return originalGrant(item, recipient);
   };
   const originalGrantAck = C.applyGrantAck;
-  C.applyGrantAck = function (message) {
+  C.applyGrantAck = function (message, clientId) {
     const item = G.groundItems.find(item => item.grantId === message.grantId);
-    if (item && item.grantOwner && item.grantOwner !== C._peerId) return;
+    if (item && item.grantOwner && item.grantOwner !== clientId) return;
     originalGrantAck(message);
     if (item && message.ok !== true) { item.grantOwner = null; item.grantId = null; }
     rememberGuest();

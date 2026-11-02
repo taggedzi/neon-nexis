@@ -88,25 +88,17 @@ async function until(predicate) {
     assert.equal(room.guest.online, false);
     assert.equal(room.pauseState, 'PLAY');
     assert.equal(authority.setGuest('guest', { shipType: 'kite' }), true);
-    assert.equal(room.pauseState, 'PLAY');
+    assert.equal(room.pauseState, 'PAUSED');
     assert.equal(room.guest.online, true);
 
     authority.handle('guest', { t: 'leave' });
     await until(() => !room.guest);
     assert.equal(room.host.clientId, 'host');
     assert.equal(room.pauseState, 'PLAY');
-    assert.equal(authority.setGuest('replacement', {}), true);
-    await until(() => room.guest && room.guest.clientId === 'replacement');
-    assert.equal(room.pauseState, 'PAUSED');
-    authority.handle('replacement', { t: 'ready_signal', runId: 0, epoch: room.pauseEpoch });
-    await delay(50);
-    assert.equal(room.readyPeers.size, 0);
-    authority.handle('replacement', { t: 'ready_signal', runId: 1, epoch: room.pauseEpoch });
-    await until(() => room.readyPeers.size === 1);
-    assert.equal(room.pauseState, 'PAUSED');
-    authority.markOffline('replacement');
+    assert.equal(authority.setGuest('replacement', {}), false, 'run roster excludes replacements');
+    assert.equal(authority.setGuest('guest', {}), true, 'starting player can return');
+    authority.markOffline('guest');
     await until(() => !room.guest);
-    assert.equal(room.pauseState, 'PLAY');
     assert.equal(room.host.clientId, 'host');
 
     authority.handle('host', { t: 'return_lobby', runId: 1 });
@@ -120,6 +112,40 @@ async function until(predicate) {
     authority.handle('host', { t: 'return_lobby', runId: 1 });
     await delay(50);
     assert.equal(room.phase, 'run');
+
+    const four = harness(40);
+    try {
+      four.authority.setHost('host', {});
+      for (let seat = 1; seat <= 3; seat++) {
+        assert.equal(four.authority.setGuest('guest' + seat, {}, seat), true);
+      }
+      assert.equal(four.authority.setGuest('overflow', {}), false);
+      assert.deepEqual(Array.from(four.room.guests.values(), member => member.seat), [1, 2, 3]);
+      assert.equal(four.messages.at(-1).message.members.length, 4);
+      for (const id of ['host', 'guest1', 'guest2']) {
+        four.authority.handle(id, { t: 'lobby_ready', revision: four.room.lobbyRevision });
+      }
+      assert.equal(four.room.launchTimer, null, 'fourth player must ready');
+      four.authority.handle('guest3', { t: 'lobby_ready', revision: four.room.lobbyRevision });
+      await until(() => four.room.phase === 'run');
+      assert.equal(four.room.roster.size, 4);
+      four.authority.handle('guest2', { t: 'pause_request', runId: 1 });
+      for (const id of ['host', 'guest1', 'guest2']) {
+        four.authority.handle(id, { t: 'ready_signal', runId: 1, epoch: four.room.pauseEpoch });
+      }
+      assert.equal(four.room.pauseState, 'PAUSED');
+      four.authority.handle('guest3', { t: 'ready_signal', runId: 1, epoch: four.room.pauseEpoch });
+      assert.equal(four.room.pauseState, 'COUNTDOWN');
+      four.authority.markOffline('guest2');
+      assert.equal(four.room.pauseState, 'PAUSED', 'disconnect cancels countdown');
+      await until(() => !four.room.guests.has('guest2'));
+      assert.equal(four.room.guests.size, 2, 'only departing seat is removed');
+      assert.equal(four.authority.setGuest('stranger', {}, 2), false);
+      assert.equal(four.authority.setGuest('guest2', {}, 2), true);
+      four.authority.handle('host', { t: 'return_lobby', runId: 1 });
+      four.authority.clearGuest('guest2');
+      assert.equal(four.authority.setGuest('stranger', {}, 2), true, 'new players join between runs');
+    } finally { four.authority.close(); }
 
     const hung = harness(80);
     hung.authority.setHost('host', {});

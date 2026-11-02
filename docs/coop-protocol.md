@@ -1,8 +1,7 @@
 # Co-op network protocol
 
-This document describes the two-player co-op link for NEON NEXUS. It is an
-implementation contract, not a public API promise. PHP introduces the two
-browsers. The hosting browser owns the lobby, shared pause, and the match.
+This document describes the one-to-four-player co-op room for NEON NEXUS. It is an
+implementation contract, not a public API promise. PHP introduces each guest to the host. The hosting browser owns the lobby, shared pause, and the match.
 Gameplay moves only on the WebRTC data channel. There is no gameplay relay.
 
 ## Roles
@@ -10,9 +9,9 @@ Gameplay moves only on the WebRTC data channel. There is no gameplay relay.
 | Role | Simulation | Authority |
 | --- | --- | --- |
 | Host (`PLAYER 1`) | Full game simulation | World seed, enemies, destructibles, loot drops, sector flow |
-| Guest (`PLAYER 2`) | Own ship and local UI | Own movement, aim, inventory, damage mitigation, shots; acknowledged state retained by host |
+| Guests (`PLAYER 2` through `PLAYER 4`) | Own ship and local UI | Own movement, aim, inventory, damage mitigation, shots; acknowledged state retained by host |
 
-Both clients generate the sector from the host's run seed, so the static map is
+All clients generate the sector from the host's run seed, so the static map is
 identical without sending map geometry.
 
 ## PHP introduction
@@ -22,13 +21,19 @@ stays off unless the server config has `enabled` true and at least one STUN or
 TURN address. The **CO-OP UPLINK** button stays visible and is disabled when
 co-op is off, the list is empty, or status fails.
 
-PHP actions are `status`, `host`, `join`, `checkin`, `leave`, `card`, and
-`poll`. A lobby row stores the room code, the two client ids, the two
-connection cards, and the host check-in time. It does not store the world,
-pause, or shots. The host checks in about every 30 seconds. A host leave
-deletes the row. A guest leave clears only the guest. Every request that opens
-the database deletes rows whose check-in stopped for 10 minutes. The daily
-`php/coop-cleanup.php` command deletes rows older than 24 hours.
+PHP actions are `status`, `host`, `join`, `checkin`, `leave`, `card`, `poll`,
+and host-only `roster`. Introduction protocol 2 is required for host/join;
+older requests are refused with `error: version`. The SQLite lobby retains its
+legacy columns during migration and adds `protocol` and a nullable locked roster.
+`coop_seats` stores up to three guest IDs, their stable seats (1–3), and separate
+offer/answer cards for each host–guest link. Allocation is serialized. Existing
+protocol-1 rooms cannot be joined by a protocol-2 client.
+
+The host checks in through polling (and the explicit check-in verb remains
+available). A host leave deletes the room and its seats. A guest leave removes
+only its seat/card row. Stale rooms expire after ten minutes without host check-in;
+the daily cleanup removes rooms older than 24 hours. Orphan introduction seats
+are removed on database open. PHP stores no world or gameplay state.
 
 A STUN entry is a URL. A TURN REST entry uses a server-side secret. PHP mints
 `expiryUnix:clientId` and a base64 HMAC-SHA1 credential for
@@ -37,24 +42,23 @@ Realtime TURN, Metered, Xirsys) are server-side token calls. The browser
 receives only the returned `iceServers`. The long-term secret and API key are
 not sent. An optional `tokenUrl` overrides a vendor URL and is not echoed.
 
-The guest is the offerer. Cards carry `session`, `sdp`, `candidates`,
-`clientId`, and `profile`. Poll returns the peer card when its revision is
-newer. If the direct link never opens, both players stay on the co-op screen.
-A dropped link can post a new card while the lobby row exists. The host keeps
-the run. A guest ignores an answer whose `session` does not match its current
-offer. When the guest id in a poll changes, the host forgets the previous card
-revision, so a replacement guest's first card is new. While the host answers a
-new offer from an offline guest, it restarts the about-10-second offline
-grace. If that link does not open, the host still clears the guest when the
-grace ends. `session_sync` includes the current pause
-epoch, and a same-guest reconnect receives that epoch with the current pause.
-A later sync does not replace a newer epoch the guest already accepted.
+Each guest is the offerer for its own link. Host cards name `targetId`; PHP
+only returns that answer to the intended guest. Cards carry `session`, `sdp`,
+`candidates`, `clientId`, `profile`, `protocol`, `seat`, and a per-link revision.
+Poll receives a map of known revisions and returns `peers`, each containing
+`clientId`, `seat`, and a new `card` or null. Guests see only the host's card for
+their own link; the host sees every guest introduction.
 
-Profile objects are `{name, shipType, shipColor}`. Names are assigned by the
-client as `PLAYER 1` or `PLAYER 2`; players cannot type a name.
-
-Room codes use an unambiguous 32-character alphabet (no `I`, `O`, `0`, `1`).
-A lobby has one host and at most one guest.
+Lobby profiles contain ship/color and an optional issue-024 saved ship.
+Introduction-card profiles are cosmetic; saved equipment travels in the validated
+`lobby_profile` control only after the data channel opens. Callsigns are
+assigned from the seat: PLAYER 1 hosts, PLAYER 2–4 join. Names cannot be typed.
+Room codes use an unambiguous 32-character alphabet (no I, O, 0, 1). Capacity is
+always four including the host, with no count selector. The host shares the code
+only with intended participants. Connected ready members at launch form the run
+roster. The host locks their ID-to-seat mapping in PHP before delivering launch.
+New identities cannot fill vacant seats during that run. Starting participants
+may reconnect to their original seat. Returning to the lobby unlocks new joins.
 
 ## WebRTC setup
 
@@ -73,27 +77,35 @@ damage and reward messages also carry `_targetLife`. A stale packet cannot
 revive a previous life or change a later mission. Connection setup uses a
 monotonic `syncId`; duplicate setup packets acknowledge without restoring twice.
 
-Fight messages use binary version 1. The type order is `state`, `world`,
+Fight messages use binary version 6 (the preceding checkout used version 5). The type order is `state`, `world`,
 `bullet`, `ebullet`, `mine`, `strike`, `fire`, `fx`, `loadout`, `hit`, `heal`,
-`kill`, `xp`, `grant`, `grant_ack`, `event_ack`, `participant`, and `lives`.
-Send rates are unchanged. An ordinary `state` carries ship motion, hull,
+`kill`, `xp`, `grant`, `grant_ack`, `event_ack`, `participant`, `lives`, and `avatars`.
+Send intervals are unchanged; nominal ship updates also have the existing
+4 Hz session heartbeat. An ordinary `state` carries ship motion, hull,
 magnet, and pickup radius. It does not carry the recovery snapshot. The
 snapshot still rides on the 4 Hz `participant` message, on damage and
 checkpoint updates, on `event_ack`, on `grant_ack`, and on `state` while a
 death is waiting for acknowledgment. Lobby, pause, and one-time setup stay
 JSON: `session_sync`, `sync_entities`, `session_ack`, `session_hello`, `death`,
 `death_ack`, `revive`, `revive_ack`, `start`, `complete`, `advance`,
-`gameover`, `mission_end`, `bye`, `peer-left`, and every `{t:'ctrl'}` message.
-A binary version other than 1 closes the link once. A truncated body is
-ignored. The field layout is in
-[issue 016](work-to-be-done/016-coop-binary-payloads.md).
+`gameover`, `mission_end`, `bye`, `peer-left`, `stats_row`, `stats_end_request`,
+`stats_end_ack`, `book_sync`, and every `{t:'ctrl'}` message.
+A binary version other than 6 ends the receiving client's co-op session with
+an update error; a host rejection closes its room. Old introductions are refused
+before joining. A truncated body is ignored. Version 6 adds source and target seat bytes after the type byte (0–3, or 255
+when absent). The remaining version-5 header is sector, sender life, target life,
+run ID, and sequence. Type 19, `avatars`, packs up to three states: count byte,
+then each seat byte, the existing state body, and nullable respawn seconds.
+Duplicate/out-of-range seats and malformed bodies are rejected. Values outside
+binary ranges keep the existing bounded JSON fallback. See
+[issue 016](work-to-be-done/016-coop-binary-payloads.md) for the original codec.
 
 ### Host → guest
 
 | Type | Payload | Rate |
 | --- | --- | --- |
 | `session_sync` | `syncId`, seed/sector, retained player, host player, run, pool, phase, pause epoch | until setup acknowledgment |
-| `state` | Host ship position, aim, hull, health | 20 Hz |
+| `avatars` | All other connected ships, with seats, motion, hull, health, and respawn timers | nominal 20 Hz + session heartbeat per guest |
 | `world` | Enemies, anchors, caches, ground items, elapsed, kills | 5 Hz |
 | `bullet` / `ebullet` | Projectile spawn parameters for cosmetic guest simulation | batched at 20 Hz |
 | `mine` / `strike` | Host-created hazard visuals | on creation |
@@ -121,7 +133,7 @@ ignored. The field layout is in
 
 ## Shared pause and ready flow
 
-The hosting browser owns pause so both clients stop and resume together.
+The hosting browser owns pause so all connected clients stop and resume together.
 Control messages travel on the data channel. The guest wraps them as
 `{t:"ctrl", body}`. The host applies them locally and sends room results back
 on the channel. A guest cannot forge `global_pause` by sending it as an
@@ -182,7 +194,7 @@ required membership, and the remaining host can continue alone.
 ## Non-goals
 
 - Anti-cheat validation or authoritative hit rewind.
-- More than two players.
+- Host migration and persistent co-op saves.
 - Server-side physics, rendering, or procedural generation.
 - Persisted co-op sessions or cross-device saves.
 
@@ -229,7 +241,7 @@ world plus that ID's retained ship, or a fresh ship for an unmatched ID. Setup i
 acknowledged after world synchronization, before accepting guest gameplay. Existing
 bullets, mines, and strikes are transferred in bounded `sync_entities` chunks;
 readiness stays blocked until the world and every chunk arrive. Setup retries are
-throttled and duplicate chunks do not create extra hazards. Both
+throttled and duplicate chunks do not create extra hazards. All connected
 players must ready to resume. Initial launch and normal sector advancement reuse
 the host countdown automatically after synchronization; they do not require a
 second manual ready click. A guest leaving during setup releases the host.
@@ -262,5 +274,24 @@ second manual ready click. A guest leaving during setup releases the host.
 
 Recovery restores the last host-acknowledged state of the live session. It does
 not recover browser-local changes that never reached the host before a crash.
-Transport and simulation remain two-player and client-side. PHP only introduces
+Transport uses a host-centered star with up to three guest links. Guests never
+simulate enemies; the host relays the permitted ship/world state. PHP only introduces
 the browsers. There is no server-side physics.
+
+## Four-player routing and match options (issue 028)
+
+Transport sequence numbers, ICE negotiation, retries, and channel lifetime are
+per link. `Net.send(message, targetId)` targets one guest; omitting the target
+broadcasts. Incoming callbacks carry the authenticated channel's client ID;
+guest-supplied IDs cannot select another participant's recovery record. Setup
+serials, recovery snapshots, life counters, pending revivals, and retained rewards
+are per participant. Damage, healing, pickup grants, kill XP, statistics authority,
+and logbook confirmations target their owning participant. Every guest gets kill
+pacing ticks, but only the killer gets kill XP. Guests receive other ships through
+the host's packed avatar messages, without guest-to-guest connections.
+
+The existing shared respawn pool is unchanged: host-configured integer 0–8,
+default 4; Hardcore uses zero. Capacity does not multiply the pool or change
+spawn/difficulty rules. The host's saved-ship toggle defaults off. When off,
+players start fresh; when on, each player may explicitly choose a saved ship or
+keep the fresh default. Issue 024's sector cap and Hardcore restrictions remain.

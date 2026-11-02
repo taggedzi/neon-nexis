@@ -116,16 +116,37 @@
     const now = performance.now();
     if (!force && now - sentAt < 250) return;
     sentAt = now;
-    if(N.Coop.isHost())S.selectPeer(peerId());
-    N.Net.send({ t: 'stats_row', sequence: ++rowSequence, enabled: S.enabled(), row: { ...S.match }, received: {...S.received}, authority: N.Coop.isHost()?{...S.authority}:null });
+    const sequence = ++rowSequence;
+    const body = { t: 'stats_row', sequence, enabled: S.enabled(), row: { ...S.match }, received: { ...S.received } };
+    if (N.Coop.isHost()) {
+      const peers = Array.from(S.peers.values());
+      for (const player of N.Coop.remotePlayers) {
+        const id = player.clientId || player.statsPeerId || peerId();
+        N.Net.send({ ...body, authority: { ...(authorities.get(id) || P.emptyStats()) }, peers }, id);
+      }
+    } else N.Net.send({ ...body, authority: null });
   };
-  S.receiveRow = function (message) {
-    if(N.Coop.isGuest()) S.receiveAuthority(message.authority);
+  S.receiveRow = function (message, senderId) {
+    if (N.Coop.isGuest()) S.receiveAuthority(message.authority);
     if (!Number.isSafeInteger(message.sequence) || message.sequence < 1 || !P.validStats(message.row) || !P.validStats(message.received)) return;
-    const id=peerId(),previous=S.peerRow(id);
+    const id = senderId || peerId(), previous = S.peerRow(id);
     if (previous && message.sequence <= previous.sequence) return;
-    S.remote = { name:N.Coop.peerProfile?.name||'TEAMMATE',id,sequence: message.sequence, enabled: message.enabled !== false, row: P.cleanStats(message.row), received:P.cleanStats(message.received) };
-    S.peers.set(id,S.remote);
+    const profile = N.Coop.lobby?.members.find(member => member.clientId === id)?.profile;
+    S.remote = { name: profile?.name || N.Coop.peerProfile?.name || 'TEAMMATE', id,
+      sequence: message.sequence, enabled: message.enabled !== false,
+      row: P.cleanStats(message.row), received: P.cleanStats(message.received) };
+    S.peers.set(id, S.remote);
+    if (N.Coop.isGuest() && Array.isArray(message.peers)) {
+      for (const peer of message.peers.slice(0, 64)) {
+        if (!peer || typeof peer.id !== 'string' || peer.id === N.Net.clientId || peer.id === id ||
+            !P.validStats(peer.row) || !P.validStats(peer.received) || !Number.isSafeInteger(peer.sequence)) continue;
+        const old = S.peers.get(peer.id);
+        if (!old || peer.sequence > old.sequence) S.peers.set(peer.id, {
+          id: peer.id, name: String(peer.name || 'TEAMMATE').slice(0, 20), sequence: peer.sequence,
+          enabled: peer.enabled !== false, row: P.cleanStats(peer.row), received: P.cleanStats(peer.received)
+        });
+      }
+    }
   };
   function wrap(object, name, action) {
     const original = object[name];
@@ -265,6 +286,7 @@
     return result;
   });
   let ending=null,endTimer=null,endSentAt=0;
+  const endWaiting = new Set();
   const finishRun=N.Coop.finishRun;
   function completeEnd() {
     if(!ending)return;
@@ -273,11 +295,15 @@
   }
   function requestEnd() {
     endSentAt=performance.now();S.sendRow(true);
-    N.Net.send({t:'stats_end_request',authority:{...S.authority}});
+    for (const id of endWaiting) {
+      N.Net.send({t:'stats_end_request',authority:{...(authorities.get(id) || P.emptyStats())}}, id);
+    }
   }
   N.Coop.finishRun=function(...args){
     if(!N.Coop.isHost()||ending)return;
     if(!N.Coop.remotePlayers.length){S.endLocal();return finishRun(...args);}
+    endWaiting.clear();
+    for (const player of N.Coop.remotePlayers) endWaiting.add(player.clientId || player.statsPeerId || peerId());
     ending=args;G.setMode('gameover');requestEnd();endTimer=setTimeout(completeEnd,2000);
   };
   S.answerEnd=function(message){
@@ -285,7 +311,11 @@
     S.receiveAuthority(message.authority);S.sendRow(true);S.flush();
     N.Net.send({t:'stats_end_ack'});
   };
-  S.finishEnd=function(){if(N.Coop.isHost())completeEnd();};
+  S.finishEnd=function(id){
+    if (!N.Coop.isHost()) return;
+    endWaiting.delete(id || peerId());
+    if (!endWaiting.size) completeEnd();
+  };
   wrap(N.Coop,'tickSession',(original,args)=>{
     const result=original(...args);S.sendRow();
     if(ending&&performance.now()-endSentAt>300)requestEnd();
