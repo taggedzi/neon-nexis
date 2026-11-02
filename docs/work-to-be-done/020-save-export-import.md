@@ -147,10 +147,15 @@ Checks and results, 2026-11-01, Windows, Node from `npm run check`:
 - Same-browser replace is the Node apply onto an existing checkpoint, plus the
   Playwright confirm step. The second Playwright context is the other profile.
 
-These are automated checks. The owner has not played the new Data tab yet.
+These are automated checks.
+
+Owner validation, 2026-11-01: the owner tried export and import and reported
+that they worked as expected.
 
 Limitations: a browser download, including the Playwright download, shows that
-the browser offered the file. It does not prove a player's own disk received it.
+the browser offered the file. It does not by itself prove a player's own disk
+received it. The owner's check is the evidence that the file arrived and
+imported.
 
-Remaining work: none in this issue. Owner play of the Data tab is optional.
+Remaining work: none.
 Implementation commit: `a8d50d6`.
