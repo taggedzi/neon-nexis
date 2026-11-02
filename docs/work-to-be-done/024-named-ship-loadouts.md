@@ -143,7 +143,7 @@ new file version, not a second export.
 
 - Issue 023 merged through PR #27 at `df61def` before this issue started.
 - Origin fetched; main fast-forwarded and clean; no open PRs.
-- Task branch: `codex/024-named-ship-loadouts`.
+- Task branch: `codex/024-named-ship-loadouts`. Implementation: `3918972`.
 - Changed files: `js/loadouts.js`, `js/loadouts-ui.js`, `js/game.js`,
   `js/save-transfer.js`, `js/ui.js`, `index.html`, co-op profile/lobby/session
   modules, and focused backup/loadout/co-op checks.
