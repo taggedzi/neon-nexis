@@ -108,8 +108,12 @@ test('023 skill choices remain keyboard accessible in a compact viewport', async
   await page.goto('/');
   await page.locator('#btn-boot').click();
   await page.locator('#btn-new-run').click();
+  await page.bringToFront();
+  // The menu places initial focus on a short timer; settle it before moving.
+  await expect(page.locator('#ship-types button').first()).toBeFocused();
   const hardcore=page.locator('#ship-skills [data-skill="hardcore"]');
   await hardcore.focus();
+  await expect(hardcore).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#ship-skills [data-skill="hardcore"]')).toBeFocused();
   await expect(page.locator('#ship-skill-note')).toContainText('ONE LIFE');
