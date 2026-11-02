@@ -842,6 +842,8 @@
         N.PlayerStats.answerEnd(message);break;
       case 'stats_end_ack':
         N.PlayerStats.finishEnd();break;
+      case 'book_sync':
+        N.Logbook.receive(message);break;
       case 'stats_row':
         N.PlayerStats.receiveRow(message);break;
       case 'start':

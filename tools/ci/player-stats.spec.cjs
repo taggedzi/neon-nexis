@@ -67,7 +67,7 @@ test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing
   expect(stopped).toBe(true);await expect(page.locator('#gameover-tally')).toBeHidden();
   await page.locator('#btn-gameover-menu').click();
   const backup=await page.evaluate(()=>window.NEON.SaveTransfer.build().file);
-  expect(backup.fileVersion).toBe(3);expect(backup.profile.stats.itemsLost).toBe(3);
+  expect(backup.fileVersion).toBe(4);expect(backup.profile.stats.itemsLost).toBe(3);
   const restore=await page.evaluate(file=>{
     const N=window.NEON;
     const old={...file,fileVersion:2};delete old.profile;

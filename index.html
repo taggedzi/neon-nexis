@@ -46,6 +46,7 @@
               <p class="micro" id="coop-unavailable" hidden>Co-op is unavailable until the site admin enables it.</p>
               <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
               <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
+              <button class="neon-btn" id="btn-logbook" type="button">ENEMY LOGBOOK</button>
               <button class="neon-btn" id="btn-player-stats" type="button">PLAYER STATS</button>
               <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
             </div>
@@ -74,6 +75,16 @@
             </div>
             <div class="micro" id="menu-version">BUILD DEVELOPMENT // CLIENT-SIDE ASSET SYNTHESIS</div>
           </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-logbook">
+        <div class="panel wide">
+          <div class="panel-head"><h2>ENEMY LOGBOOK</h2></div>
+          <p class="micro">LIFETIME ENCOUNTERS AND PERSONAL DESTROYS. RECORDING CONTINUES WITH PLAYER STATS OFF. HARDCORE DOES NOT ERASE THIS BOOK.</p>
+          <p class="micro" id="logbook-note"></p>
+          <div id="logbook-entries"></div>
+          <div class="panel-footer"><button class="neon-btn primary" id="logbook-close" type="button">RETURN</button></div>
         </div>
       </section>
 
@@ -124,6 +135,7 @@
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
             <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
             <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
+            <button class="neon-btn" id="btn-pause-logbook" type="button">ENEMY LOGBOOK</button>
             <button class="neon-btn" id="btn-pause-stats" type="button">PLAYER STATS</button>
             <button class="neon-btn" id="btn-pause-loadouts" type="button">SAVED SHIPS</button>
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
@@ -421,6 +433,8 @@
   <script src="js/loadouts-ui.js"></script>
   <script src="js/player-stats.js"></script>
   <script src="js/stats-ui.js"></script>
+  <script src="js/logbook.js"></script>
+  <script src="js/logbook-ui.js"></script>
   <script src="js/dev.js"></script>
   <script src="js/main.js"></script>
 </body>

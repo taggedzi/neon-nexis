@@ -97,6 +97,7 @@
     const player = C.makeRemotePlayer(profile, G.level, 1);
     player.statsPeerId=N.Net.peer.clientId;
     N.PlayerStats?.selectPeer(N.Net.peer.clientId);
+    N.Logbook?.selectPeer(N.Net.peer.clientId, true);
     if(profile.loadout && C.lobby.allowLoadouts && G.run.skill!=='hardcore'){
       N.Loadouts.apply(player,profile.loadout);
       player.pendingLevelUps=Math.max(0,player.level-1-player.core.length);

@@ -97,8 +97,14 @@
           weaponSlots: Math.max(N.START_SLOTS.weapons, weapons.length)
         }
       };
-      if (!G.loadFromSave(checkpoint)) {
-        throw Error('Scenario could not be loaded.');
+      const previous = G.devScenarioLoading;
+      G.devScenarioLoading = true;
+      try {
+        if (!G.loadFromSave(checkpoint)) {
+          throw Error('Scenario could not be loaded.');
+        }
+      } finally {
+        G.devScenarioLoading = previous;
       }
       devRuns.add(G.run);
       if (options.invulnerable) {

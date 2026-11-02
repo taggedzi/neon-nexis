@@ -1,9 +1,9 @@
 # 026 — Add an enemy logbook
 
-Status: Planned
+Status: Implemented — needs validation
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Accepted decisions and implementation evidence appear below. Earlier proposals
+are retained for context and are superseded by the owner's recorded answers.
 
 Priority 10 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -101,5 +101,52 @@ The menu screen itself does not need four-player co-op.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
-Style and role counts were read from `js/content.js` on 2026-11-01.
+### Decisions — 2026-11-02
+
+Approval source: owner answers in this chat on 2026-11-02. These supersede
+conflicting proposals above and resolve the earlier blocker.
+
+- One entry per style, grouped by role; undiscovered names stay Unknown.
+  Agent writes concise factual descriptions from current behavior. Bosses and
+  wardens use their normal role groups.
+- Discover styles that exist in the player's sector, including alive enemies
+  on co-op join and subsequent spawns. Every present participant discovers them.
+- Only the pilot delivering the killing hit receives a destroyed count; the
+  host confirms guest credit. This also works with stats recording off.
+- Book is independent of the stats toggle, shares the lifetime profile/backup,
+  and survives Hardcore death.
+- Rationale: a personal lifetime catalog with clear encounters and kill ownership.
+
+### Work and validation
+
+- Issues 023–025 merged in order through PRs #27, #28 and #29 before this branch.
+  Origin refreshed; no open PRs. Branch: `codex/026-enemy-logbook`.
+- `js/content.js` supplies factual descriptions for all 32 styles. A unit check
+  requires an exact description/style match, so a new style cannot omit copy.
+- `js/logbook.js` records central spawn/kill events, including summons and
+  splitter children. Self-detonation does not count as a pilot's killing hit.
+  Host sends cumulative per-participant discoveries/kills, independent of stats
+  eligibility. Repeated packets cannot duplicate credit; local receipt and book
+  increments are persisted together. New participants see alive enemies, not
+  earlier deaths. Returning participant identities retain their own stream.
+- `js/profile.js` migrates profile schema 1 to 2 without changing its storage
+  key or losing totals. Invalid/unknown book entries are dropped; invalid whole
+  profiles retain their stored bytes. Dev scenarios do not pollute the book.
+- `js/logbook-ui.js`, `index.html` and `js/ui.js` add menu/pause access using
+  existing neon panels, native disclosure groups and keyboard/controller focus.
+  Co-op dispatch is in `js/coop.js`; protocol version 5 refuses old clients that
+  cannot confirm logbook credit. No binary gameplay packet changes.
+- Backup version 4 carries the book. Versions 1–3 preserve any existing book;
+  confirmation text explains replacement, and rollback still covers all stores.
+- Focused browser checks: four solo cases and four co-op/replacement cases
+  passed across Windows Chromium and Firefox. Covers unknown names, exact copy,
+  once-only per-style kills, splitter discoveries, Hardcore retention, stats-off
+  recording, menu/pause access, reload, old saves, backup migration, corrupt
+  entries, repeated guest confirmations and alive-on-join discovery.
+- Unit checks also restart the guest recorder against a persisted receipt and
+  verify that a returning participant discovers current survivors without
+  losing earlier discoveries. Agent inspected the 640 × 720 Chromium screenshot:
+  role groups, unknown entries, descriptions and counts remain readable.
+- Full required suite is in progress. Keyboard and simulated gamepad navigation
+  use existing menu handling. No physical-controller, separate Google Chrome,
+  or performance check is claimed.

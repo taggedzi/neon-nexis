@@ -1011,6 +1011,13 @@ test('014 direct-link replacement retains separate records and a dead return doe
   expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
   expect(await host.evaluate(() => window.NEON.Net.code)).toBe(code);
   expect(await host.evaluate(() => window.NEON.Net.state)).not.toBe('error');
+  await host.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    const gone=G.spawnEnemy(N.ENEMY_BY_ID.ghost,G.player.x+500,G.player.y);
+    G.killEnemy(gone);
+    const present=G.spawnEnemy(N.ENEMY_BY_ID.orb,G.player.x+1000,G.player.y);
+    present.speed=0;
+  });
   const replacementContext=trackContext(await browser.newContext());
   const replacement=await replacementContext.newPage();
   watchPage(replacement,'replacement',errors);
@@ -1024,6 +1031,8 @@ test('014 direct-link replacement retains separate records and a dead return doe
   expect(await replacement.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
   expect(await replacement.evaluate(()=>window.NEON.PlayerStats.match.shotsFired)).toBe(0);
   await readyPair(host,replacement);
+  await expect.poll(()=>replacement.evaluate(()=>!!window.NEON.Profile.current().book.orb?.seen)).toBe(true);
+  expect(await replacement.evaluate(()=>window.NEON.Profile.current().book.ghost)).toBeUndefined();
   await replacement.evaluate(()=>{const N=window.NEON;N.Game.spawnBullet({speed:0,damage:1});N.Game.spawnBullet({speed:0,damage:1});N.PlayerStats.sendRow(true);});
   await expect.poll(()=>host.evaluate(()=>window.NEON.PlayerStats.remote.row.shotsFired)).toBe(2);
   await replacement.evaluate(() => window.NEON.Coop.leaveToMenu());
@@ -1371,5 +1380,38 @@ test('025 disabled guest ignores credits without later backfill and leaving keep
   await expect(guest.locator('#menu-match-tally .tally-table')).toBeVisible();
   const rows=await guest.evaluate(()=>window.NEON.PlayerStats.lastBoard.rows.map(p=>p.row));
   expect(rows).toHaveLength(2);expect(rows[0].shotsFired).toBe(1);expect(rows[1].shipsDestroyed).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('026 host confirms per-style guest kills and discoveries with stats disabled',async({browser})=>{
+  test.setTimeout(90000);
+  const {host,guest,errors}=await startCoopRun(browser);
+  await quietWorld(host);
+  await guest.evaluate(()=>{window.NEON.Game.settings.trackStats=false;});
+  const before=await guest.evaluate(()=>window.NEON.Profile.current().book.ghost?.kills||0);
+  await host.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    G.settings.trackStats=false;
+    const enemy=G.spawnEnemy(N.ENEMY_BY_ID.ghost,G.player.x+500,G.player.y);
+    enemy.shield=0;enemy.hp=1;
+    G.damageEnemy(enemy,10,{player:N.Coop.guestMirror()});
+    G.killEnemy(enemy,{player:N.Coop.guestMirror()});
+    for(let i=0;i<3;i++)N.Logbook.send(true);
+  });
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Profile.current().book.ghost?.kills||0)).toBe(before+1);
+  expect(await host.evaluate(()=>window.NEON.Profile.current().book.ghost)).toEqual({seen:true,kills:0});
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
+  await guest.evaluate(()=>{
+    const N=window.NEON;
+    N.Logbook.flush();N.Profile.reload();
+    // Recover the receipt as after reconnecting the same run.
+    N.Logbook.receive({book:{ghost:{seen:true,kills:1}}});
+    N.Logbook.flush();
+  });
+  await host.evaluate(()=>window.NEON.Logbook.send(true));
+  expect(await guest.evaluate(()=>window.NEON.Profile.current().book.ghost.kills)).toBe(before+1);
+  await guest.evaluate(()=>window.NEON.Coop.leaveToMenu());
+  await guest.locator('#btn-logbook').click();
+  await expect(guest.locator('[data-enemy-style="ghost"]')).toContainText('DESTROYED: '+(before+1));
   expect(errors).toEqual([]);
 });
