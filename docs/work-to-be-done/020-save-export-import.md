@@ -179,3 +179,13 @@ version 3 replaces it after confirmation. Active co-op identity/confirmation
 state is excluded from export. A malformed profile is refused, and a late
 profile write failure restores checkpoint, settings, ships and profile together.
 Owner approved backup inclusion in chat. This does not add a score service.
+
+### 2026-11-02 — Enemy logbook extension (issue 026)
+
+[Issue 026](026-enemy-logbook.md) extends the same backup to file version 4.
+It includes validated lifetime discoveries and per-style destruction counts.
+Versions 1–3 preserve the destination's existing book. Version 4 replaces it
+after confirmation; invalid optional entries are dropped without blocking a
+valid checkpoint or totals. Active co-op receipt state stays local and is not
+exported. The existing four-key rollback still covers all profile data.
+Owner approved shared profile storage and backup inclusion in chat.

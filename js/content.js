@@ -411,6 +411,41 @@ N.ENEMY_STYLES=[
   {id:'archon',name:'ARCHON ENGINE',role:'boss',shape:'archon',hue:16,sizeMul:1.35}
 ];
 N.ENEMY_BY_ID=Object.fromEntries(N.ENEMY_STYLES.map(s=>[s.id,s]));
+// Written facts, keyed by style so catalog completeness can be checked.
+N.ENEMY_DESCRIPTIONS={
+  dart:'A dart hull that pursues the pilot and deals damage on contact.',
+  needle:'A narrow needle hull that chases the pilot instead of firing.',
+  hexplate:'A slow hexagonal tank that closes in while firing radial volleys.',
+  cube:'A bulky cube hull that advances slowly and fires rings of projectiles.',
+  crawler:'A pursuing crawler that splits into smaller children when destroyed.',
+  fractal:'A large fractal hull that breaks into smaller copies on destruction.',
+  eye:'An optic hull that keeps its distance and fires aimed bursts.',
+  trident:'A trident hull that circles at firing range and launches aimed bursts.',
+  prism:'A prism sniper that telegraphs a fast shot and retreats from close threats.',
+  lance:'A lance sniper that seeks a distant firing position before charging its shot.',
+  flower:'A flower hull that approaches the pilot and releases radial bursts.',
+  spore:'A compact spore hull that fills nearby space with rings of projectiles.',
+  ring:'A shielded ring hull that maintains firing distance and launches aimed volleys.',
+  shield:'A shielded guardian that regenerates its barrier after a delay and fires aimed volleys.',
+  orb:'A fast fuse orb that arms a nearby explosion and also detonates when destroyed.',
+  spider:'A fast spider hull that chases the pilot before triggering an explosion.',
+  web:'A support weaver that seeks wounded enemies and repairs their hulls.',
+  knot:'A compact repair hull that heals nearby allies while avoiding close threats.',
+  hive:'A slow carrier that releases small pursuers while keeping its distance.',
+  brood:'A brood engine that deploys small pursuers around its hull.',
+  horn:'A ram hull that pauses to telegraph its direction before charging.',
+  breaker:'A large charging hull with heavy contact damage and a visible windup.',
+  gyro:'An orbiting sentry that fires rotating pairs of projectiles.',
+  orbit:'An orbiting hull whose paired shots sweep around the pilot.',
+  crown:'A shielded elite that alternates radial bursts and aimed fans.',
+  trinity:'A large shielded warden that combines radial and aimed attack patterns.',
+  ghost:'A mobile null hull that teleports and fires curved volleys.',
+  voideye:'A void eye that changes position by teleporting and launches curved shots.',
+  seeder:'A seeder that keeps its distance while placing explosive mines.',
+  spire:'A mine spire that seeds the area with armed proximity explosives.',
+  boss:'A large shielded overseer with radial, aimed and rotating patterns plus summoned minions.',
+  archon:'A massive shielded engine that cycles attack patterns while deploying minions.'
+};
 N.ROLE_LIST=Object.keys(N.ROLES);
 
 N.weaponIconURL=function(id,color){

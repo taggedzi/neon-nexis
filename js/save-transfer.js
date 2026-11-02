@@ -3,7 +3,7 @@
 'use strict';
 const N = window.NEON;
 const transfer = N.SaveTransfer = {};
-const FILE_VERSION = 3;
+const FILE_VERSION = 4;
 
 // A backup is one sector of checkpoint data plus settings. One million
 // characters is far above that and rejects a huge file before it is applied.
@@ -78,6 +78,7 @@ transfer.build = function() {
     if (found.unavailable) return { ok: false, reason: 'unavailable' };
     if (found.incompatible) return { ok: false, reason: 'incompatible' };
     N.PlayerStats?.flush();
+    N.Logbook?.flush();
     const profile=N.Profile.current();
     if(!profile) return {ok:false,reason:'profile'};
     const ships = N.Loadouts.read();
@@ -93,7 +94,7 @@ transfer.build = function() {
         checkpoint: found.raw == null ? null : JSON.parse(found.raw),
         settings,
         loadouts: ships.data,
-        profile: {version:1,stats:{...profile.stats}}
+        profile: {version:2,stats:{...profile.stats},book:N.Profile.cleanBook(profile.book)}
       }
     };
   } catch (error) {
@@ -102,7 +103,7 @@ transfer.build = function() {
 };
 
 transfer.validate = function(file) {
-  if (!plainObject(file) || ![1, 2, FILE_VERSION].includes(file.fileVersion)) {
+  if (!plainObject(file) || ![1, 2, 3, FILE_VERSION].includes(file.fileVersion)) {
     return { ok: false, reason: plainObject(file) ? 'version' : 'invalid' };
   }
   if (!Object.hasOwn(file, 'settings') || !plainObject(file.settings)) {
@@ -115,7 +116,7 @@ transfer.validate = function(file) {
   if(file.fileVersion>=2 && !N.Loadouts.validate(file.loadouts)){
     return { ok: false, reason: 'loadouts' };
   }
-  if(file.fileVersion===3 && !N.Profile.validate(file.profile)){
+  if(file.fileVersion>=3 && !N.Profile.validate(file.profile)){
     return {ok:false,reason:'profile'};
   }
   return { ok: true, file };
@@ -146,7 +147,8 @@ transfer.summary = function(file) {
     if (hasExisting) sentences.push('This replaces the checkpoint already stored in this browser.');
   }
   sentences.push(file.fileVersion>=2?'Saved ships in the file replace this browser’s saved ship list.':'This older backup preserves the saved ships already in this browser.');
-  sentences.push(file.fileVersion===3?'Lifetime profile totals in the file replace this browser’s totals.':'This older backup preserves lifetime profile totals already in this browser.');
+  sentences.push(file.fileVersion===4?'The enemy logbook in this file replaces this browser’s logbook.':'This older backup preserves the enemy logbook already in this browser.');
+  sentences.push(file.fileVersion>=3?'Lifetime profile totals in the file replace this browser’s totals.':'This older backup preserves lifetime profile totals already in this browser.');
   sentences.push('Settings in the file replace settings in this browser, including controls, audio, and graphics.');
   return sentences.join(' ');
 };
@@ -166,6 +168,7 @@ transfer.apply = function(file) {
   let normalized;
   try {
     N.PlayerStats?.flush();
+    N.Logbook?.flush();
     previousSave = localStorage.getItem(saveKey);
     previousSettings = localStorage.getItem(settingsKey);
     previousLoadouts = localStorage.getItem(N.Loadouts.key);
@@ -176,7 +179,11 @@ transfer.apply = function(file) {
     else localStorage.setItem(saveKey, JSON.stringify(file.checkpoint));
     localStorage.setItem(settingsKey, JSON.stringify(normalized));
     if(file.fileVersion>=2) localStorage.setItem(N.Loadouts.key,JSON.stringify(file.loadouts));
-    if(file.fileVersion===3) localStorage.setItem(N.Profile.key,JSON.stringify({version:1,stats:N.Profile.cleanStats(file.profile.stats)}));
+    if(file.fileVersion>=3){
+      const old=N.Profile.current();
+      localStorage.setItem(N.Profile.key,JSON.stringify({version:2,stats:N.Profile.cleanStats(file.profile.stats),
+        book:file.fileVersion===4?N.Profile.cleanBook(file.profile.book):N.Profile.cleanBook(old?.book)}));
+    }
   } catch (error) {
     if (captured) {
       try {

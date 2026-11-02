@@ -23,7 +23,7 @@ for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
 
 const N = sandbox.NEON;
 const Wire = N.Wire;
-assert.equal(Wire.VERSION, 4);
+assert.equal(Wire.VERSION, 5);
 assert.equal(typeof Wire.encode, 'function');
 assert.equal(typeof Wire.decode, 'function');
 

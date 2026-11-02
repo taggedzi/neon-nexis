@@ -361,3 +361,22 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   preserve any existing profile. Hardcore removes its checkpoint, not totals.
 - Supersedes: Unapproved attribution/toggle/profile proposals in 025; extends
   the version-2 named-ship backup decision with the same confirmation flow.
+
+## 2026-11-02 — Lifetime enemy logbook
+
+- Decision: Catalog every enemy style, grouped by role, with undiscovered names
+  hidden as Unknown. Use concise factual copy from current behavior. Discover
+  enemies present in the sector, including alive enemies on co-op join and later
+  spawns. All present participants discover; only the killing pilot receives a
+  destruction count, with the host confirming guest credit.
+- Rationale: Keep encounters and personal kills distinct in a persistent catalog.
+- Approval: Owner answers in this chat on 2026-11-02; see
+  [issue 026](work-to-be-done/026-enemy-logbook.md).
+- Consequences: Logbook recording remains on when player stats are off and
+  survives Hardcore death. It shares the lifetime profile. Backup version 4
+  includes the book; older backups preserve the destination's existing book.
+  Agent implementation choice: profile schema 2 migrates schema 1; cumulative
+  per-participant confirmations avoid duplicate kill credit on retries/rejoin.
+- Supersedes: Unapproved structure, discovery, boss ordering and Hardcore wipe
+  questions in issue 026. Extends the version-3 backup decision using the existing
+  confirmation and four-key rollback flow.

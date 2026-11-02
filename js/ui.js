@@ -5,7 +5,7 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','ship','loadouts','playerstats','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
+const screens=['boot','menu','ship','loadouts','playerstats','logbook','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
@@ -1135,6 +1135,7 @@ UI.confirm=function(title,copy,onYes,yesLabel){
 // ——— navigation ———
 function backAction(){
   switch(currentScreen){
+    case 'logbook': N.LogbookUI.close();break;
     case 'playerstats': N.StatsUI.close();break;
     case 'loadouts': N.LoadoutUI.close();break;
     case 'settings': closeSettings();break;
@@ -1166,7 +1167,7 @@ function onKeyDown(e){
       e.preventDefault();e.stopPropagation();
       return;
     }
-    if(currentScreen==='playerstats'||currentScreen==='loadouts'||currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
+    if(currentScreen==='logbook'||currentScreen==='playerstats'||currentScreen==='loadouts'||currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
       // Stop the event so the gameplay input layer does not also register this
       // press and immediately re-open the pause screen after resuming.
       e.preventDefault();e.stopPropagation();backAction();
