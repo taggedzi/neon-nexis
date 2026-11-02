@@ -120,7 +120,9 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
       if (Date.now() - lastNudge < 3000) return false;
       lastNudge = Date.now();
 
-      const down = (status) => status.state === 'idle' || status.state === 'error' || status.state === 'closed' || status.state === 'connecting' || status.state === 'reconnecting';
+      // A live negotiation needs its full setup budget. Restarting every three
+      // seconds can abort healthy Firefox ICE gathering and create real errors.
+      const down = (status) => status.state === 'idle' || status.state === 'error' || status.state === 'closed';
       if (!hostStatus.peer && down(hostStatus)) await host.evaluate(() => window.NEON.Net.reconnect());
       if (!guestStatus.peer && down(guestStatus)) {
         await guest.evaluate((roomCode) => {
