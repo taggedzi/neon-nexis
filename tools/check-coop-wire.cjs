@@ -39,7 +39,7 @@ function stable(value) {
 
 function stamp(message, host) {
   message._seat = host ? 0 : 3;
-  if (host) message._targetSeat = 3;
+  if (host) {message._targetSeat = 3;}
   message._sector = 4;
   message._life = 1;
   message._run = 7;
@@ -211,7 +211,7 @@ const stateBytes = roundTrip(state);
 assert.ok(stateBytes <= 66, 'state ' + stateBytes);
 
 const avatar = { ...state, seconds: null };
-for (const key of ['t', '_s', '_run', '_sector', '_life', '_targetLife', '_targetSeat']) delete avatar[key];
+for (const key of ['t', '_s', '_run', '_sector', '_life', '_targetLife', '_targetSeat']) {delete avatar[key];}
 const avatarsBytes = roundTrip(stamp({ t: 'avatars', players: [avatar, { ...avatar, _seat: 1 }, { ...avatar, _seat: 2 }] }, true));
 assert.ok(avatarsBytes <= 190, 'three remote avatars ' + avatarsBytes);
 assert.equal(Wire.encode(stamp({ t: 'avatars', players: [avatar, avatar] }, true)), null, 'duplicate avatar seats stay out of binary');

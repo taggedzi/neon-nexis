@@ -31,21 +31,21 @@ const box = { URL, URLSearchParams, setTimeout, clearTimeout, performance, crypt
   fetch: async (_url, options) => {
     const request = options?.body ? JSON.parse(options.body) : { action: 'status' };
     let body = { ok: true };
-    if (request.action === 'status') body = { enabled: true, protocol: 2, iceServers: [{ urls: 'stun:localhost' }] };
-    if (request.action === 'host') body = { ok: true, code: 'ABCDE' };
-    if (request.action === 'poll') body = { ok: true, protocol: 2, peers: guests };
+    if (request.action === 'status') {body = { enabled: true, protocol: 2, iceServers: [{ urls: 'stun:localhost' }] };}
+    if (request.action === 'host') {body = { ok: true, code: 'ABCDE' };}
+    if (request.action === 'poll') {body = { ok: true, protocol: 2, peers: guests };}
     return { ok: true, json: async () => body };
   }
 };
 box.window = box;
 vm.createContext(box);
-for (const name of ['coop-host', 'net']) vm.runInContext(fs.readFileSync('js/' + name + '.js', 'utf8'), box);
+for (const name of ['coop-host', 'net']) {vm.runInContext(fs.readFileSync('js/' + name + '.js', 'utf8'), box);}
 const Net = box.NEON.Net;
 Net.onMessage = (message, id) => received.push({ message, id });
 (async () => {
   try {
     assert.equal(Net.host({}), true);
-    for (let attempt = 0; connections.length < 3 && attempt < 100; attempt++) await delay(10);
+    for (let attempt = 0; connections.length < 3 && attempt < 100; attempt++) {await delay(10);}
     assert.equal(connections.length, 3, 'a hung first negotiation does not block other introductions');
     const channels = connections.map((connection, index) => {
       const channel = { readyState: 'open', sent: [], send(data) { this.sent.push(JSON.parse(data)); }, close() {} };

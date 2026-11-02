@@ -194,9 +194,9 @@ function assertIntroductionOnly(bodies) {
     check(body && body.parse !== false, 'PHP introduction responses are JSON');
     for (const key of Object.keys(body)) check(allowed.has(key), 'PHP response stays an introduction: ' + key);
     for (const peer of body.peers || []) {
-      for (const key of Object.keys(peer)) check(['clientId', 'seat', 'card'].includes(key), 'introduction peer field: ' + key);
+      for (const key of Object.keys(peer)) {check(['clientId', 'seat', 'card'].includes(key), 'introduction peer field: ' + key);}
       if (peer.card) {
-        for (const key of Object.keys(peer.card)) check(cardKeys.has(key), 'connection card has no gameplay field: ' + key);
+        for (const key of Object.keys(peer.card)) {check(cardKeys.has(key), 'connection card has no gameplay field: ' + key);}
       }
     }
     const raw = JSON.stringify(body);

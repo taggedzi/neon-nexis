@@ -58,7 +58,7 @@
       for (const player of C.remotePlayers) {
         const id = player.clientId || player.statsPeerId || peerId();
         B.selectPeer(id);
-        if (peers.has(id)) entry(peers.get(id), enemy.style);
+        if (peers.has(id)) {entry(peers.get(id), enemy.style);}
       }
     }
   };

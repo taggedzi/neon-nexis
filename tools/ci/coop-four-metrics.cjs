@@ -32,7 +32,7 @@ async function installMetrics(context) {
     let previous = null;
     function frame(now) {
       const metrics = window.__coopMetrics;
-      if (metrics.enabled && previous !== null) metrics.frames.push(now - previous);
+      if (metrics.enabled && previous !== null) {metrics.frames.push(now - previous);}
       previous = now;
       requestAnimationFrame(frame);
     }
@@ -62,7 +62,7 @@ async function measureFight(pages, testInfo, browser) {
       N.Game.player.invuln = 300;
       window.__coopFireTimer = setInterval(() => {
         const G = N.Game;
-        if (G.mode === 'playing') G.fireWeapon(G.player.weapons[G.player.activeWeapon]);
+        if (G.mode === 'playing') {G.fireWeapon(G.player.weapons[G.player.activeWeapon]);}
       }, 150);
     })));
     await new Promise(resolve => setTimeout(resolve, 20000));

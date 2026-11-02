@@ -124,10 +124,10 @@
         const id = player.clientId || player.statsPeerId || peerId();
         N.Net.send({ ...body, authority: { ...(authorities.get(id) || P.emptyStats()) }, peers }, id);
       }
-    } else N.Net.send({ ...body, authority: null });
+    } else {N.Net.send({ ...body, authority: null });}
   };
   S.receiveRow = function (message, senderId) {
-    if (N.Coop.isGuest()) S.receiveAuthority(message.authority);
+    if (N.Coop.isGuest()) {S.receiveAuthority(message.authority);}
     if (!Number.isSafeInteger(message.sequence) || message.sequence < 1 || !P.validStats(message.row) || !P.validStats(message.received)) return;
     const id = senderId || peerId(), previous = S.peerRow(id);
     if (previous && message.sequence <= previous.sequence) return;
@@ -139,12 +139,12 @@
     if (N.Coop.isGuest() && Array.isArray(message.peers)) {
       for (const peer of message.peers.slice(0, 64)) {
         if (!peer || typeof peer.id !== 'string' || peer.id === N.Net.clientId || peer.id === id ||
-            !P.validStats(peer.row) || !P.validStats(peer.received) || !Number.isSafeInteger(peer.sequence)) continue;
+            !P.validStats(peer.row) || !P.validStats(peer.received) || !Number.isSafeInteger(peer.sequence)) {continue;}
         const old = S.peers.get(peer.id);
-        if (!old || peer.sequence > old.sequence) S.peers.set(peer.id, {
+        if (!old || peer.sequence > old.sequence) {S.peers.set(peer.id, {
           id: peer.id, name: String(peer.name || 'TEAMMATE').slice(0, 20), sequence: peer.sequence,
           enabled: peer.enabled !== false, row: P.cleanStats(peer.row), received: P.cleanStats(peer.received)
-        });
+        });}
       }
     }
   };
@@ -303,7 +303,7 @@
     if(!N.Coop.isHost()||ending)return;
     if(!N.Coop.remotePlayers.length){S.endLocal();return finishRun(...args);}
     endWaiting.clear();
-    for (const player of N.Coop.remotePlayers) endWaiting.add(player.clientId || player.statsPeerId || peerId());
+    for (const player of N.Coop.remotePlayers) {endWaiting.add(player.clientId || player.statsPeerId || peerId());}
     ending=args;G.setMode('gameover');requestEnd();endTimer=setTimeout(completeEnd,2000);
   };
   S.answerEnd=function(message){
@@ -312,9 +312,9 @@
     N.Net.send({t:'stats_end_ack'});
   };
   S.finishEnd=function(id){
-    if (!N.Coop.isHost()) return;
+    if (!N.Coop.isHost()) {return;}
     endWaiting.delete(id || peerId());
-    if (!endWaiting.size) completeEnd();
+    if (!endWaiting.size) {completeEnd();}
   };
   wrap(N.Coop,'tickSession',(original,args)=>{
     const result=original(...args);S.sendRow();

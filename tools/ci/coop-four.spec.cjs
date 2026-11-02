@@ -9,7 +9,7 @@ for (const count of [3, 4]) {
       for (let seat = 0; seat < count; seat++) {
         const context = await browser.newContext();
         contexts.push(context);
-        if (process.env.NEON_COOP_MEASURE === '1') await installMetrics(context);
+        if (process.env.NEON_COOP_MEASURE === '1') {await installMetrics(context);}
         const page = await context.newPage();
         pages.push(page);
         page.on('pageerror', error => errors.push(`seat ${seat}: ${error.message}`));
@@ -21,7 +21,7 @@ for (const count of [3, 4]) {
             G.newRun(); G.pauseGame();
             G.player.weapons[0].level = 3;
             const saved = N.Loadouts.save('Optional veteran');
-            if (!saved.ok) throw new Error(saved.error);
+            if (!saved.ok) {throw new Error(saved.error);}
             G.completeToMenu();
           });
         }
@@ -80,7 +80,7 @@ for (const count of [3, 4]) {
         G.enemies.length = 0;
         G.nextSurge = G.nextWarden = G.nextBoss = 1e9;
         G.spawnWave = () => {};
-        for (const player of N.Coop.players()) player.invuln = 999;
+        for (const player of N.Coop.players()) {player.invuln = 999;}
       });
       // Every guest's fire and confirmed kills must stay attached to that seat.
       await host.evaluate(() => {
@@ -120,19 +120,19 @@ for (const count of [3, 4]) {
         C.sendHit(player, 1, player.x, player.y, false);
       });
       await expect.poll(() => last.evaluate(() => window.NEON.PlayerStats.match.hitsTaken)).toBe(1);
-      for (const page of pages.slice(0, -1)) expect(await page.evaluate(() => window.NEON.PlayerStats.match.hitsTaken)).toBe(0);
+      for (const page of pages.slice(0, -1)) {expect(await page.evaluate(() => window.NEON.PlayerStats.match.hitsTaken)).toBe(0);}
       await last.evaluate(() => window.NEON.Coop.requestGlobalPause());
-      for (const page of pages) await expect.poll(() => page.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
+      for (const page of pages) {await expect.poll(() => page.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');}
       await expect(host.locator('#screen-pause.active')).toBeVisible();
       await expect(host.locator('#pause-coop-status span')).toHaveCount(count);
       if (count === 4) {
         await host.screenshot({ animations: 'disabled', path: testInfo.outputPath('four-player-pause.png') });
-        if (process.env.NEON_COOP_VISUAL_COMPARE === '1') await captureHudComparison(host, testInfo);
+        if (process.env.NEON_COOP_VISUAL_COMPARE === '1') {await captureHudComparison(host, testInfo);}
       }
-      for (const page of pages.slice(0, -1)) await page.evaluate(() => window.NEON.Coop.sendReady());
+      for (const page of pages.slice(0, -1)) {await page.evaluate(() => window.NEON.Coop.sendReady());}
       expect(await host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
       await last.evaluate(() => window.NEON.Coop.sendReady());
-      for (const page of pages) await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');
+      for (const page of pages) {await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');}
       await last.evaluate(() => {
         window.NEON.Game.player.weapons[0].level = 3;
         window.NEON.Game.gameOver();
@@ -144,10 +144,10 @@ for (const count of [3, 4]) {
         await expect.poll(() => page.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
         await page.evaluate(() => window.NEON.Coop.sendReady());
       }
-      for (const page of pages) await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');
+      for (const page of pages) {await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');}
       if (count === 4) {
         await host.screenshot({ animations: 'disabled', path: testInfo.outputPath('four-player-hud.png') });
-        if (process.env.NEON_COOP_MEASURE === '1') await measureFight(pages, testInfo, browser);
+        if (process.env.NEON_COOP_MEASURE === '1') {await measureFight(pages, testInfo, browser);}
       }
       const identity = await last.evaluate(() => window.NEON.Net.clientId);
       const code = await host.evaluate(() => window.NEON.Net.code);
@@ -163,10 +163,10 @@ for (const count of [3, 4]) {
       expect(await last.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(3);
       expect(await host.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(3);
       await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(count - 1);
-      for (const page of pages) await page.evaluate(() => window.NEON.Coop.sendReady());
-      for (const page of pages) await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');
+      for (const page of pages) {await page.evaluate(() => window.NEON.Coop.sendReady());}
+      for (const page of pages) {await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');}
       await host.evaluate(() => {
-        for (const player of window.NEON.Coop.remotePlayers) player.dead = true;
+        for (const player of window.NEON.Coop.remotePlayers) {player.dead = true;}
         window.NEON.Game.gameOver();
       });
       for (const page of pages) {
@@ -175,7 +175,7 @@ for (const count of [3, 4]) {
       }
       expect(errors).toEqual([]);
     } finally {
-      for (const context of contexts.reverse()) await context.close();
+      for (const context of contexts.reverse()) {await context.close();}
     }
   });
 }

@@ -426,3 +426,18 @@ sample, not a real-player performance acceptance test or a WAN bandwidth bound.
   29.9 seconds), retaining strict console checks. The four-ship range/magnet
   regression also passed. A fresh mandatory full pre-push run follows this
   follow-up commit; the branch has not been merged at this point.
+
+### Final style and transport delivery follow-up
+
+- The next full pre-push check passed **148/148 browser tests** (7.3 minutes),
+  including the pickup follow-up, with syntax/lint/unit checks passing. GitHub
+  closed the idle SSH connection while the long hook ran, so that attempt did
+  not upload the branch. Delivery retries use command-scoped SSH keepalives;
+  the pre-push hook remains enabled and is not bypassed.
+- Applied the style guide's braces rule only to new/changed guards and loops,
+  and corrected indentation within the newly nested teammate/pickup loops.
+  Untouched legacy guards are preserved. All 17 formatted source/test files
+  have identical non-brace token streams to the preceding commit. Syntax,
+  full lint, grant/range/magnet checks, independent-star checks, and whitespace
+  checks passed after formatting. The mandatory pre-push suite runs again on
+  this final snapshot.
