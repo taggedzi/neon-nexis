@@ -23,7 +23,7 @@ for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
 
 const N = sandbox.NEON;
 const Wire = N.Wire;
-assert.equal(Wire.VERSION, 3);
+assert.equal(Wire.VERSION, 4);
 assert.equal(typeof Wire.encode, 'function');
 assert.equal(typeof Wire.decode, 'function');
 
@@ -319,8 +319,8 @@ roundTrip(stamp({
   ]
 }, true));
 
-roundTrip(stamp({ t: 'fire', w: 'rail', a: 1.047, x: 20, y: 30.5 }, false));
-roundTrip(stamp({ t: 'fire', w: null, a: 0, x: 0, y: 0 }, false));
+roundTrip(stamp({ t: 'fire', statsFire: 123, w: 'rail', a: 1.047, x: 20, y: 30.5 }, false));
+roundTrip(stamp({ t: 'fire', statsFire: 0, w: null, a: 0, x: 0, y: 0 }, false));
 roundTrip(stamp({
   t: 'fx',
   kind: 'beam',

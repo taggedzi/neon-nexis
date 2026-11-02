@@ -148,3 +148,12 @@ owner did not specify browser or device details.
 Delivery branch: `codex/feat/dev-mode`. The owner authorized committing,
 pushing the branch, and opening a pull request on 2026-11-02; the owner will
 merge it.
+
+
+### 2026-11-02 — Stats compatibility (issue 025)
+
+[Issue 025](025-player-stats.md) keeps scenario commands from automatically
+writing the new lifetime profile. Scenario events can update an in-memory match
+tally, but do not add lifetime counts. The existing explicit manual checkpoint
+path remains the persistence action. This is an implementation choice preserving
+021's approved no-automatic-storage scope, not a new gameplay restriction.

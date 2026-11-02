@@ -838,6 +838,12 @@
   Coop.onMessage = function (message) {
     if (!message || typeof message !== 'object') return;
     switch (message.t) {
+      case 'stats_end_request':
+        N.PlayerStats.answerEnd(message);break;
+      case 'stats_end_ack':
+        N.PlayerStats.finishEnd();break;
+      case 'stats_row':
+        N.PlayerStats.receiveRow(message);break;
       case 'start':
         Coop.startGuestRun(message);
         break;
@@ -1333,7 +1339,7 @@
 
   Coop.onLocalFire = function () {
     if (!Coop.isGuest() || !G.player) return;
-    N.Net.send({ t: 'fire', w: G.player.weapons[G.player.activeWeapon] ? G.player.weapons[G.player.activeWeapon].id : null, a: round(G.aim.angle, 3), x: round(G.player.x, 1), y: round(G.player.y, 1) });
+    N.Net.send({ t: 'fire', w: G.player.weapons[G.player.activeWeapon] ? G.player.weapons[G.player.activeWeapon].id : null, a: round(G.aim.angle, 3), x: round(G.player.x, 1), y: round(G.player.y, 1), statsFire: N.PlayerStats?.fire?.id || 0 });
   };
 
   Coop.onPlayerBullet = function (bullet) {

@@ -51,6 +51,7 @@
   }
 
   N.Dev = Object.freeze({
+    isScenario(run = G.run) { return devRuns.has(run); },
     catalog() {
       allowed(false);
       return {

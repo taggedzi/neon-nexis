@@ -46,10 +46,12 @@
               <p class="micro" id="coop-unavailable" hidden>Co-op is unavailable until the site admin enables it.</p>
               <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
               <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
+              <button class="neon-btn" id="btn-player-stats" type="button">PLAYER STATS</button>
               <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
             </div>
           </div>
           <div class="menu-side">
+            <div id="menu-match-tally" class="tally-container" hidden></div>
             <div class="holo-panel">
               <div class="holo-head">LIVE SECTOR FEED <span>ENCRYPTED</span></div>
               <div class="holo-diagram" aria-hidden="true">
@@ -72,6 +74,17 @@
             </div>
             <div class="micro" id="menu-version">BUILD DEVELOPMENT // CLIENT-SIDE ASSET SYNTHESIS</div>
           </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-playerstats">
+        <div class="panel wide">
+          <div class="panel-head"><h2>PLAYER STATS</h2></div>
+          <button class="neon-btn" id="stats-toggle" type="button" aria-pressed="true">RECORD PLAYER STATS: ON</button>
+          <p class="micro">TURNING RECORDING OFF HIDES MATCH TALLIES AND STOPS NEW COUNTS. EXISTING TOTALS STAY IN THIS BROWSER.</p>
+          <p id="stats-storage-note" class="micro"></p>
+          <div id="lifetime-tally" class="tally-container"></div>
+          <div class="panel-footer"><button class="neon-btn primary" id="stats-close" type="button">RETURN</button></div>
         </div>
       </section>
 
@@ -111,6 +124,7 @@
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
             <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
             <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
+            <button class="neon-btn" id="btn-pause-stats" type="button">PLAYER STATS</button>
             <button class="neon-btn" id="btn-pause-loadouts" type="button">SAVED SHIPS</button>
             <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
             <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
@@ -270,6 +284,7 @@
             <button class="neon-btn" id="btn-gameover-menu" type="button">RETURN TO MAIN MENU</button>
           </div>
           <div class="micro center" id="gameover-save-note">LAST CHECKPOINT AVAILABLE</div>
+          <div id="gameover-tally" class="tally-container" hidden></div>
         </div>
       </section>
 
@@ -388,6 +403,7 @@
   <script src="js/game.js"></script>
   <script src="js/save-policy.js"></script>
   <script src="js/loadouts.js"></script>
+  <script src="js/profile.js"></script>
   <script src="js/save-transfer.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/driving.js"></script>
@@ -403,6 +419,8 @@
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/loadouts-ui.js"></script>
+  <script src="js/player-stats.js"></script>
+  <script src="js/stats-ui.js"></script>
   <script src="js/dev.js"></script>
   <script src="js/main.js"></script>
 </body>

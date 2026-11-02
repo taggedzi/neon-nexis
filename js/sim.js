@@ -32,6 +32,7 @@ G.spawnBullet=function(o){
   b.tickTimer=b.tick||0;
   if(G.playerBullets.length>=MAX_PLAYER_BULLETS) G.playerBullets.shift();
   G.playerBullets.push(b);
+  N.PlayerStats?.emit(b);
   if(N.Coop) N.Coop.onPlayerBullet(b);
   return b;
 };
@@ -62,6 +63,7 @@ G.spawnMine=function(o){
   },o);
   G.mines.push(m);
   G.addRing(m.x,m.y,m.radius*.7,m.color,.35,1);
+  N.PlayerStats?.emit(m);
   if(N.Coop) N.Coop.onMine(m);
   return m;
 };
@@ -75,6 +77,7 @@ G.spawnOrbital=function(o){
       damage:o.damage||10,color:o.color||'#b6ff2b',life:o.life||6,maxLife:o.life||6,
       hits:Object.create(null),dead:false,weaponId:o.weaponId,owner:o.owner||G.player
     });
+    N.PlayerStats?.emit(G.orbitals[G.orbitals.length-1]);
   }
 };
 G.spawnStrike=function(o){
@@ -85,6 +88,7 @@ G.spawnStrike=function(o){
     coopPlayer:G.coopFiringPlayer||null,coopCosmetic:false
   });
   G.addRing(o.x,o.y,o.radius||70,o.color||'#ffb31f',.5,.8);
+  N.PlayerStats?.emit(G.strikes[G.strikes.length-1]);
   if(N.Coop) N.Coop.onStrike(G.strikes[G.strikes.length-1]);
 };
 G.addText=G.addText;
@@ -235,7 +239,7 @@ function chainLightning(x,y,b,maxJumps){
     if(!t)break;
     points.push([t.x,t.y]);
     hit.add(t.id);
-    damageTarget(t,b.damage*.62,{x:t.x,y:t.y,critChance:b.critChance||0,critMul:b.critMul||1.75,source:'chain',allowPayload:false,player:b.coopPlayer});
+    damageTarget(t,b.damage*.62,{x:t.x,y:t.y,critChance:b.critChance||0,critMul:b.critMul||1.75,source:'chain',allowPayload:false,player:b.coopPlayer,shot:b.tallyShot});
     G.addParticles(t.x,t.y,b.color,3,{speed:70,life:.35,size:1.3});
     cx=t.x;cy=t.y;
   }
@@ -429,7 +433,7 @@ G.updatePlayerBullets=function(dt){
       const t=Math.max(0,wall.t-.0001);b.x=b.prevX+(b.x-b.prevX)*t;b.y=b.prevY+(b.y-b.prevY)*t;
       G.addParticles(b.x,b.y,b.color,4,{speed:70,life:.25,size:1.2});
       if(b.bounce>0&&(wall.nx||wall.ny)){b.bounce--;reflectBullet(b,wall.nx,wall.ny);continue;}
-      if(b.explode||b.kind==='mortar'||b.kind==='gravity')G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:8,shake:1.5,player:b.coopPlayer});
+      if(b.explode||b.kind==='mortar'||b.kind==='gravity')G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:8,shake:1.5,player:b.coopPlayer,shot:b.tallyShot});
       b.dead=true;continue;
     }
     if(b.pull){
@@ -450,8 +454,8 @@ G.updatePlayerBullets=function(dt){
       if(b.tickTimer<=0){
         b.tickTimer=b.tick;
         const rr=(b.aoe||40)+b.size;
-        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r)&&N.World.clear(b.x,b.y,e.x,e.y))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false,player:b.coopPlayer});}
-        for(const a of G.level.anchors){if(a.alive&&N.dist2(b.x,b.y,a.x,a.y)<(rr+a.r)*(rr+a.r)&&N.World.clear(b.x,b.y,a.x,a.y))G.damageAnchor(a,b.damage*.7,{x:b.x,y:b.y});}
+        for(const e of G.enemies){if(!e.dead&&N.dist2(b.x,b.y,e.x,e.y)<(rr+e.r)*(rr+e.r)&&N.World.clear(b.x,b.y,e.x,e.y))G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'dot',allowPayload:false,player:b.coopPlayer,shot:b.tallyShot});}
+        for(const a of G.level.anchors){if(a.alive&&N.dist2(b.x,b.y,a.x,a.y)<(rr+a.r)*(rr+a.r)&&N.World.clear(b.x,b.y,a.x,a.y))G.damageAnchor(a,b.damage*.7,{x:b.x,y:b.y,player:b.coopPlayer,shot:b.tallyShot});}
         for(const c of G.level.caches){if(c.alive&&N.dist2(b.x,b.y,c.x,c.y)<(rr+c.r)*(rr+c.r)&&N.World.clear(b.x,b.y,c.x,c.y))G.damageCache(c,b.damage*.7,{x:b.x,y:b.y});}
         G.addParticles(b.x,b.y,b.color,4,{speed:40,life:.3,size:1.2,glow:true});
         G.addRing(b.x,b.y,rr,b.color,.25,1,false);
@@ -463,10 +467,10 @@ G.updatePlayerBullets=function(dt){
         if(N.dist2(b.x,b.y,e.x,e.y)<(b.size+e.r*.9)*(b.size+e.r*.9)){
           b.hitSet.add(e.id);
           const hitX=b.x,hitY=b.y;
-          G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'bullet',allowPayload:true,player:b.coopPlayer});
+          G.damageEnemy(e,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,source:'bullet',allowPayload:true,player:b.coopPlayer,shot:b.tallyShot});
           if(b.chain>0)chainLightning(hitX,hitY,b,b.chain);
           if(b.explode||b.kind==='mortar'||b.kind==='gravity'){
-            G.explode(b.x,b.y,b.aoe||70,b.damage*.85,b.color,'player',{big:b.kind==='gravity',particles:12,shake:2.2,player:b.coopPlayer});
+            G.explode(b.x,b.y,b.aoe||70,b.damage*.85,b.color,'player',{big:b.kind==='gravity',particles:12,shake:2.2,player:b.coopPlayer,shot:b.tallyShot});
             b.dead=true;removed=true;break;
           }
           if(b.pierce>0){b.pierce--;}
@@ -482,8 +486,8 @@ G.updatePlayerBullets=function(dt){
       for(const a of G.level.anchors){
         if(!a.alive||b.hitSet.has(a.id))continue;
         if(N.dist2(b.x,b.y,a.x,a.y)<(b.size+a.r)*(b.size+a.r)){
-          b.hitSet.add(a.id);G.damageAnchor(a,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul});
-          if(b.explode){G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:10,shake:2,player:b.coopPlayer});b.dead=true;removed=true;break;}
+          b.hitSet.add(a.id);G.damageAnchor(a,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul,player:b.coopPlayer,shot:b.tallyShot});
+          if(b.explode){G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:10,shake:2,player:b.coopPlayer,shot:b.tallyShot});b.dead=true;removed=true;break;}
           if(b.pierce>0)b.pierce--;else{b.dead=true;removed=true;break;}
         }
       }
@@ -492,7 +496,7 @@ G.updatePlayerBullets=function(dt){
         if(!c.alive||b.hitSet.has(c.id))continue;
         if(N.dist2(b.x,b.y,c.x,c.y)<(b.size+c.r)*(b.size+c.r)){
           b.hitSet.add(c.id);G.damageCache(c,b.damage,{x:b.x,y:b.y,critChance:b.critChance,critMul:b.critMul});
-          if(b.explode){G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:10,shake:2,player:b.coopPlayer});b.dead=true;removed=true;break;}
+          if(b.explode){G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:10,shake:2,player:b.coopPlayer,shot:b.tallyShot});b.dead=true;removed=true;break;}
           if(b.pierce>0)b.pierce--;else{b.dead=true;removed=true;break;}
         }
       }
@@ -520,13 +524,13 @@ G.updatePlayerBullets=function(dt){
         b.angle=Math.atan2(b.vy,b.vx);
         G.addParticles(b.x,b.y,b.color,4,{speed:70,life:.25,size:1.2});
       }else{
-        if(b.explode)G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:8,shake:1.5,player:b.coopPlayer});
+        if(b.explode)G.explode(b.x,b.y,b.aoe||70,b.damage*.8,b.color,'player',{particles:8,shake:1.5,player:b.coopPlayer,shot:b.tallyShot});
         b.dead=true;continue;
       }
     }
     if(b.life<=0){
       if(b.explode||b.kind==='mortar'||b.kind==='gravity'){
-        G.explode(b.x,b.y,b.aoe||70,b.damage*.9,b.color,'player',{big:b.kind==='gravity',particles:12,shake:2.5,player:b.coopPlayer});
+        G.explode(b.x,b.y,b.aoe||70,b.damage*.9,b.color,'player',{big:b.kind==='gravity',particles:12,shake:2.5,player:b.coopPlayer,shot:b.tallyShot});
       }
       b.dead=true;
     }
@@ -581,7 +585,7 @@ G.updateMines=function(dt){
       }
     }
     if(trigger||m.life<=0){
-      G.explode(m.x,m.y,m.radius,m.damage,m.color,m.owner,{particles:12,shake:2.4,big:false,glitch:.14,player:m.coopPlayer});
+      G.explode(m.x,m.y,m.radius,m.damage,m.color,m.owner,{particles:12,shake:2.4,big:false,glitch:.14,player:m.coopPlayer,shot:m.tallyShot});
       m.dead=true;G.mines.splice(i,1);
     }
   }
@@ -601,13 +605,13 @@ G.updateOrbitals=function(dt){
       if(o.hits[e.id]&&G.time-o.hits[e.id]<.35)continue;
       if(N.dist2(x,y,e.x,e.y)<(6+e.r)*(6+e.r)&&N.World.clear(x,y,e.x,e.y)){
         o.hits[e.id]=G.time;
-        G.damageEnemy(e,o.damage,{x,y,critChance:p.stats.critChance,critMul:p.stats.critMul,source:'orbital',player:p});
+        G.damageEnemy(e,o.damage,{x,y,critChance:p.stats.critChance,critMul:p.stats.critMul,source:'orbital',player:p,shot:o.tallyShot});
       }
     }
     for(const a of G.level.anchors){
       if(!a.alive)continue;
       if(o.hits[a.id]&&G.time-o.hits[a.id]<.35)continue;
-      if(N.dist2(x,y,a.x,a.y)<(6+a.r)*(6+a.r)&&N.World.clear(x,y,a.x,a.y)){o.hits[a.id]=G.time;G.damageAnchor(a,o.damage,{x,y});}
+      if(N.dist2(x,y,a.x,a.y)<(6+a.r)*(6+a.r)&&N.World.clear(x,y,a.x,a.y)){o.hits[a.id]=G.time;G.damageAnchor(a,o.damage,{x,y,player:p,shot:o.tallyShot});}
     }
     for(const c of G.level.caches){
       if(!c.alive)continue;
@@ -621,7 +625,7 @@ G.updateStrikes=function(dt){
     const s=G.strikes[i];
     s.delay-=dt;
     if(s.delay<=0){
-      G.explode(s.x,s.y,s.radius,s.damage,s.color,'player',{big:true,particles:22,shake:4,glitch:.28,player:s.coopPlayer});
+      G.explode(s.x,s.y,s.radius,s.damage,s.color,'player',{big:true,particles:22,shake:4,glitch:.28,player:s.coopPlayer,shot:s.tallyShot});
       G.addBeam(s.x,s.y-420,s.x,s.y,s.color,8,.25);
       G.addRing(s.x,s.y,s.radius,s.color,.55,3);
       s.dead=true;G.strikes.splice(i,1);

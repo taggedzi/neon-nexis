@@ -169,3 +169,13 @@ supported and preserve the destination's existing ships. Version 2 replaces the
 list after confirmation; rollback includes checkpoint, settings and ships.
 Malformed ship lists are refused without changing the checkpoint. This is the
 same export/import flow, not a separate file. Owner approved these rules in chat.
+
+
+### 2026-11-02 — Lifetime profile extension (issue 025)
+
+[Issue 025](025-player-stats.md) extends the same backup to file version 3,
+adding local lifetime totals. File versions 1/2 preserve an existing profile;
+version 3 replaces it after confirmation. Active co-op identity/confirmation
+state is excluded from export. A malformed profile is refused, and a late
+profile write failure restores checkpoint, settings, ships and profile together.
+Owner approved backup inclusion in chat. This does not add a score service.

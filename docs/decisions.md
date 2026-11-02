@@ -342,3 +342,22 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Backup version 2 includes the list; version 1 imports preserve an existing list.
 - Supersedes: Conflicting unapproved sector-1-only and co-op proposals in 024;
   extends the version-1-only backup rule without changing its confirmation flow.
+
+
+## 2026-11-02 — Local player tallies and lifetime profile
+
+- Decision: Record per-match and lifetime counters in a profile shared by all
+  named ships, included in backups and retained after Hardcore death. Default
+  recording on; off hides match boards and stops new counts, preserving history.
+  Existing end-of-run data remains alongside the new tally.
+- Rationale: The owner wants personal progress records without a public score
+  service, with precise per-shot and inventory-event meanings.
+- Approval: Owner answers in chat on 2026-11-02; exact counters and definitions
+  are recorded in [issue 025](work-to-be-done/025-player-stats.md).
+- Consequences: Host confirms co-op shot hits, kills and objectives; clients own
+  their other counters and supply their board rows. Show a board on team wipe
+  and departure; use the latest remote row on departure. Profile persistence is
+  shared with issue 026. Backup version 3 adds the profile, while versions 1/2
+  preserve any existing profile. Hardcore removes its checkpoint, not totals.
+- Supersedes: Unapproved attribution/toggle/profile proposals in 025; extends
+  the version-2 named-ship backup decision with the same confirmation flow.

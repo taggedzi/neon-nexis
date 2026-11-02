@@ -512,7 +512,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
     rewards:N.Rewards.snapshot(),
-    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,highestSector:Math.max(G.run.highestSector||1,G.run.level),skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
+    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,highestSector:Math.max(G.run.highestSector||1,G.run.level),tally:G.run.tally?{...G.run.tally}:undefined,skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
       x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
@@ -965,8 +965,8 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
   N.Audio.explosion(opts.big||false);
   if(owner==='player'){
     const srcPlayer=opts.player||G.player;
-    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r)&&N.World.clear(x,y,e.x,e.y))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion',player:srcPlayer});}
-    for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r)&&N.World.clear(x,y,a.x,a.y))G.damageAnchor(a,damage,{x,y,explosion:true});}
+    for(const e of G.enemies){if(!e.dead&&N.dist2(x,y,e.x,e.y)<(radius+e.r)*(radius+e.r)&&N.World.clear(x,y,e.x,e.y))G.damageEnemy(e,damage,{x,y,explosion:true,source:'explosion',player:srcPlayer,shot:opts.shot});}
+    for(const a of G.level.anchors){if(a.alive&&N.dist2(x,y,a.x,a.y)<(radius+a.r)*(radius+a.r)&&N.World.clear(x,y,a.x,a.y))G.damageAnchor(a,damage,{x,y,explosion:true,player:srcPlayer,shot:opts.shot});}
     for(const c of G.level.caches){if(c.alive&&N.dist2(x,y,c.x,c.y)<(radius+c.r)*(radius+c.r)&&N.World.clear(x,y,c.x,c.y))G.damageCache(c,damage,{x,y,explosion:true});}
   }else{
     if(!G.player.dead&&N.Ships.intersectsCircle(G.player,x,y,radius)&&N.World.clear(x,y,G.player.x,G.player.y))G.damagePlayer(damage,x,y,false);

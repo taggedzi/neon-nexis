@@ -874,6 +874,7 @@ test('014 guest death drops storage once, revives with protection, and preserves
   expect(restored).toMatchObject({...before,level:3,storage:0,pool:3});
   expect(restored.hp).toBe(restored.max);
   expect(restored.invuln).toBe(3);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.itemsLost)).toBe(1);
   await host.evaluate(radius => {
     const G = window.NEON.Game;
     const item = G.groundItems.find(item => item.itemId === 'vector');
@@ -935,6 +936,7 @@ test('014 page reload restores participant equipment and health; both players mu
   await host.evaluate(() => window.NEON.Net.send({t:'xp',amount:7}));
   await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);
   const id=await guest.evaluate(() => {
+    window.NEON.Game.spawnBullet({damage:1,speed:0,life:10});
     window.NEON.Game.player.hp=37;
     window.NEON.Game.player.invuln=999;
     window.NEON.Game.player.weapons[0].level=4;
@@ -955,6 +957,8 @@ test('014 page reload restores participant equipment and health; both players mu
   await waitForGuestSetup(host, guest);
   expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(id);
   expect(await guest.evaluate(() => window.NEON.Game.player.hp)).toBe(37);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shotsFired)).toBe(1);
+  expect(await guest.evaluate(()=>window.NEON.Profile.current().stats.shotsFired)).toBe(1);
   expect(await guest.evaluate(() => window.NEON.Game.player.xp)).toBe(7);
   await expect.poll(() => guest.evaluate(() => window.NEON.Game.enemyBullets.some(b=>b.life===20))).toBe(true);
   expect(await guest.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(4);
@@ -992,12 +996,16 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await quietWorld(host);
   expect(await guest.evaluate(() => window.NEON.Net.label())).toBe('P2P');
   await host.evaluate(() => {window.NEON.Coop.remainingRespawns=0;});
+  await host.evaluate(()=>{const N=window.NEON;N.PlayerStats.credit('shipsDestroyed',N.Coop.guestMirror());N.PlayerStats.sendRow(true);});
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(1);
   const originalId=await guest.evaluate(() => {
+    window.NEON.Game.spawnBullet({speed:0,damage:1});
     window.NEON.Game.player.weapons[0].level=4;
     window.NEON.Game.gameOver();
     return window.NEON.Net.clientId;
   });
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
+  await expect.poll(()=>host.evaluate(()=>window.NEON.PlayerStats.remote.row.shotsFired)).toBe(1);
   await guest.evaluate(() => window.NEON.Coop.leaveToMenu());
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
   expect(await host.evaluate(() => window.NEON.Game.mode)).toBe('playing');
@@ -1013,7 +1021,11 @@ test('014 direct-link replacement retains separate records and a dead return doe
   await replacement.locator('#btn-coop-join').click();
   await waitForGuestSetup(host, replacement);
   expect(await replacement.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(1);
+  expect(await replacement.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
+  expect(await replacement.evaluate(()=>window.NEON.PlayerStats.match.shotsFired)).toBe(0);
   await readyPair(host,replacement);
+  await replacement.evaluate(()=>{const N=window.NEON;N.Game.spawnBullet({speed:0,damage:1});N.Game.spawnBullet({speed:0,damage:1});N.PlayerStats.sendRow(true);});
+  await expect.poll(()=>host.evaluate(()=>window.NEON.PlayerStats.remote.row.shotsFired)).toBe(2);
   await replacement.evaluate(() => window.NEON.Coop.leaveToMenu());
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers.length)).toBe(0);
   await guest.locator('#btn-coop').click();
@@ -1027,6 +1039,14 @@ test('014 direct-link replacement retains separate records and a dead return doe
   expect(await host.evaluate(() => window.NEON.Coop.records.size)).toBe(2);
   await readyPair(host,guest);
   expect(await guest.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(1);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shotsFired)).toBe(1);
+  await host.evaluate(()=>window.NEON.Game.gameOver());
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+  const rows=await host.evaluate(()=>window.NEON.PlayerStats.lastBoard.rows.map(p=>p.row));
+  expect(rows).toHaveLength(3);
+  expect(rows[1].shotsFired).toBe(1);expect(rows[1].shipsDestroyed).toBe(1);
+  expect(rows[2].shotsFired).toBe(2);expect(rows[2].shipsDestroyed).toBe(0);
   expect(errors).toEqual([]);
 });
 
@@ -1264,5 +1284,92 @@ test('024 co-op host consents to saved pilots and both start at the approved sec
     });
     expect(result).toEqual([4,4,4,5]);
   }
+  expect(errors).toEqual([]);
+});
+
+
+test('025 guest shot credit is confirmed once and final boards use both client rows',async({browser},info)=>{
+  test.setTimeout(90000);
+  const {host,guest,errors}=await startCoopRun(browser);
+  await quietWorld(host);
+  await host.evaluate(()=>{
+    const N=window.NEON,G=N.Game,own=G.player,mirror=N.Coop.guestMirror();
+    mirror.invuln=0;
+    try{G.player=mirror;G.damagePlayer(1,mirror.x,mirror.y);}finally{G.player=own;}
+  });
+  expect(await host.evaluate(()=>window.NEON.PlayerStats.match.hitsTaken)).toBe(0);
+  await guest.evaluate(()=>window.__coopFire());
+  await expect.poll(()=>host.evaluate(()=>{
+    const G=window.NEON.Game,C=window.NEON.Coop;
+    return G.playerBullets.filter(b=>b.coopPlayer===C.guestMirror()).length;
+  })).toBeGreaterThan(0);
+  await host.evaluate(()=>{
+    const N=window.NEON,G=N.Game,p=N.Coop.guestMirror();
+    const bullet=G.playerBullets.find(b=>b.coopPlayer===p);
+    const e=G.spawnEnemy(N.ENEMY_BY_ID.dart,p.x+100,p.y);e.hp=1;e.shield=0;
+    G.damageEnemy(e,10,{player:p,shot:bullet.tallyShot});
+    G.damageEnemy(e,10,{player:p,shot:bullet.tallyShot});
+    const a=G.level.anchors[0];a.hp=1;
+    G.damageAnchor(a,10,{player:p,shot:bullet.tallyShot});
+    N.PlayerStats.sendRow(true);
+  });
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(1);
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.match.objectivesDestroyed)).toBe(1);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shotsFired)).toBe(2);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shotsHit)).toBe(1);
+  expect(await host.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
+  await host.evaluate(()=>{for(let i=0;i<3;i++)window.NEON.PlayerStats.sendRow(true);});
+  await guest.evaluate(()=>window.NEON.PlayerStats.sendRow(true));
+  await expect.poll(()=>host.evaluate(()=>window.NEON.PlayerStats.remote.row.shipsDestroyed)).toBe(1);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(1);
+  await host.evaluate(()=>window.NEON.Game.completeLevel('timer'));
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode)).toBe('complete');
+  await host.locator('#btn-advance').click();
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.level.number)).toBe(2);
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode)).toBe('playing');
+  await host.evaluate(()=>window.NEON.PlayerStats.sendRow(true));
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(1);
+  await host.evaluate(()=>{window.NEON.Coop.remainingRespawns=0;window.NEON.Game.gameOver();});
+  await guest.evaluate(()=>window.NEON.Game.gameOver());
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+  for(const page of [host,guest]){
+    await expect(page.locator('#coop-last-stats .tally-table')).toBeVisible();
+    const rows=await page.evaluate(()=>window.NEON.PlayerStats.lastBoard.rows.map(p=>({name:p.name,row:p.row})));
+    expect(rows).toHaveLength(2);
+    expect(rows[0].row.shipsDestroyed).toBe(0);
+    expect(rows[1].row.shipsDestroyed).toBe(1);
+    expect(rows[1].row.shotsHit).toBe(1);
+    expect(rows[1].row.itemsLost).toBe(0);
+  }
+  await host.locator('#coop-last-stats').scrollIntoViewIfNeeded();
+  await host.screenshot({path:info.outputPath('coop-tally.png')});
+  expect(errors).toEqual([]);
+});
+
+
+test('025 disabled guest ignores credits without later backfill and leaving keeps the latest peer row',async({browser})=>{
+  test.setTimeout(90000);
+  const {host,guest,errors}=await startCoopRun(browser);
+  await quietWorld(host);
+  await guest.evaluate(()=>{window.NEON.Game.settings.trackStats=false;});
+  await host.evaluate(()=>{
+    const N=window.NEON;
+    N.PlayerStats.credit('shipsDestroyed',N.Coop.guestMirror());N.PlayerStats.sendRow(true);
+  });
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.received.shipsDestroyed)).toBe(1);
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
+  await guest.evaluate(()=>{window.NEON.Game.settings.trackStats=true;window.NEON.PlayerStats.sendRow(true);});
+  await host.evaluate(()=>window.NEON.PlayerStats.sendRow(true));
+  expect(await guest.evaluate(()=>window.NEON.PlayerStats.match.shipsDestroyed)).toBe(0);
+  await host.evaluate(()=>{
+    const G=window.NEON.Game;
+    G.spawnBullet({speed:0,damage:1});window.NEON.PlayerStats.sendRow(true);
+  });
+  await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.remote.row.shotsFired)).toBe(1);
+  await guest.evaluate(()=>window.NEON.Coop.leaveToMenu());
+  await expect(guest.locator('#menu-match-tally .tally-table')).toBeVisible();
+  const rows=await guest.evaluate(()=>window.NEON.PlayerStats.lastBoard.rows.map(p=>p.row));
+  expect(rows).toHaveLength(2);expect(rows[0].shotsFired).toBe(1);expect(rows[1].shipsDestroyed).toBe(0);
   expect(errors).toEqual([]);
 });

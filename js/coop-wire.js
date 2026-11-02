@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const N = window.NEON;
-  const Wire = N.Wire = { VERSION: 3 };
+  const Wire = N.Wire = { VERSION: 4 };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
 
@@ -794,12 +794,14 @@
   }
 
   function writeFire(message) {
+    writer.u32(message.statsFire || 0);
     writer.u8(message.w ? lookup(catalogsOf().weapons, message.w) : 255);
     writer.i16(scaled(message.a || 0, 3, true, 16));
     writer.u16(pos(message.x));
     writer.u16(pos(message.y));
   }
   function readFire(message) {
+    message.statsFire = reader.u32();
     const weapon = reader.u8();
     message.w = weapon === 255 ? null : catalogsOf().weapons[weapon];
     message.a = fromScaled(reader.i16(), 3);

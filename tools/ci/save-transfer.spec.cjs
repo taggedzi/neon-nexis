@@ -53,7 +53,7 @@ test('export and import a backup in another browser profile', async ({ browser }
   ]);
   const exported = fs.readFileSync(await download.path(), 'utf8');
   const file = JSON.parse(exported);
-  expect(file.fileVersion).toBe(2);
+  expect(file.fileVersion).toBe(3);
   expect(file.checkpoint.run.seed).toBe(11);
   expect(file.settings.deadzone).toBe(0.31);
   expect(file.settings.keyboard.moveUp).toBe('KeyT');
