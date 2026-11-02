@@ -228,7 +228,7 @@
     writer.u8(Wire.VERSION);
     writer.u8(TYPES[message.t]);
     for (const seat of [message._seat, message._targetSeat]) {
-      if (seat != null && (!Number.isInteger(seat) || seat < 0 || seat > 3)) fail();
+      if (seat != null && (!Number.isInteger(seat) || seat < 0 || seat > 3)) {fail();}
       writer.u8(seat == null ? 255 : seat);
     }
     writer.u8(sector);
@@ -248,14 +248,14 @@
     const type = reader.u8();
     const seat = reader.u8();
     const targetSeat = reader.u8();
-    if ((seat !== 255 && seat > 3) || (targetSeat !== 255 && targetSeat > 3)) fail();
+    if ((seat !== 255 && seat > 3) || (targetSeat !== 255 && targetSeat > 3)) {fail();}
     const message = {
       t: TYPE_NAME[type],
       _sector: reader.u8(),
       _life: reader.u8()
     };
-    if (seat !== 255) message._seat = seat;
-    if (targetSeat !== 255) message._targetSeat = targetSeat;
+    if (seat !== 255) {message._seat = seat;}
+    if (targetSeat !== 255) {message._targetSeat = targetSeat;}
     if (!message.t) fail();
     const target = reader.u8();
     if (target !== 255) message._targetLife = target;
@@ -941,11 +941,11 @@
   }
 
   function writeAvatars(message) {
-    if (!Array.isArray(message.players) || message.players.length > 3) fail();
+    if (!Array.isArray(message.players) || message.players.length > 3) {fail();}
     writer.u8(message.players.length);
     const seats = new Set();
     for (const player of message.players) {
-      if (!Number.isInteger(player._seat) || player._seat < 0 || player._seat > 3 || seats.has(player._seat)) fail();
+      if (!Number.isInteger(player._seat) || player._seat < 0 || player._seat > 3 || seats.has(player._seat)) {fail();}
       seats.add(player._seat);
       writer.u8(player._seat);
       writeState(player);
@@ -954,12 +954,12 @@
   }
   function readAvatars(message) {
     const count = reader.u8();
-    if (count > 3) fail();
+    if (count > 3) {fail();}
     message.players = [];
     const seats = new Set();
     for (let index = 0; index < count; index++) {
       const seat = reader.u8();
-      if (seat > 3 || seats.has(seat)) fail();
+      if (seat > 3 || seats.has(seat)) {fail();}
       seats.add(seat);
       const player = { _seat: seat };
       readState(player);

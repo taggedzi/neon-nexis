@@ -329,7 +329,7 @@ G.damageEnemy=function(e,dmg,opts={}){
   if(p.stats.lifesteal>0){
     const heal=amount*p.stats.lifesteal;
     p.hp=Math.min(p.stats.maxHp,p.hp+heal);
-    if(N.Coop&&N.Coop.isHost()&&p!==G.player)N.Coop.sendHeal(heal,p);
+    if(N.Coop&&N.Coop.isHost()&&p!==G.player){N.Coop.sendHeal(heal,p);}
   }
   G.addText(e.x+(Math.random()-.5)*e.r*.6,e.y-e.r*.7,(crit?'✦':'')+Math.round(amount),crit?'#fff':'#d8f4ff',crit?13:10);
   G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.32,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
@@ -677,11 +677,11 @@ G.updateGroundItems=function(dt){
     let d=collector?hostDistance:Infinity;
     if(coopHost){
       for(const guest of N.Coop.remotePlayers){
-      if(guest&&!guest.dead){
-        const gd=N.dist(it.x,it.y,guest.x,guest.y);
-        const gr=(guest.pickupRadius||guest.stats.pickupRadius||95)*(guest.magnet?5.5:1);
-        if(gd<gr&&gd<d){collector=guest;collectorRadius=gr;d=gd;}
-      }
+        if(guest&&!guest.dead){
+          const gd=N.dist(it.x,it.y,guest.x,guest.y);
+          const gr=(guest.pickupRadius||guest.stats.pickupRadius||95)*(guest.magnet?5.5:1);
+          if(gd<gr&&gd<d){collector=guest;collectorRadius=gr;d=gd;}
+        }
       }
     }
     if((!collector||collector===p)&&magnet&&hostDistance<radius*1.5){

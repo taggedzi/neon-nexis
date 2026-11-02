@@ -70,7 +70,7 @@
     player.tx = player.x;
     player.ty = player.y;
     player.ta = player.aim;
-    if (!local) player.coopLife = data.life;
+    if (!local) {player.coopLife = data.life;}
     if (local) {
       localLife = data.life || 0;
       acceptedEvents = new Set(player.acceptedEvents);
@@ -84,14 +84,14 @@
 
   function rememberGuest() {
     for (const player of C.remotePlayers) {
-      if (player.clientId) C.records.set(player.clientId, {
+      if (player.clientId) {C.records.set(player.clientId, {
         runId: C.runId, sector: G.level.number, player: snapshot(player, false)
-      });
+      });}
     }
   }
 
   function attachGuest(peer) {
-    if (!C.isHost() || !peer) return;
+    if (!C.isHost() || !peer) {return;}
     const retained = C.records.get(peer.clientId);
     const profile = C.lobby.members.find(member => member.clientId === peer.clientId)?.profile || peer.profile;
     const player = C.makeRemotePlayer(profile, G.level, peer.seat);
@@ -127,7 +127,7 @@
     const now = performance.now();
     for (const [id, setup] of setups) {
       const player = C.guestMirror(id);
-      if (!player || now - setup.lastAt < 1000) continue;
+      if (!player || now - setup.lastAt < 1000) {continue;}
       setup.lastAt = now;
       N.Net.send({ t: 'session_sync', syncId: setup.serial, seed: G.run.seed, level: G.level.number,
         host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
@@ -222,7 +222,7 @@
     launchSetup = N.Net.peers.size > 0;
     const started = originalStartHost();
     if (started) {
-      for (const peer of N.Net.peers.values()) attachGuest(peer);
+      for (const peer of N.Net.peers.values()) {attachGuest(peer);}
     }
     return started;
   };
@@ -372,11 +372,11 @@
       sendSync();
       sendLives();
       for (const [id, event] of pendingEvents) {
-        if (event.message._run !== C.runId || event.message._sector !== G.level.number) pendingEvents.delete(id);
+        if (event.message._run !== C.runId || event.message._sector !== G.level.number) {pendingEvents.delete(id);}
         else if (!setups.has(event.owner)) {
           const player = C.guestMirror(event.owner);
-          if (player && event.message._targetLife !== player.coopLife) pendingEvents.delete(id);
-          else if (player) N.Net.send(copy(event.message), event.owner);
+          if (player && event.message._targetLife !== player.coopLife) {pendingEvents.delete(id);}
+          else if (player) {N.Net.send(copy(event.message), event.owner);}
         }
       }
       for (const [id, player] of revives) {
@@ -403,8 +403,8 @@
 
   const originalState = C.sendState;
   C.sendState = function () {
-    if (!C.isHost()) return originalState();
-    if (!G.player) return;
+    if (!C.isHost()) {return originalState();}
+    if (!G.player) {return;}
     const players = [avatarState(G.player, 0), ...C.remotePlayers.map(player => avatarState(player, player.seat))];
     for (const player of C.remotePlayers) {
       N.Net.send({ t: 'avatars', players: players.filter(state => state._seat !== player.seat) }, player.clientId);
@@ -412,10 +412,10 @@
   };
 
   function applyAvatars(message) {
-    if (!C.isGuest() || !Array.isArray(message.players) || message.players.length > 3) return;
+    if (!C.isGuest() || !Array.isArray(message.players) || message.players.length > 3) {return;}
     const seen = new Set();
     for (const state of message.players) {
-      if (!Number.isInteger(state._seat) || state._seat < 0 || state._seat > 3 || state._seat === N.Net.seat || seen.has(state._seat)) return;
+      if (!Number.isInteger(state._seat) || state._seat < 0 || state._seat > 3 || state._seat === N.Net.seat || seen.has(state._seat)) {return;}
       seen.add(state._seat);
     }
     C.remotePlayers = message.players.map(state => {
@@ -431,7 +431,7 @@
 
   const originalReady = C.sendReady;
   C.sendReady = function () {
-    if ((C.isHost() && setups.size > 0) || (C.isGuest() && awaitingWorld)) return false;
+    if ((C.isHost() && setups.size > 0) || (C.isGuest() && awaitingWorld)) {return false;}
     return originalReady();
   };
 
@@ -518,12 +518,12 @@
       if (message.t === 'countdown_start' || message.t === 'global_resume') launchSetup = false;
       // A peer setup acknowledgment can arrive before the host's pause echo.
       // Keep automatic readiness pending until the host confirms it.
-      if (message.t === 'global_pause' && launchSetup && setups.size === 0 && !awaitingWorld) C.sendReady();
+      if (message.t === 'global_pause' && launchSetup && setups.size === 0 && !awaitingWorld) {C.sendReady();}
       return;
     }
     if (message.t === 'bye') return; // Membership comes from the host browser.
     if (message._run !== C.runId) return;
-    if (C.isGuest() && message._targetSeat !== undefined && message._targetSeat !== N.Net.seat) return;
+    if (C.isGuest() && message._targetSeat !== undefined && message._targetSeat !== N.Net.seat) {return;}
     if (message.t === 'mission_end' && N.Net.role === 'guest') {
       N.PlayerStats?.endLocal();
       returnToLobby(message.summary);
@@ -583,17 +583,17 @@
         }
         return;
       case 'session_ack':
-        if (message.syncId !== setups.get(clientId)?.serial) return;
+        if (message.syncId !== setups.get(clientId)?.serial) {return;}
         setups.delete(clientId);
         C._bulletQueue = [];
         C._enemyBulletQueue = [];
         C._mineQueue = [];
         C._strikeQueue = [];
-        if (launchSetup && setups.size === 0) C.sendReady();
+        if (launchSetup && setups.size === 0) {C.sendReady();}
         return;
       case 'event_ack': {
         const event = pendingEvents.get(message.eventId);
-        if (!event || event.owner !== clientId || message._life !== guestLife) return;
+        if (!event || event.owner !== clientId || message._life !== guestLife) {return;}
         if (mirror && !mirror.dead && message.player) restore(mirror, message.player, false);
         pendingEvents.delete(message.eventId);
         rememberGuest();
@@ -626,7 +626,7 @@
         N.Net.send({ t: 'revive_ack', life: localLife });
         return;
       case 'revive_ack':
-        if (message.life === revives.get(clientId)?.life) revives.delete(clientId);
+        if (message.life === revives.get(clientId)?.life) {revives.delete(clientId);}
         return;
       case 'lives':
         if (C.isGuest()) {
@@ -638,7 +638,7 @@
       default: break;
     }
     if (C.isGuest() && ['hit', 'heal', 'grant', 'xp', 'kill'].includes(message.t) && message._targetLife !== localLife) return;
-    if (C.host && (!mirror || setups.has(clientId) || message._life !== guestLife)) return;
+    if (C.host && (!mirror || setups.has(clientId) || message._life !== guestLife)) {return;}
     if (C.host && mirror && !mirror.dead && message.participant) restore(mirror, message.participant, false);
     if (C.host && mirror && mirror.dead && ['state', 'loadout', 'fire'].includes(message.t)) return;
     if (C.isGuest() && message.t === 'grant' && G.player.dead && !C._acceptedGrants.has(message.grantId)) {
@@ -680,14 +680,14 @@
   const originalGrant = C.grantToGuest;
   C.grantToGuest = function (item, player) {
     const recipient = player || C.guestMirror(item.grantOwner);
-    if (!recipient || !recipient.clientId || (item.grantOwner && item.grantOwner !== recipient.clientId)) return false;
+    if (!recipient || !recipient.clientId || (item.grantOwner && item.grantOwner !== recipient.clientId)) {return false;}
     item.grantOwner = recipient.clientId;
     return originalGrant(item, recipient);
   };
   const originalGrantAck = C.applyGrantAck;
   C.applyGrantAck = function (message, clientId) {
     const item = G.groundItems.find(item => item.grantId === message.grantId);
-    if (item && item.grantOwner && item.grantOwner !== clientId) return;
+    if (item && item.grantOwner && item.grantOwner !== clientId) {return;}
     originalGrantAck(message);
     if (item && message.ok !== true) { item.grantOwner = null; item.grantId = null; }
     rememberGuest();

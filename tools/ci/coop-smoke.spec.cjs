@@ -66,7 +66,7 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
       if (!delayed&&message.t==='global_pause') {
         delayed=true;
         setTimeout(()=>receive(message,clientId),500);
-      } else receive(message,clientId);
+      } else {receive(message,clientId);}
     };
   });
   if(savedShips) await host.evaluate(()=>{
@@ -628,7 +628,7 @@ test('countdown fallback waits for the server before resuming', async ({ browser
       const previous = net.onMessage;
       net.onMessage = function (message, clientId) {
         if (message && message.t === 'global_resume') return;
-        if (typeof previous === 'function') return previous(message, clientId);
+        if (typeof previous === 'function') {return previous(message, clientId);}
       };
       net.__resumeHandler = previous;
     });
@@ -1255,7 +1255,7 @@ test('023 old wire versions fail closed with an update message', async ({browser
     const W=window.NEON.Wire,encode=W.encode;
     W.encode=message=>{
       const data=encode(message);
-      if(data)new Uint8Array(data)[0]=5;
+      if(data){new Uint8Array(data)[0]=5;}
       return data;
     };
     window.NEON.Coop.sendState(true);

@@ -288,7 +288,7 @@ async function main() {
   const returning = await post(live.base, { action: 'join', code, clientId: extraIds[0] });
   check(returning.body.ok && returning.body.seat === 2, 'starting player reclaims same seat');
   check((await post(live.base, { action: 'roster', code, clientId, roster: null })).body.ok, 'host unlocks between runs');
-  for (const id of extraIds) await post(live.base, { action: 'leave', code, clientId: id });
+  for (const id of extraIds) {await post(live.base, { action: 'leave', code, clientId: id });}
 
   const guestLeave = await post(live.base, { action: 'leave', code, clientId: guestId });
   const still = sql(db, 'guest');

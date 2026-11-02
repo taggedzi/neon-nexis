@@ -76,18 +76,18 @@
 
   function refreshPeers(link, online) {
     const previous = Net.peers.get(link.id);
-    if (online) Net.peers.set(link.id, { clientId: link.id, seat: link.seat, profile: link.card?.profile });
-    else Net.peers.delete(link.id);
+    if (online) {Net.peers.set(link.id, { clientId: link.id, seat: link.seat, profile: link.card?.profile });}
+    else {Net.peers.delete(link.id);}
     Net.peer = Net.peers.values().next().value || null;
     Net.peerId = Net.peer?.clientId || null;
     // The second argument identifies the changed seat, including departures.
-    if (previous || online || link.registered) Net.onPeer?.(online ? Net.peers.get(link.id) : null, link.id);
+    if (previous || online || link.registered) {Net.onPeer?.(online ? Net.peers.get(link.id) : null, link.id);}
     link.registered = online;
     status(Net.peers.size ? 'connected' : Net.role === 'host' ? 'waiting' : 'connecting');
   }
 
   function closeConnection(link) {
-    if (link.cardTimer) clearTimeout(link.cardTimer);
+    if (link.cardTimer) {clearTimeout(link.cardTimer);}
     link.cardTimer = null;
     if (link.channel) {
       link.channel.onopen = link.channel.onclose = link.channel.onmessage = null;
@@ -104,7 +104,7 @@
 
   function removeLink(id) {
     const link = links.get(id);
-    if (!link) return;
+    if (!link) {return;}
     closeConnection(link);
     links.delete(id);
     refreshPeers(link, false);
@@ -126,24 +126,24 @@
   }
 
   function lost(link) {
-    if (!intent || links.get(link.id) !== link) return;
+    if (!intent || links.get(link.id) !== link) {return;}
     link.online = false;
     Net.peers.delete(link.id);
     Net.peer = Net.peers.values().next().value || null;
     Net.peerId = Net.peer?.clientId || null;
     link.retryAt = performance.now() + 1500;
-    if (authority) authority.markOffline(link.id);
+    if (authority) {authority.markOffline(link.id);}
     // Keep the host mirror until the authority's offline grace expires.
-    if (Net.role === 'guest') status('connecting', 'DIRECT LINK LOST // REINTRODUCING');
-    else status(Net.peers.size > 0 ? 'connected' : 'waiting', 'DIRECT LINK LOST // REINTRODUCING');
+    if (Net.role === 'guest') {status('connecting', 'DIRECT LINK LOST // REINTRODUCING');}
+    else {status(Net.peers.size > 0 ? 'connected' : 'waiting', 'DIRECT LINK LOST // REINTRODUCING');}
   }
 
   function publishCard(link) {
-    if (link.cardTimer || !link.connection?.localDescription || !intent) return;
+    if (link.cardTimer || !link.connection?.localDescription || !intent) {return;}
     const currentGeneration = generation;
     link.cardTimer = setTimeout(() => {
       link.cardTimer = null;
-      if (generation !== currentGeneration || !link.connection?.localDescription) return;
+      if (generation !== currentGeneration || !link.connection?.localDescription) {return;}
       const description = link.connection.localDescription;
       post({ action: 'card', code: Net.code, targetId: link.id,
         card: { session: link.session, sdp: { type: description.type, sdp: description.sdp },
@@ -156,19 +156,19 @@
     link.receiveSequence = 0;
     channel.binaryType = 'arraybuffer';
     channel.onopen = () => {
-      if (!intent || link.channel !== channel) return;
+      if (!intent || link.channel !== channel) {return;}
       if (authority && !authority.setGuest(link.id, link.card?.profile, link.seat)) {
         removeLink(link.id);
         return;
       }
       link.online = true;
       refreshPeers(link, true);
-      if (Net.role === 'guest') Net.sendControl({ t: 'lobby_profile', profile: intent.profile });
+      if (Net.role === 'guest') {Net.sendControl({ t: 'lobby_profile', profile: intent.profile });}
       Net.onSocketOpen?.(link.id);
     };
-    channel.onclose = () => { if (link.channel === channel) lost(link); };
+    channel.onclose = () => { if (link.channel === channel) {lost(link);} };
     channel.onmessage = event => {
-      if (link.channel !== channel || !intent) return;
+      if (link.channel !== channel || !intent) {return;}
       let message;
       try {
         message = typeof event.data === 'string' ? JSON.parse(event.data) : N.Wire.decode(event.data);
@@ -176,19 +176,19 @@
       if (!message || typeof message !== 'object') return;
       if (message.versionMismatch) { fail('INCOMPATIBLE CO-OP VERSION // UPDATE ALL CLIENTS'); return; }
       if (message.t === 'ctrl') {
-        if (authority) authority.handle(link.id, message.body);
+        if (authority) {authority.handle(link.id, message.body);}
         return;
       }
       if (message.t === 'peer-left') {
-        if (Net.role === 'guest') fail('HOST LEFT // LOBBY CLOSED');
+        if (Net.role === 'guest') {fail('HOST LEFT // LOBBY CLOSED');}
         return;
       }
       if (ROOM_CONTROL.has(message.t)) {
-        if (Net.role === 'guest') Net.onMessage?.(message, link.id);
+        if (Net.role === 'guest') {Net.onMessage?.(message, link.id);}
         return;
       }
       if (typeof message._s === 'number') {
-        if (message._s <= link.receiveSequence) return;
+        if (message._s <= link.receiveSequence) {return;}
         link.receiveSequence = message._s;
       }
       Net.onMessage?.(message, link.id);
@@ -199,21 +199,21 @@
     const connection = new RTCPeerConnection({ iceServers: Net.iceServers });
     link.connection = connection;
     connection.onicecandidate = event => {
-      if (link.connection !== connection) return;
-      if (event.candidate) link.candidates.push(event.candidate.toJSON());
+      if (link.connection !== connection) {return;}
+      if (event.candidate) {link.candidates.push(event.candidate.toJSON());}
       publishCard(link);
     };
     connection.onconnectionstatechange = () => {
-      if (link.connection === connection && connection.connectionState === 'failed') lost(link);
+      if (link.connection === connection && connection.connectionState === 'failed') {lost(link);}
     };
     connection.ondatachannel = event => {
-      if (link.connection === connection) attachChannel(link, event.channel);
+      if (link.connection === connection) {attachChannel(link, event.channel);}
     };
     return connection;
   }
 
   function syncCandidates(link) {
-    if (!link.connection?.remoteDescription || !Array.isArray(link.card?.candidates)) return;
+    if (!link.connection?.remoteDescription || !Array.isArray(link.card?.candidates)) {return;}
     for (const candidate of link.card.candidates.slice(link.appliedCandidates)) {
       link.connection.addIceCandidate(candidate).catch(() => {});
     }
@@ -227,23 +227,23 @@
     attachChannel(link, connection.createDataChannel('game', { ordered: true }));
     try {
       const description = await connection.createOffer();
-      if (link.connection !== connection) return;
+      if (link.connection !== connection) {return;}
       await connection.setLocalDescription(description);
-      if (link.connection === connection) publishCard(link);
-    } catch (error) { if (link.connection === connection) lost(link); }
+      if (link.connection === connection) {publishCard(link);}
+    } catch (error) { if (link.connection === connection) {lost(link);} }
   }
 
   async function applyCard(link, card) {
-    if (!card || card.protocol !== PROTOCOL) return;
+    if (!card || card.protocol !== PROTOCOL) {return;}
     const changed = !link.card || card.session !== link.card.session;
     // A second browser using the same stored identity cannot replace a live ship.
     // A real reconnect waits until the existing channel reports its loss.
-    if (Net.role === 'host' && changed && link.online) return;
+    if (Net.role === 'host' && changed && link.online) {return;}
     link.card = card;
     link.revision = card.rev;
     if (!changed) { syncCandidates(link); return; }
     if (Net.role === 'host' && card.sdp?.type === 'offer') {
-      if (link.online) authority.markOffline(link.id);
+      if (link.online) {authority.markOffline(link.id);}
       link.online = false;
       closeConnection(link);
       link.session = card.session;
@@ -251,41 +251,41 @@
       const connection = connectionFor(link);
       try {
         await connection.setRemoteDescription(card.sdp);
-        if (link.connection !== connection) return;
+        if (link.connection !== connection) {return;}
         syncCandidates(link);
         const answer = await connection.createAnswer();
-        if (link.connection !== connection) return;
+        if (link.connection !== connection) {return;}
         await connection.setLocalDescription(answer);
-        if (link.connection === connection) publishCard(link);
-      } catch (error) { if (link.connection === connection) lost(link); }
+        if (link.connection === connection) {publishCard(link);}
+      } catch (error) { if (link.connection === connection) {lost(link);} }
     } else if (Net.role === 'guest' && card.sdp?.type === 'answer' && card.session === link.session) {
       const connection = link.connection;
       try {
         await connection.setRemoteDescription(card.sdp);
-        if (link.connection === connection) syncCandidates(link);
+        if (link.connection === connection) {syncCandidates(link);}
       } catch (error) { /* A newer offer will retry. */ }
     }
   }
 
   function synchronizeRoster(message) {
-    if (message.t !== 'lobby_state') return;
+    if (message.t !== 'lobby_state') {return;}
     const roster = message.phase === 'run' ? Object.fromEntries(Array.from(authority.room.roster).filter(([id]) => id !== clientId)) : null;
     const key = JSON.stringify(roster);
-    if (key === rosterKey) return;
+    if (key === rosterKey) {return;}
     rosterKey = key;
     const code = Net.code;
     rosterPromise = rosterPromise.then(() => post({ action: 'roster', code, roster })).then(body => {
-      if (!body.ok) throw new Error('Roster lock failed');
+      if (!body.ok) {throw new Error('Roster lock failed');}
     });
-    rosterPromise.catch(() => { if (intent && Net.code === code) fail('LOBBY ROSTER UPDATE FAILED'); });
+    rosterPromise.catch(() => { if (intent && Net.code === code) {fail('LOBBY ROSTER UPDATE FAILED');} });
   }
 
   function deliverRoom(member, message) {
     synchronizeRoster(message);
     const currentGeneration = generation;
     const deliver = () => {
-      if (!intent || generation !== currentGeneration) return;
-      if (member.clientId === clientId) Net.onMessage?.(message, clientId);
+      if (!intent || generation !== currentGeneration) {return;}
+      if (member.clientId === clientId) {Net.onMessage?.(message, clientId);}
       else {
         const channel = links.get(member.clientId)?.channel;
         if (channel?.readyState === 'open') {
@@ -293,18 +293,18 @@
         }
       }
     };
-    if (message.t === 'launch') rosterPromise.then(deliver).catch(() => {});
-    else deliver();
+    if (message.t === 'launch') {rosterPromise.then(deliver).catch(() => {});}
+    else {deliver();}
   }
 
   async function poll() {
-    if (!intent || polling) return;
+    if (!intent || polling) {return;}
     polling = true;
     const currentGeneration = generation;
     try {
       const sinceRev = Object.fromEntries(Array.from(links, ([id, link]) => [id, link.revision]));
       const body = await post({ action: 'poll', code: Net.code, sinceRev });
-      if (generation !== currentGeneration || !intent) return;
+      if (generation !== currentGeneration || !intent) {return;}
       if (!body.ok || body.protocol !== PROTOCOL) {
         fail(body.error === 'locked' ? 'MATCH STARTED // ROSTER LOCKED' : 'LOBBY CLOSED OR INCOMPATIBLE');
         return;
@@ -312,7 +312,7 @@
       const present = new Set(body.peers.map(peer => peer.clientId));
       for (const id of links.keys()) {
         if (!present.has(id)) {
-          if (authority) authority.clearGuest(id);
+          if (authority) {authority.clearGuest(id);}
           removeLink(id);
         }
       }
@@ -333,13 +333,13 @@
   }
 
   function housekeeping() {
-    if (!intent) return;
+    if (!intent) {return;}
     poll();
     pollTimer = setTimeout(housekeeping, 500);
   }
 
   function begin(role, code, profile) {
-    if (intent) return false;
+    if (intent) {return false;}
     const currentGeneration = ++generation;
     intent = { role, profile: normalizeProfile(profile) };
     Net.role = role;
@@ -349,10 +349,10 @@
     rosterPromise = Promise.resolve();
     status('connecting');
     Net.refreshStatus().then(async available => {
-      if (generation !== currentGeneration) return;
+      if (generation !== currentGeneration) {return;}
       if (!available) { fail('CO-OP IS UNAVAILABLE OR NEEDS AN UPDATE'); return; }
       const body = await post({ action: role === 'host' ? 'host' : 'join', code });
-      if (generation !== currentGeneration) return;
+      if (generation !== currentGeneration) {return;}
       if (!body.ok) {
         const errors = { full: 'ROOM IS FULL', locked: 'MATCH STARTED // ROSTER LOCKED', version: 'INCOMPATIBLE CO-OP VERSION // UPDATE ALL CLIENTS' };
         fail(errors[body.error] || 'JOIN CODE NOT FOUND');
@@ -372,7 +372,7 @@
         offer(link);
       }
       housekeeping();
-    }).catch(() => { if (generation === currentGeneration) fail('INTRODUCTION UNAVAILABLE'); });
+    }).catch(() => { if (generation === currentGeneration) {fail('INTRODUCTION UNAVAILABLE');} });
     return true;
   }
 
@@ -384,10 +384,10 @@
   };
 
   Net.send = function (message, targetId) {
-    if (!message || typeof message !== 'object') return false;
+    if (!message || typeof message !== 'object') {return false;}
     let sent = false;
     for (const link of links.values()) {
-      if (targetId && link.id !== targetId || link.channel?.readyState !== 'open') continue;
+      if (targetId && link.id !== targetId || link.channel?.readyState !== 'open') {continue;}
       const outgoing = { ...message };
       N.Coop?.stampMessage?.(outgoing, link.id);
       outgoing._s = ++link.sendSequence;
@@ -399,15 +399,15 @@
   };
 
   Net.sendControl = function (message) {
-    if (!message || typeof message !== 'object') return false;
-    if (message.t === 'lobby_profile' && intent) intent.profile = normalizeProfile(message.profile);
+    if (!message || typeof message !== 'object') {return false;}
+    if (message.t === 'lobby_profile' && intent) {intent.profile = normalizeProfile(message.profile);}
     if (N.Coop && ['pause_request', 'ready_signal', 'pause_sync'].includes(message.t)) {
       message.runId = N.Coop.runId;
       message.epoch = N.Coop.pauseEpoch || 0;
     }
     if (authority) { authority.handle(clientId, message); return true; }
     const link = links.values().next().value;
-    if (link?.channel?.readyState !== 'open') return false;
+    if (link?.channel?.readyState !== 'open') {return false;}
     try { link.channel.send(JSON.stringify({ t: 'ctrl', body: message })); return true; }
     catch (error) { return false; }
   };
@@ -417,18 +417,18 @@
     if (Net.role === 'guest') Net.sendControl({ t: 'leave' });
     if (Net.role === 'host') {
       for (const link of links.values()) {
-        try { if (link.channel?.readyState === 'open') link.channel.send(JSON.stringify({ t: 'peer-left' })); }
+        try { if (link.channel?.readyState === 'open') {link.channel.send(JSON.stringify({ t: 'peer-left' }));} }
         catch (error) { /* Guests also observe the removed introduction row. */ }
       }
     }
-    if (Net.code) post({ action: 'leave', code: Net.code }).catch(() => {});
+    if (Net.code) {post({ action: 'leave', code: Net.code }).catch(() => {});}
     generation++;
     intent = null;
-    if (pollTimer) clearTimeout(pollTimer);
+    if (pollTimer) {clearTimeout(pollTimer);}
     pollTimer = null;
     authority?.close();
     authority = null;
-    for (const link of links.values()) closeConnection(link);
+    for (const link of links.values()) {closeConnection(link);}
     links.clear();
     Net.peers.clear();
     Net.peer = Net.peerId = null;
@@ -439,9 +439,9 @@
   };
 
   Net.reconnect = function () {
-    if (!intent || Net.role !== 'guest') return false;
+    if (!intent || Net.role !== 'guest') {return false;}
     const link = links.values().next().value;
-    if (!link) return false;
+    if (!link) {return false;}
     link.online = false;
     offer(link);
     return true;

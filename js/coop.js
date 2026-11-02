@@ -157,7 +157,7 @@
   };
 
   Coop.guestMirror = function (clientId) {
-    if (!Coop.host) return null;
+    if (!Coop.host) {return null;}
     return clientId ? Coop.remotePlayers.find(player => player.clientId === clientId) || null : Coop.remotePlayers[0] || null;
   };
 
@@ -346,7 +346,7 @@
     G.camera.sy = 0;
     G.resetEntityArrays();
     const host = Coop.remotePlayers[0];
-    if (host) placeRemote(host, G.level, 0);
+    if (host) {placeRemote(host, G.level, 0);}
     G.time = 0;
     G.glitch = 0;
     G.level.elapsed = 0;
@@ -971,7 +971,7 @@
       mirror.fireWindow = now;
       mirror.fireCount = 0;
     }
-    if ((mirror.fireCount || 0) >= FIRE_BUDGET_PER_SECOND) return;
+    if ((mirror.fireCount || 0) >= FIRE_BUDGET_PER_SECOND) {return;}
     mirror.fireCount = (mirror.fireCount || 0) + 1;
     const angle = finite(message.a, mirror.aim);
     mirror.x = finite(message.x, mirror.x);
@@ -1099,7 +1099,7 @@
   Coop.grantToGuest = function (item, player) {
     if (!Coop.isHost() || !item) return false;
     player = player || Coop.guestMirror(item.grantOwner);
-    if (!player || !player.clientId || item.grantOwner && item.grantOwner !== player.clientId) return false;
+    if (!player || !player.clientId || item.grantOwner && item.grantOwner !== player.clientId) {return false;}
     item.grantOwner = player.clientId;
     if (!cleanGrantId(item.grantId)) {
       Coop._grantSerial = (Coop._grantSerial || 0) + 1;
