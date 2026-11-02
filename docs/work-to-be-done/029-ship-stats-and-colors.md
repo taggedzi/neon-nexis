@@ -45,6 +45,7 @@ No graphics or quality changes are part of this issue.
 
 ## Implementation and validation
 
+- Implementation commit: `e31b0b9` (`feat(ships): apply approved hull stats to new runs`).
 - Delivery branch: `codex/029-ship-stats`. Owner authorized commit, push, PR creation
   and rebase merge on 2026-11-02; website publishing/deployment remains separate.
 - `js/content.js`: approved hull base table, before upgrades.
