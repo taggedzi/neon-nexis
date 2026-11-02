@@ -122,8 +122,13 @@ checkpoint from another tab is not deleted based on a stale prompt.
 
 Export starts a browser download before removing local data. Browser JavaScript
 cannot verify that the player saved the file to disk or detect all blocked or
-cancelled downloads; the prompt explicitly says to allow the download. There is
-no save-import UI or automatic migration introduced by this change.
+cancelled downloads; the prompt explicitly says to allow the download.
+
+Issue 013 did not add a general import UI. Issue 020 adds a voluntary backup
+from Settings → Data: one JSON file with file version, checkpoint, and settings.
+Import asks before it writes, and a file this build cannot load leaves local
+data in place. That backup is separate from the incompatible-save download.
+There is still no automatic migration.
 
 ## Remaining validation and deferred scope
 

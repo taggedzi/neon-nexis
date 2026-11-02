@@ -1,9 +1,6 @@
 # 020 — Export and import all save data
 
-Status: Planned
-
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Status: Done
 
 Priority 4 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -46,22 +43,37 @@ and stamped in `dist/` by `tools/ci/package.cjs`.
 
 ## Decide
 
-- One file for checkpoint plus settings, or separate files?
-- Does import replace local data immediately, or ask first when a checkpoint
-  is already present?
-- What happens to a file that fails validation? Reject the file and leave local
-  data untouched.
-- Does a future named-ship list ([issue 024](024-named-ship-loadouts.md)) and
-  logbook ([issue 026](026-enemy-logbook.md)) belong in this same file?
+Approved by the owner on 2026-11-01:
 
-Proposal, not approved:
+- One JSON file. It holds file version 1, the stored checkpoint (or `null` when
+  there is no checkpoint), and settings. Settings include control bindings,
+  audio, and graphics. The co-op browser identity stays out of the file.
+- Every import asks first and shows a short summary, including when this
+  browser has no checkpoint. A file with no checkpoint removes the stored
+  checkpoint after that confirmation.
+- Invalid JSON, a file version other than 1, or a checkpoint that fails
+  `canLoadSave` does not change local storage. Settings from that file are not
+  applied either.
+- Export and import live on Settings → Data. Export works from the main menu
+  and from pause. Import works only from the main menu, so a live run cannot
+  overwrite the file. Pause explains that the player quits to the menu first.
+- The export is the last stored checkpoint, not the unsaved fight. The Data tab
+  still has Sync for the live run.
+- Later lists (named ships, stats, logbook) do not get keys in this version.
+  They extend this file with a new file version instead of a second export.
+- The incompatible-save dialog stays. This issue adds a voluntary backup for
+  data the game can still load.
 
-- One JSON file containing the checkpoint, settings, and a file version.
-- Import shows a short summary and requires confirmation before replace.
-- Invalid JSON or a failed `canLoadSave` does not change local storage.
-- Leave room in the file for later lists, but do not invent those lists here.
-- Keep the existing incompatible-save dialog. This issue adds a voluntary
-  backup from the menu, for data the game can still load.
+Agent implementation choices, 2026-11-01:
+
+- The file is capped at one million characters. Unknown settings keys are
+  dropped. Known settings go through `normalizeSettings`, the same clamps as
+  a normal load.
+- A failed write restores the previous checkpoint and settings.
+- After a successful menu import, the in-memory run left behind by Save & Quit
+  is cleared so Sync cannot write it back over the imported file.
+- The download name is `neon-nexus-backup-<time>.json`. The recovery download
+  keeps `neon-nexus-old-save-<time>.json`.
 
 ## Do
 
@@ -79,20 +91,18 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] The player can download a file of their current save data from the menu.
-- [ ] The player can import that file in the same browser and in another browser
+- [x] The player can download a file of their current save data from the menu.
+- [x] The player can import that file in the same browser and in another browser
       profile at the same game version.
-- [ ] A bad file does not destroy the data already stored.
-- [ ] Replacing an existing checkpoint requires confirmation.
-- [ ] Settings included by the decision come back with the checkpoint.
-- [ ] Co-op still does not overwrite the single-player checkpoint.
-- [ ] An incompatible checkpoint still offers export or remove.
+- [x] A bad file does not destroy the data already stored.
+- [x] Replacing an existing checkpoint requires confirmation.
+- [x] Settings included by the decision come back with the checkpoint.
+- [x] Co-op still does not overwrite the single-player checkpoint.
+- [x] An incompatible checkpoint still offers export or remove.
 
 ## Open questions
 
-- Should the file include settings the player may consider private, such as
-  control bindings?
-- Is a menu action enough, or is a pause-menu action also required?
+Resolved by the owner on 2026-11-01. See Decide. No open questions remain.
 
 ## Dependencies
 
@@ -104,4 +114,43 @@ invent a second export path.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+Changed files: `js/save-transfer.js`, `js/util.js`, `js/ui.js`, `index.html`,
+`tools/check-save-transfer.cjs`, `tools/ci/save-transfer.spec.cjs`, `README.md`,
+`AGENTS.md`, `docs/development-and-releases.md`, `docs/decisions.md`,
+`docs/work-to-be-done/README.md`, issues 024, 025, and 026, and this issue.
+
+Implementation notes:
+
+- `N.SaveTransfer` builds the file from stored checkpoint and settings. It does
+  not read the live sim. `neon-coop-identity-v1` is not included.
+- Import calls `canLoadSave` before any write. Save version other than 1 fails
+  that check. A bad file leaves the checkpoint, settings, and unrelated keys.
+- Co-op still returns before `writeSave` in `saveCheckpoint`.
+- The Data tab starts a download and tells the player the page cannot confirm
+  the file reached disk.
+
+Checks and results, 2026-11-01, Windows, Node from `npm run check`:
+
+- `npm run check` passed. Browser step: 106 passed, about 4.4 minutes.
+  Playwright Chromium 156.0.8078.4 and Firefox 157.0.
+- `tools/check-save-transfer.cjs` passed: round-trip, garbage, file version 2,
+  a negative sector, a full storage write that rolls back, corrupt stored
+  settings, and a co-op `saveCheckpoint` that does not call `writeSave`.
+- `tools/ci/save-transfer.spec.cjs` passed on both browsers. One context
+  downloaded the file. A second context rejected a broken file and a bad
+  sector, cancelled a confirm, then imported. Continue loaded seed 11.
+  Settings deadzone and the move-up binding came back. The co-op identity and
+  an unrelated key stayed. Pause kept Import disabled and exported the stored
+  checkpoint.
+- `tools/ci/save-policy.spec.cjs` passed on both browsers, so the
+  incompatible-save export or remove dialog still behaves as before.
+- Same-browser replace is the Node apply onto an existing checkpoint, plus the
+  Playwright confirm step. The second Playwright context is the other profile.
+
+These are automated checks. The owner has not played the new Data tab yet.
+
+Limitations: a browser download, including the Playwright download, shows that
+the browser offered the file. It does not prove a player's own disk received it.
+
+Remaining work: none in this issue. Owner play of the Data tab is optional.
+The implementation commit hash is recorded in the pull request.

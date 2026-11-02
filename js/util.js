@@ -237,8 +237,7 @@ N.deepMerge = function(base, over){
   }
   return out;
 };
-N.loadSettings = function(){
-  const raw=N.Storage.read(N.Storage.settingsKey,null);
+N.normalizeSettings = function(raw){
   let s=N.deepMerge(N.SETTINGS_DEFAULT,raw||{});
   s.audio.master=N.clamp(+s.audio.master||0,0,1);
   s.audio.music=N.clamp(+s.audio.music||0,0,1);
@@ -263,6 +262,9 @@ N.loadSettings = function(){
     s.gamepad.rewards=[2,8,10,11].find(button=>!used.has(button))??null;
   }
   return s;
+};
+N.loadSettings = function(){
+  return N.normalizeSettings(N.Storage.read(N.Storage.settingsKey,null));
 };
 N.saveSettings = s=>N.Storage.write(N.Storage.settingsKey,s);
 N.hasSave = ()=>!!N.Storage.read(N.Storage.key,null);

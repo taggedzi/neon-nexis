@@ -111,8 +111,9 @@ After the decisions:
 [issue 029](029-ship-stats-and-colors.md) explicitly replaces it. This issue
 does not add hull stats.
 
-[Issue 020](020-save-export-import.md) should land first if both are approved,
-so there is one file format.
+[Issue 020](020-save-export-import.md) owns the backup file. File version 1 is
+the checkpoint and settings only. Named ships should extend that file with a
+new file version, not a second export.
 
 [Issue 023](023-skill-levels.md) decides whether hardcore may load a ship.
 

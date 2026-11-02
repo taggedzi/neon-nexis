@@ -155,6 +155,66 @@ UI.init=function(){
     renderSettings();
     UI.toast('SYSTEM DEFAULTS RESTORED','loot');
   });
+  $('save-import-file').addEventListener('change',()=>{
+    const input=$('save-import-file');
+    const chosen=input.files&&input.files[0];
+    input.value='';
+    if(!chosen)return;
+    if(settingsReturn!=='menu'||G.mode!=='menu'){
+      UI.toast(N.SaveTransfer.failureText('live'),'warn');
+      return;
+    }
+    if(chosen.size>N.SaveTransfer.maxBytes){
+      UI.toast(N.SaveTransfer.failureText('size'),'danger');
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const parsed=N.SaveTransfer.parse(String(reader.result||''));
+      if(!parsed.ok){
+        UI.toast(N.SaveTransfer.failureText(parsed.reason),'danger');
+        return;
+      }
+      let watchedSave=null,watchedSettings=null;
+      try{
+        watchedSave=localStorage.getItem(N.Storage.key);
+        watchedSettings=localStorage.getItem(N.Storage.settingsKey);
+      }catch(error){
+        UI.toast(N.SaveTransfer.failureText('unavailable'),'danger');
+        return;
+      }
+      UI.confirm('IMPORT SAVE FILE?',N.SaveTransfer.summary(parsed.file),()=>{
+        let currentSave=null,currentSettings=null;
+        try{
+          currentSave=localStorage.getItem(N.Storage.key);
+          currentSettings=localStorage.getItem(N.Storage.settingsKey);
+        }catch(error){
+          UI.toast(N.SaveTransfer.failureText('unavailable'),'danger');
+          return;
+        }
+        if(currentSave!==watchedSave||currentSettings!==watchedSettings){
+          UI.toast('IMPORT CANCELLED. STORED DATA CHANGED.','danger');
+          return;
+        }
+        const applied=N.SaveTransfer.apply(parsed.file);
+        if(!applied.ok){
+          UI.toast(N.SaveTransfer.failureText(applied.reason),'danger');
+          return;
+        }
+        if(G.mode==='menu'){
+          G.run=null;
+          G.player=null;
+          G.level=null;
+        }
+        refreshSaveMeta();
+        UI.toast('SAVE FILE IMPORTED','loot');
+        settingsTab='data';
+        renderSettings();
+      },'IMPORT');
+    };
+    reader.onerror=()=>UI.toast(N.SaveTransfer.failureText('invalid'),'danger');
+    reader.readAsText(chosen);
+  });
 
   $('btn-rewards-hud').addEventListener('click',()=>G.openRewards());
   $('btn-pause-rewards').addEventListener('click',()=>G.openRewards());
@@ -559,6 +619,24 @@ function bindRows(root){
     if(G.saveCheckpoint(false,'manual')){refreshSaveMeta();UI.toast('CHECKPOINT SYNCED','loot');renderSettings();}
     else UI.toast('SAVE FAILED','danger');
   });
+  const exportSave=root.querySelector('[data-action="export-save"]');
+  if(exportSave)exportSave.addEventListener('click',()=>{
+    const built=N.SaveTransfer.build();
+    if(!built.ok){
+      UI.toast(N.SaveTransfer.failureText(built.reason),'danger');
+      return;
+    }
+    N.SaveTransfer.download(built.file);
+    UI.toast('DOWNLOAD STARTED. THE GAME CANNOT CONFIRM THE FILE REACHED DISK.','loot',6000);
+  });
+  const importSave=root.querySelector('[data-action="import-save"]');
+  if(importSave)importSave.addEventListener('click',()=>{
+    if(settingsReturn!=='menu'||G.mode!=='menu'){
+      UI.toast(N.SaveTransfer.failureText('live'),'warn');
+      return;
+    }
+    $('save-import-file').click();
+  });
 }
 function assignBinding(type,action,value){
   const map=G.settings[type];
@@ -656,6 +734,11 @@ function renderSettings(){
       <div class="data-block"><p>Glitch effects distort the rendered frame on impacts, pickups and system events. Reduce Flashing also limits screen flashes for photosensitive players.</p></div>`;
   }else{
     const info=G.getSaveInfo();
+    const recovery=N.SavePolicy.inspect();
+    const storageReady=N.Storage.available&&!recovery.unavailable;
+    const canExport=storageReady&&!recovery.incompatible;
+    const canImport=storageReady&&settingsReturn==='menu';
+    const liveRun=G.run&&G.player&&!G.player.dead;
     body.innerHTML=`
       <div class="settings-section"><h3>LOCAL DATA</h3>
         <div class="setting-row"><div class="setting-label"><b>SAVE STORAGE</b><small>${N.storageStatus()}</small></div><span class="chip">${info?'CHECKPOINT PRESENT':'NO CHECKPOINT'}</span></div>
@@ -663,9 +746,14 @@ function renderSettings(){
         <div class="setting-row"><div class="setting-label"><b>AUTO-SAVE</b><small>WRITES AT LEVEL START, LEVEL END AND EVERY 60-SECOND CHECKPOINT</small></div><span class="chip">ENABLED</span></div>
       </div>
       <div class="data-block">
-        <p>Saves are local to this browser only. No gameplay data leaves this machine and no high-score service is used.</p>
+        <p>Saves and settings stay in this browser until you export a file. Export starts a download. This page cannot confirm that the file reached disk. Nothing syncs on its own, and there is no high-score service.</p>
+        ${recovery.incompatible?'<p>This checkpoint cannot be loaded. Use the recovery screen to export or remove it. Settings stay.</p>':''}
+        ${canImport?'<p>Import asks before it replaces the stored checkpoint and settings.</p>':'<p>Quit to the main menu before importing. A live run stays as it is, so its checkpoint cannot overwrite a file you just imported.</p>'}
+        ${liveRun&&settingsReturn==='pause'?'<p>Export uses the last stored checkpoint. Sync first if this fight should be in the file.</p>':''}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${G.run&&G.player&&!G.player.dead?'<button class="neon-btn" data-action="save-now" type="button">SYNC CHECKPOINT NOW</button>':''}
+          ${liveRun?'<button class="neon-btn" data-action="save-now" type="button">SYNC CHECKPOINT NOW</button>':''}
+          <button class="neon-btn" data-action="export-save" type="button"${canExport?'':' disabled'}>EXPORT SAVE FILE</button>
+          <button class="neon-btn" data-action="import-save" type="button"${canImport?'':' disabled'}>IMPORT SAVE FILE</button>
           <button class="neon-btn danger" data-action="erase-save" type="button">ERASE LOCAL SAVE</button>
         </div>
       </div>`;
