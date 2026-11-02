@@ -58,6 +58,7 @@ the project evolves:
 | `js/assets.js`, `js/audio.js` | Procedural visuals and audio |
 | `js/input.js` | Keyboard, mouse, controller, remapping |
 | `js/game.js` | State, lifecycle, generation, saves, integration |
+| `js/save-policy.js`, `js/save-transfer.js` | Incompatible-save recovery, and voluntary backup export/import |
 | `js/sim.js`, `js/enemies.js` | Simulation, collisions, spawning, enemy behavior |
 | `js/render.js` | Camera, world rendering, visual effects |
 | `js/ui.js` | Menus, overlays, inventory, settings |

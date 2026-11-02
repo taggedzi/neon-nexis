@@ -102,7 +102,9 @@ After the decisions:
 
 Display can ship before named ships. Persistence "with their ships" must be
 updated if [issue 024](024-named-ship-loadouts.md) defines a ship list.
-Backup inclusion belongs to [issue 020](020-save-export-import.md).
+Backup inclusion extends [issue 020](020-save-export-import.md). File version 1
+is the checkpoint and settings only. Stats should use a new file version, not
+a second export.
 The logbook ([issue 026](026-enemy-logbook.md)) should share the profile store
 if both are approved, rather than two independent lifetime files.
 

@@ -29,7 +29,7 @@ in [the decision log](../decisions.md).
 | 017 | [Resolve the weak-cryptography scanning alert](017-weak-cryptography-alert.md) | Implemented — needs validation |
 | 018 | [Update or dismiss the minimatch advisory](018-minimatch-advisory.md) | Done |
 | 019 | [Lock the pointer and pause when focus leaves](019-pointer-lock-and-focus-pause.md) | Done |
-| 020 | [Export and import all save data](020-save-export-import.md) | Planned |
+| 020 | [Export and import all save data](020-save-export-import.md) | Done |
 | 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Planned |
 | 022 | [Decide whether debug logging is required](022-debug-logging.md) | Planned |
 | 023 | [Add skill levels](023-skill-levels.md) | Planned |
@@ -50,7 +50,9 @@ in [the decision log](../decisions.md).
 
 ## Plans from the 2026-11-01 todo list
 
-Issues 020 through 037 are plans only. They do not change how the game plays.
+Issue 020 is done. It adds a voluntary save-file backup and does not change
+combat. Issues 021 through 037 are plans only. They do not change how the game
+plays.
 Issue 019 is done. The owner played it on 2026-11-01 and approved it.
 Issue 017 keeps the TURN REST password formula and does not change play.
 Issue 018 overrides a development-only dependency and does not change play.

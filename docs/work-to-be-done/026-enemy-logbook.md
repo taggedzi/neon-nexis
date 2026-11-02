@@ -94,9 +94,10 @@ After the decisions:
 ## Dependencies
 
 Can be built after the profile storage choice in
-[issue 025](025-player-stats.md) and the backup slot in
-[issue 020](020-save-export-import.md). The menu screen itself does not need
-four-player co-op.
+[issue 025](025-player-stats.md). The backup file is
+[issue 020](020-save-export-import.md). File version 1 is the checkpoint and
+settings only. A logbook should use a new file version, not a second export.
+The menu screen itself does not need four-player co-op.
 
 ## Implementation and validation
 

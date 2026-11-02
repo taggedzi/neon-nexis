@@ -252,3 +252,19 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Returning focus does not resume the run and does not restore held movement
   or fire. A neutral stick is still required after the pause.
 - Supersedes: Nothing.
+
+## 2026-11-01 — Voluntary save backup file
+
+- Decision: One JSON file, file version 1, holds the stored checkpoint and
+  settings, including control bindings. It does not hold the co-op browser
+  identity. Import always asks, and it runs only from the main menu. A file
+  this build cannot load does not change local storage. Later profile lists
+  extend this file with a new file version rather than a second export path.
+- Rationale: The player needs to move a run to another browser without a
+  server, and without a live checkpoint overwriting the file they just imported.
+- Approval: Owner instruction on 2026-11-01, recorded in
+  [issue 020](work-to-be-done/020-save-export-import.md).
+- Consequences: Issues 024, 025, and 026 should add their stored data to this
+  file. The incompatible-save export/remove dialog is unchanged.
+- Supersedes: Nothing. The 2026-10-29 rule that unsupported saves offer export
+  or removal stays in effect.

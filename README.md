@@ -62,13 +62,16 @@ options are available in **Settings**. The in-game control reference reflects
 your current bindings. Controllers use the left stick to move and the right
 stick to aim, with configurable buttons for other actions.
 
-Saves and settings use the browser's local storage. Continue in the same browser
-profile and at the same address, including port. Clearing site data can remove
-progress; saves do not sync between devices.
+Saves and settings stay in this browser. Continue in the same browser profile
+and at the same address, including port. Clearing site data can remove progress.
+Settings → Data can export one file and import it in another browser. Export
+starts a download. The game cannot confirm that the file reached disk. Nothing
+syncs on its own.
 
 Unsupported or unreadable saves offer **Export and remove** or **Remove without
 export**. Compatible saves continue to work; developers own format compatibility.
-Settings are kept. Export starts a browser download before removing the checkpoint.
+Settings are kept when an unsupported checkpoint is removed. A voluntary backup
+includes both the checkpoint and settings.
 
 ## Development and releases
 
