@@ -32,7 +32,7 @@ in [the decision log](../decisions.md).
 | 020 | [Export and import all save data](020-save-export-import.md) | Done |
 | 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Done |
 | 022 | [Decide whether debug logging is required](022-debug-logging.md) | Done |
-| 023 | [Add skill levels](023-skill-levels.md) | Implemented — needs validation |
+| 023 | [Add skill levels](023-skill-levels.md) | Done |
 | 024 | [Save named ship loadouts](024-named-ship-loadouts.md) | Planned |
 | 025 | [Track player stats and an end-of-run tally](025-player-stats.md) | Planned |
 | 026 | [Add an enemy logbook](026-enemy-logbook.md) | Planned |
@@ -53,8 +53,8 @@ in [the decision log](../decisions.md).
 Issue 020 is done. It adds a voluntary save-file backup and does not change
 combat. Issue 021 is done; the owner confirmed it works as expected on
 2026-11-02. Issue 022 is done as a decision: the owner declined logging
-implementation and will add debugging only when needed. Issue 023 implements the owner-approved difficulty values and Hardcore rules;
-automated checks pass and owner balance playtesting remains pending. Issues 024 through 037 remain plans only and do not change play.
+implementation and will add debugging only when needed. Issue 023 is Done: automated checks pass and the owner accepted the initial
+Easy/Hard/Hardcore balance on 2026-11-02. Issues 024 through 037 remain plans only and do not change play.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
 2026-11-01. See the issue follow-up for evidence.

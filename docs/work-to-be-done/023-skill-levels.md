@@ -1,6 +1,6 @@
 # 023 — Add skill levels
 
-Status: Implemented — needs validation
+Status: Done
 
 Implementation follows the owner-approved decisions in the implementation and
 validation section. The original planning questions below are retained for context.
@@ -99,7 +99,7 @@ After the decisions:
 - [x] A co-op match uses the host's approved skill rule, and both players can
       see it.
 - [x] Saves from before this feature still load.
-- [ ] Owner playtest of feel is recorded separately from the automated checks.
+- [x] Owner playtest of feel is recorded separately from the automated checks.
 
 ## Open questions
 
@@ -204,8 +204,21 @@ Issue 005 tuning constants are unchanged.
   or quality defaults were removed.
 - Compact 640×600 keyboard selection and launch checks passed in both browsers;
   agent inspected the Firefox screenshot. `git diff --check` passed.
-- Remaining: owner playtest of Easy/Hard/Hardcore. Google Chrome and physical
-  controller have not been checked. No performance claim is made.
-- Status stays Implemented — needs validation until the owner accepts feel.
-  Initial values are approved for implementation and playtesting, and the owner
-  delegated merge delivery in this chat.
+- Owner validation, separate from agent checks: on 2026-11-02 the owner answered
+  “Accept the initial balance” to the Easy/Hard/Hardcore playtest question for
+  the completed local build. This accepts the initial values; no additional
+  measured performance or physical-controller testing is claimed.
+- All issue acceptance criteria have supporting evidence. Status: Done.
+  Google Chrome and physical controller were not checked. No performance claim
+  is made. The owner delegated merge delivery in this chat.
+
+### Delivery follow-up
+
+- The first pre-push run passed 121 browser tests and failed the new Firefox
+  compact keyboard test once: it focused the skill button before the menu's
+  delayed initial-focus callback finished. The fixture now waits for the first
+  menu control to receive focus before moving focus and pressing Enter. No
+  assertion was removed and no production behavior changed.
+- The corrected compact keyboard test passed five repetitions in Chromium and
+  five in Firefox (10 total). The required pre-push hook enforces the full
+  suite again before delivery. Owner balance acceptance is recorded above.
