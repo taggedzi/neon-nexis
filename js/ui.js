@@ -338,6 +338,7 @@ UI.showShipSelection=function(){
   const saved=N.readSave()?.player;
   shipSelection={shipType:N.Ships.get(saved?.shipType).id,
     shipColor:N.Ships.palette.some(p=>p.color===saved?.shipColor)?saved.shipColor:N.Ships.palette[0].color};
+  buildSkillChoices('ship-skills',G.settings.skill,chooseSkill);
   const refresh=()=>{
     $('ship-types').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipType===shipSelection.shipType)));
     $('ship-colors').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shipColor===shipSelection.shipColor)));
@@ -354,6 +355,34 @@ UI.showShipSelection=function(){
   }
   refresh();showScreen('ship');
 };
+
+function skillNote(id){
+  return id==='hardcore'
+    ? 'HARD COMBAT // ONE LIFE. NO RESTORE OR REVIVES. RUN CHECKPOINT LOST ON DEATH. FRESH PILOTS ONLY.'
+    : id==='medium'?'ORIGINAL COMBAT SETTINGS.'
+      : id==='easy'?'FEWER, WEAKER AND SLOWER ENEMIES. MORE TIME BETWEEN WAVES.'
+        :'MORE, STRONGER AND FASTER ENEMIES. LESS TIME BETWEEN WAVES.';
+}
+function chooseSkill(id){
+  G.settings.skill=id;
+  N.saveSettings(G.settings);
+  buildSkillChoices('ship-skills',id,chooseSkill);
+  $('ship-skills').querySelector('[data-skill="'+id+'"]').focus();
+}
+function buildSkillChoices(target,id,onChoose,disabled=false){
+  const box=$(target);box.replaceChildren();
+  for(const [key,def] of Object.entries(N.SKILLS)){
+    const button=document.createElement('button');
+    button.type='button';button.textContent=def.name;button.dataset.skill=key;
+    button.setAttribute('aria-pressed',String(key===id));button.disabled=disabled;
+    button.addEventListener('click',()=>onChoose(key));box.appendChild(button);
+  }
+  $(target==='ship-skills'?'ship-skill-note':'coop-skill-note').textContent=skillNote(id);
+}
+function chooseCoopSkill(id){
+  G.settings.skill=id;N.saveSettings(G.settings);
+  N.Net.sendControl({t:'lobby_skill',skill:id});
+}
 
 // ——— co-op uplink ———
 function refreshCoopSelection(){
@@ -387,6 +416,8 @@ UI.showCoop=function(reason){
     coopSelection=N.Ships.selection(saved||{});
   }
   buildCoopChoices();
+  buildSkillChoices('coop-skills',N.Coop.lobby?.skill||G.settings.skill,chooseCoopSkill,true);
+  delete $('coop-skills').dataset.skill;
   refreshCoopSelection();
   UI.updateCoopStatus(N.Net?{state:N.Net.state,role:N.Net.role,code:N.Net.code,peer:N.Net.peer,transport:N.Net.transport,detail:''}:null);
   if(reason){
@@ -455,10 +486,19 @@ UI.updateLobby=function(){
   const c=N.Coop,lobby=c.lobby;
   if(lobby&&N.Net.code){
     const ready=lobby.ready.includes(N.Net.clientId);
+    const skill=lobby.skill||'medium';
+    // Preserve focus while periodic lobby updates refresh the selected skill.
+    const choices=$('coop-skills');
+    if(choices.dataset.skill!==skill || choices.dataset.role!==N.Net.role || choices.dataset.phase!==lobby.phase){
+      const focused=choices.contains(document.activeElement)?document.activeElement.dataset.skill:null;
+      buildSkillChoices('coop-skills',skill,chooseCoopSkill,N.Net.role!=='host'||lobby.phase!=='lobby');
+      choices.dataset.skill=skill;choices.dataset.role=N.Net.role;choices.dataset.phase=lobby.phase;
+      if(focused)choices.querySelector('[data-skill="'+focused+'"]')?.focus();
+    }
     $('coop-members').textContent=lobby.members.map(m=>m.profile.name+' // '+m.profile.shipType+' // '+m.profile.shipColor+' // '+(lobby.ready.includes(m.clientId)?'READY':'CHOOSING')).join(' | ');
     $('coop-respawn-count').textContent=String(lobby.respawns);
     $('coop-respawns').value=String(lobby.respawns);
-    $('coop-respawns').disabled=N.Net.role!=='host'||lobby.phase!=='lobby';
+    $('coop-respawns').disabled=N.Net.role!=='host'||lobby.phase!=='lobby'||skill==='hardcore';
     const button=$('btn-coop-start');
     button.hidden=lobby.phase!=='lobby';
     button.disabled=lobby.phase!=='lobby';
@@ -469,7 +509,7 @@ UI.updateLobby=function(){
     life.hidden=!c.active;
     if(c.active&&G.player){
       const p=G.player;
-      life.textContent='TEAM RESPAWNS '+c.remainingRespawns+' / '+(lobby?lobby.respawns:4)+(p.dead?(p.respawnSeconds!=null?' // REPLACEMENT IN '+Math.ceil(p.respawnSeconds)+'s':' // SPECTATING TEAMMATE'):'');
+      life.textContent=N.skillOf(G.run?.skill).name+' // TEAM RESPAWNS '+c.remainingRespawns+' / '+(lobby?lobby.respawns:4)+(p.dead?(p.respawnSeconds!=null?' // REPLACEMENT IN '+Math.ceil(p.respawnSeconds)+'s':' // SPECTATING TEAMMATE'):'');
     }
   }
 };
@@ -1076,7 +1116,7 @@ UI.showGameOver=function(data){
   const coop=N.Coop&&N.Coop.isActive();
   $('btn-restore').disabled=coop?true:!data.hasCheckpoint;
   $('btn-gameover-menu').textContent=coop?'LEAVE CO-OP':'RETURN TO MAIN MENU';
-  $('gameover-save-note').textContent=coop?'CO-OP SESSION ENDED — RETURN TO THE HUB':(data.hasCheckpoint?'LAST LOCAL CHECKPOINT AVAILABLE':'NO CHECKPOINT FOUND — RETURN TO THE NEXUS');
+  $('gameover-save-note').textContent=G.run?.skill==='hardcore'?'HARDCORE RUN ENDED // NO CHECKPOINT RESTORE':coop?'CO-OP SESSION ENDED — RETURN TO THE HUB':(data.hasCheckpoint?'LAST LOCAL CHECKPOINT AVAILABLE':'NO CHECKPOINT FOUND — RETURN TO THE NEXUS');
   showScreen('gameover');
 };
 UI.confirm=function(title,copy,onYes,yesLabel){

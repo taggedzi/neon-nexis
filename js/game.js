@@ -377,7 +377,9 @@ G.newRun=function(selection,options){
   N.Input.resetFire();
   const seed=Number.isFinite(options.seed)?options.seed>>>0:(Math.random()*0xFFFFFFFF)>>>0;
   G.coopRun=!!options.coop;
-  G.run={seed,mapVersion:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
+  const requestedSkill=options.skill||G.settings.skill;
+  const skill=Object.hasOwn(N.SKILLS,requestedSkill)?requestedSkill:'medium';
+  G.run={skill,seed,mapVersion:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
   Object.assign(G.player,N.Ships.selection(selection));
   G.player.name=options.name||'PLAYER 1';
@@ -499,7 +501,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
     rewards:N.Rewards.snapshot(),
-    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
+    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
       x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
@@ -523,7 +525,23 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   }
   return ok;
 };
+G.removeHardcoreCheckpoint=function(){
+  if(G.run?.skill!=='hardcore'){
+    return;
+  }
+  G.lastCheckpoint=null;
+  const stored=N.readSave();
+  // A failed initial save must not make death erase a different stored run.
+  if(stored?.run?.skill==='hardcore' && stored.run.seed===G.run.seed && stored.run.startedAt===G.run.startedAt){
+    if(!N.clearSave()){
+      G.notify('CHECKPOINT REMOVAL FAILED // LOCAL STORAGE OFFLINE','danger');
+    }
+  }
+};
 G.restoreCheckpoint=function(){
+  if(G.run?.skill==='hardcore'){
+    return false;
+  }
   if(N.Coop&&N.Coop.isGuest()){G.notify('CO-OP SESSIONS DO NOT USE LOCAL CHECKPOINTS','warn');return false;}
   let save=N.readSave();
   if(!save||save.version!==SAVE_VERSION) save=G.lastCheckpoint;
@@ -543,6 +561,9 @@ G.canLoadSave=function(save){
   if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
   if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
   const run=save.run, player=save.player;
+  if(run.skill!=null && !Object.hasOwn(N.SKILLS,run.skill)){
+    return false;
+  }
   if(!(run.mapVersion==null || run.mapVersion===0 || run.mapVersion===1)) return false;
   if(!finiteField(run.seed)||!finiteField(run.kills)||!finiteField(run.totalTime)||!finiteField(run.damage)) return false;
   // Sector identity is the current level and the completed-sector count. A null,
@@ -565,12 +586,12 @@ G.canLoadSave=function(save){
   return true;
 };
 G.loadFromSave=function(save,fromDeath=false){
-  if(!G.canLoadSave(save)) return false;
+  if(!G.canLoadSave(save) || (fromDeath && save.run.skill==='hardcore')) return false;
   try{
     N.Input.resetMovement();
     N.Input.resetFire();
     G.run=Object.assign({
-      seed:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now()
+      skill:'medium',seed:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now()
     },save.run);
     G.level=generateLevel(G.run.level,save.level||null);
     const p=hydratePlayer(save.player,G.level);
@@ -670,7 +691,7 @@ G.getGameOverData=function(){
     time:(G.run?.totalTime||0)+(G.level?.elapsed||0),sectorTime:G.level?.elapsed||0,
     anchors:G.level?G.level.anchors.filter(a=>a.alive).length:0,anchorsTotal:G.level?G.level.anchors.length:0,
     weapons:p.weapons.map(w=>N.WEAPON_BY_ID[w.id]?.name||w.id),damage:Math.round(G.run?.damage||0),
-    sectors:G.run?.sectors||0,hasCheckpoint:!!(N.readSave()||G.lastCheckpoint)
+    sectors:G.run?.sectors||0,hasCheckpoint:G.run?.skill!=='hardcore'&&!!(N.readSave()||G.lastCheckpoint)
   };
 };
 G.getCompleteData=function(){
@@ -921,6 +942,9 @@ G.addBolt=function(points,color,life=.14,width=2){
   G.effects.push({type:'bolt',points,color,life,maxLife:life,width});
 };
 G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
+  if(owner==='enemy'){
+    damage*=N.skillOf(G.run?.skill).strength;
+  }
   if(N.Coop) N.Coop.onExplosion(x,y,radius,color);
   G.addRing(x,y,radius,color,opts.life||.42,opts.width||2.2);
   G.addParticles(x,y,color,opts.particles||16,{speed:220,life:.7,size:2.2,glow:true});

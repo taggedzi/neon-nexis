@@ -303,7 +303,7 @@
     }
     // Check defeat before allocating or completing any pending replacement.
     if (players.length && players.every(player => player.dead)) { C.finishRun(); return; }
-    if (G.mode !== 'playing' || C.pauseState !== 'PLAY') return;
+    if (G.run.skill === 'hardcore' || G.mode !== 'playing' || C.pauseState !== 'PLAY') return;
     let waiting = players.filter(player => player.dead && player.respawnSeconds == null);
     while (waiting.length && C.remainingRespawns > 0) {
       const chosen = C.chooseRespawn(waiting);
@@ -387,13 +387,13 @@
     respawnPending = null;
     for (const player of C.players()) {
       const dead = player.dead;
-      if (dead) replaceShip(player);
-      else if (player !== G.player) {
+      if (dead && G.run.skill !== 'hardcore') replaceShip(player);
+      else if (!dead && player !== G.player) {
         player.hp = Math.min(player.stats.maxHp, player.hp + player.stats.maxHp * 0.35);
         player.shield = player.stats.maxShield;
       }
       player.respawnSeconds = null;
-      player.deathHandled = false;
+      player.deathHandled = player.dead;
       if (player !== G.player) {
         const spawn = G.level.layout ? G.level.layout.spawn : { x: G.level.cx, y: G.level.cy };
         player.x = player.tx = spawn.x;
@@ -420,6 +420,7 @@
   C.onMessage = function (message) {
     if (!message || typeof message !== 'object') return;
     if (message.t === 'lobby_state') {
+      if (!Object.hasOwn(N.SKILLS,message.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (C.lobby && message.runId < C.lobby.runId) return;
       C.lobby = message;
       C.runId = message.runId;
@@ -464,6 +465,7 @@
       return;
     }
     if (message.t === 'session_sync') {
+      if (!message.run || !Object.hasOwn(N.SKILLS, message.run.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (N.Net.role !== 'guest' || !C.lobby || C.lobby.phase !== 'run') return;
       if (message.syncId <= receivedSync) {
         if (!awaitingWorld) N.Net.send({ t: 'session_ack', syncId: message.syncId });

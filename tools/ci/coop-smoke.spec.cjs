@@ -51,7 +51,7 @@ async function fillRoomCode(page, code) {
   await expect(input).toHaveValue(code);
 }
 
-async function startCoopRun(browser, delayInitialPause = false) {
+async function startCoopRun(browser, delayInitialPause = false, skill = 'medium') {
   const hostContext = trackContext(await browser.newContext());
   const host = await hostContext.newPage();
   const errors = [];
@@ -70,6 +70,7 @@ async function startCoopRun(browser, delayInitialPause = false) {
     };
   });
   await host.locator('#btn-coop').click();
+  await host.evaluate(id => { window.NEON.Game.settings.skill = id; }, skill);
   await host.locator('#btn-coop-host').click();
   await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
   const code = await host.evaluate(() => window.NEON.Net.code);
@@ -121,6 +122,8 @@ async function startCoopRun(browser, delayInitialPause = false) {
   }
 
   await expect(host.locator('#btn-coop-start')).toBeVisible({ timeout: ROOM_SETUP_TIMEOUT });
+  await expect(host.locator('#coop-skills [aria-pressed="true"]')).toHaveText(skill.toUpperCase());
+  await expect(guest.locator('#coop-skills [aria-pressed="true"]')).toHaveText(skill.toUpperCase());
   await host.locator('#btn-coop-start').click();
   await guest.locator('#btn-coop-start').click();
 
@@ -1172,4 +1175,55 @@ test('a direct link that never opens stays on the co-op screen', async ({ browse
     expect(JSON.stringify(body)).not.toContain('global_pause');
     expect(JSON.stringify(body)).not.toContain('playerBullets');
   }
+});
+
+
+for (const victimRole of ['host','guest']) {
+  test('023 hardcore '+victimRole+' death stays permanent across sectors and ends on team wipe', async ({browser}) => {
+    test.setTimeout(90000);
+    const {host,guest,errors}=await startCoopRun(browser,false,'hardcore');
+    const victim=victimRole==='host'?host:guest;
+    const survivor=victimRole==='host'?guest:host;
+    await quietWorld(host);
+    for(const page of [host,guest]){
+      expect(await page.evaluate(()=>window.NEON.Game.run.skill)).toBe('hardcore');
+      expect(await page.evaluate(()=>window.NEON.Coop.remainingRespawns)).toBe(0);
+    }
+    await victim.evaluate(()=>window.NEON.Game.gameOver());
+    await expect.poll(()=>survivor.evaluate(()=>window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
+    await host.evaluate(()=>{
+      const C=window.NEON.Coop;
+      // Even a stale positive pool must not revive a Hardcore pilot.
+      C.remainingRespawns=4;C.tickLives(10);
+    });
+    expect(await victim.evaluate(()=>window.NEON.Game.player.dead)).toBe(true);
+    await host.evaluate(()=>window.NEON.Game.completeLevel('timer'));
+    await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode)).toBe('complete');
+    await host.locator('#btn-advance').click();
+    await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.level.number)).toBe(2);
+    expect(await victim.evaluate(()=>window.NEON.Game.player.dead)).toBe(true);
+    await expect.poll(()=>survivor.evaluate(()=>window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
+    expect(await host.evaluate(()=>window.NEON.Coop.remainingRespawns)).toBe(0);
+    await survivor.evaluate(()=>window.NEON.Game.gameOver());
+    await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+    await expect.poll(()=>guest.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('023 old wire versions fail closed with an update message', async ({browser}) => {
+  test.setTimeout(90000);
+  const {host,guest}=await startCoopRun(browser);
+  await guest.evaluate(()=>{
+    const W=window.NEON.Wire,encode=W.encode;
+    W.encode=message=>{
+      const data=encode(message);
+      if(data)new Uint8Array(data)[0]=1;
+      return data;
+    };
+    window.NEON.Coop.sendState(true);
+  });
+  await expect.poll(()=>host.evaluate(()=>window.NEON.Net.state)).toBe('error');
+  expect(await host.evaluate(()=>window.NEON.Coop.active)).toBe(false);
+  await expect(host.locator('#coop-status')).toContainText('UPDATE BOTH CLIENTS');
 });

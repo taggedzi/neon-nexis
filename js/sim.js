@@ -36,6 +36,9 @@ G.spawnBullet=function(o){
   return b;
 };
 G.spawnEnemyBullet=function(o){
+  if(!o.coopCosmetic){
+    o=Object.assign({},o,{damage:(o.damage||0)*N.skillOf(G.run?.skill).strength});
+  }
   const b=Object.assign({
     id:uid('eb_'),x:0,y:0,vx:0,vy:0,angle:0,speed:0,damage:0,size:3,life:4.4,maxLife:4.4,
     color:'#ff335c',kind:'hostile',curve:0,homing:false,turnRate:0,accel:0,owner:'enemy',
@@ -702,6 +705,7 @@ G.gameOver=function(){
   if(G.mode==='gameover'||G.mode==='complete')return;
   const p=G.player;if(!p)return;
   p.dead=true;p.hp=0;
+  G.removeHardcoreCheckpoint();
   if(N.Coop) N.Coop.onLocalGameOver();
   G.setMode('gameover');
   N.Input.resetFire();

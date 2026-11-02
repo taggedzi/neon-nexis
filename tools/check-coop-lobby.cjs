@@ -141,6 +141,26 @@ async function until(predicate) {
     assert.equal(linked.room.guest && linked.room.guest.clientId, 'guest');
     assert.equal(linked.room.guest.online, true);
 
+    const skills = harness(40);
+    try {
+      skills.authority.setHost('host', {});
+      skills.authority.setGuest('guest', {});
+      skills.authority.handle('guest', { t: 'lobby_skill', skill: 'hard' });
+      assert.equal(skills.room.skill, 'medium');
+      skills.authority.handle('host', { t: 'lobby_ready', revision: skills.room.lobbyRevision });
+      assert.equal(skills.room.lobbyReady.size, 1);
+      skills.authority.handle('host', { t: 'lobby_skill', skill: 'hardcore' });
+      assert.equal(skills.room.skill, 'hardcore');
+      assert.equal(skills.room.lobbyReady.size, 0);
+      assert.equal(skills.messages.at(-1).message.respawns, 0);
+      skills.authority.handle('host', { t: 'lobby_respawns', count: 8 });
+      assert.equal(skills.messages.at(-1).message.respawns, 0);
+      skills.authority.handle('host', { t: 'lobby_skill', skill: 'invalid' });
+      assert.equal(skills.room.skill, 'hardcore');
+      skills.authority.handle('host', { t: 'lobby_skill', skill: 'easy' });
+      assert.equal(skills.messages.at(-1).message.respawns, 4);
+    } finally { skills.authority.close(); }
+
     console.log('Lobby checks passed: readiness revisions, count bounds, repeated runs, stale controls, replacement, duplicate identity, hosted lifetime, and a hung re-offer.');
   } finally {
     authority.close();

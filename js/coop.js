@@ -228,7 +228,7 @@
     Coop._grantSerial = 0;
 
     const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
-    G.newRun(Coop.localProfile, { seed: seed, coop: true, name: 'PLAYER 1' });
+    G.newRun(Coop.localProfile, { seed: seed, coop: true, skill: Coop.lobby.skill, name: 'PLAYER 1' });
     const mirror = makeRemotePlayer(Coop.peerProfile || { name: 'PLAYER 2' }, G.level, 1);
     Coop.remotePlayers = N.Net.peer ? [mirror] : [];
     Coop.started = true;
@@ -239,6 +239,7 @@
     N.Net.send({
       t: 'start',
       seed: seed,
+      skill: G.run.skill,
       level: 1,
       host: profileOf(Coop.localProfile)
     });
@@ -264,6 +265,7 @@
 
     G.run = {
       seed: seed,
+      skill: message.run?.skill || message.skill || 'medium',
       mapVersion: 1,
       level: levelNumber,
       sectors: 0,

@@ -4,6 +4,13 @@
 const N=window.NEON;
 const TAU=N.TAU;
 const clamp=N.clamp;
+N.SKILLS = Object.freeze({
+  easy: Object.freeze({ name: 'EASY', count: .75, strength: .8, frequency: .8, movement: .9 }),
+  medium: Object.freeze({ name: 'MEDIUM', count: 1, strength: 1, frequency: 1, movement: 1 }),
+  hard: Object.freeze({ name: 'HARD', count: 1.25, strength: 1.25, frequency: 1.2, movement: 1.1 }),
+  hardcore: Object.freeze({ name: 'HARDCORE', count: 1.25, strength: 1.25, frequency: 1.2, movement: 1.1 })
+});
+N.skillOf = id => Object.hasOwn(N.SKILLS, id) ? N.SKILLS[id] : N.SKILLS.medium;
 // Balance: gently ramp from sector 1 to the previous routine intensity at 10.
 // Scripted encounters retain their schedules; required wardens/bosses bypass cap.
 N.SPAWN_TUNING={routineIntervalMultiplier:1.25,

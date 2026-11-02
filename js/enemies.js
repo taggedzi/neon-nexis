@@ -10,12 +10,14 @@ let uidCounter=0;
 const uid=p=>p+(++uidCounter);
 const panOf=G.panOf;
 
+function skill(){return N.skillOf(G.run?.skill);}
+function quantity(count){return Math.max(1,Math.round(count*skill().count));}
 function dmgScale(){return 1+(G.run.level-1)*.18+G.level.elapsed/DURATION*.28;}
 function qualityCap(){const q=G.settings.graphics.quality||'high';return q==='low'?55:q==='medium'?82:120;}
 function spawnProgress(sector){return clamp((sector-1)/(N.SPAWN_TUNING.fullIntensitySector-1),0,1);}
 G.enemyPopulationCap=function(sector=G.run.level){
   const start=N.SPAWN_TUNING.gentlePopulationCap;
-  return Math.min(qualityCap(),Math.floor(start+(120-start)*spawnProgress(sector)));
+  return Math.min(qualityCap(),quantity(Math.floor(start+(120-start)*spawnProgress(sector))));
 };
 function activeRegularStyles(){return G.level.styles.filter(s=>s.role!=='boss'&&s.role!=='warden');}
 function styleForRole(role){
@@ -57,7 +59,7 @@ G.spawnEnemy=function(style,x,y,opts={}){
   if(!opts.requiredEncounter&&G.enemies.length>=G.enemyPopulationCap())return null;
   const role=N.ROLES[style.role]||N.ROLES.rusher;
   const p=(N.Coop&&N.Coop.nearestPlayer)?N.Coop.nearestPlayer(x,y):G.player;
-  const hpScale=dmgScale();
+  const hpScale=dmgScale()*skill().strength;
   const elite=!!(opts.elite||role.elite);
   const boss=!!(opts.boss||role.boss);
   const child=!!opts.minion;
@@ -69,8 +71,8 @@ G.spawnEnemy=function(style,x,y,opts={}){
     id:uid('enemy_'),style:style.id,styleDef:style,role:style.role,name:style.name,
     x:clamp(x,50,G.level.width-50),y:clamp(y,50,G.level.height-50),vx:0,vy:0,
     r:Math.max(8,size),hp:role.hp*hpScale*(child?.38:1)*(opts.elite&&!role.elite?1.75:1)*(boss?1:1),
-    speed:Math.min(360,role.speed*(1+(G.run.level-1)*.018+G.level.elapsed/DURATION*.12)*(.9+Math.random()*.2)),
-    contact:role.contact*(1+(G.run.level-1)*.12+G.level.elapsed/DURATION*.2)*(child?.55:1),
+    speed:skill().movement*Math.min(360,role.speed*(1+(G.run.level-1)*.018+G.level.elapsed/DURATION*.12)*(.9+Math.random()*.2)),
+    contact:skill().strength*role.contact*(1+(G.run.level-1)*.12+G.level.elapsed/DURATION*.2)*(child?.55:1),
     xp:role.xp*(1+(G.run.level-1)*.12)*(child?.3:1)*(elite?2.2:1),
     drop:role.drop,dropChance:role.dropChance,attack:role.attack,elite,boss,child,
     color:`hsl(${hue},${sat}%,${light}%)`,hue,
@@ -98,8 +100,8 @@ G.spawnInitialEnemies=function(count){
   if(!G.level||!G.player)return;
   const base=G.settings.graphics.quality==='low'?6:9;
   // Whole enemies: 9 halves to 5; 6 halves to 3. Grow at each sector entry.
-  const n=count||Math.min(G.enemyPopulationCap(),Math.ceil(base*N.SPAWN_TUNING.initialPopulationMultiplier)
-    +Math.max(0,G.run.level-1)*N.SPAWN_TUNING.initialPopulationPerSector);
+  const n=count?quantity(count):Math.min(G.enemyPopulationCap(),quantity(Math.ceil(base*N.SPAWN_TUNING.initialPopulationMultiplier)
+    +Math.max(0,G.run.level-1)*N.SPAWN_TUNING.initialPopulationPerSector));
   for(let i=0;i<n;i++){
     const pos=G.safeSpawnPos(500,800);
     G.spawnEnemy(G.pickStyle(),pos.x,pos.y);
@@ -121,7 +123,7 @@ G.spawnWaveGroup=function(size,eliteChance){
   }
 };
 G.spawnSurge=function(){
-  const size=Math.min(18,9+Math.floor(G.run.level*.8));
+  const size=quantity(Math.min(18,9+Math.floor(G.run.level*.8)));
   for(let i=0;i<size;i++){
     if(G.enemies.length>=G.enemyPopulationCap())break;
     const p=G.player.dead&&N.Coop?.isHost()?N.Coop.nearestPlayer(G.player.x,G.player.y):G.player;
@@ -148,12 +150,12 @@ G.spawnBoss=function(){
 };
 G.routineSpawnInterval=function(elapsed,sector){
   const late=clamp(1.25-elapsed/DURATION*.55-sector*.012,.48,1.25)*N.SPAWN_TUNING.routineIntervalMultiplier;
-  return N.SPAWN_TUNING.gentleInterval+(late-N.SPAWN_TUNING.gentleInterval)*spawnProgress(sector);
+  return (N.SPAWN_TUNING.gentleInterval+(late-N.SPAWN_TUNING.gentleInterval)*spawnProgress(sector))/skill().frequency;
 };
 G.routineSpawnGroup=function(elapsed,sector){
   const late=Math.min(9,2+Math.floor(sector*.35)+Math.floor(elapsed/DURATION*3));
   const start=N.SPAWN_TUNING.gentleGroupSize;
-  return Math.floor(start+(late-start)*spawnProgress(sector));
+  return quantity(Math.floor(start+(late-start)*spawnProgress(sector)));
 };
 G.updateSpawning=function(dt){
   if(!G.level||G.mode!=='playing')return;
