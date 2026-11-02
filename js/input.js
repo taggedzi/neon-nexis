@@ -128,7 +128,11 @@ function onPointerDown(e){
   N.Audio && N.Audio.unlock && N.Audio.unlock();
   const t=e.target;
   if(t && t.id==='game' && (e.button===0||e.pointerType==='touch')){
-    mouse.down=true; aimSource='mouse'; mouse.x=e.clientX;mouse.y=e.clientY;
+    mouse.down=true; aimSource='mouse';
+    // Locked button events report the capture point, not the virtual aim.
+    if(!pointerIsLocked()){
+      mouse.x=e.clientX;mouse.y=e.clientY;
+    }
     N.Firing.set('mouse',false,false);N.Firing.set('mouse',true,fireActive());
     requestPointerLock(t,e);
   }

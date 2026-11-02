@@ -153,4 +153,36 @@ check used the synthetic pad in `tools/check-controller.js`.
 Owner validation, 2026-11-01: the owner played the feature and approved the
 implementation. They reported that it worked well.
 
-Remaining work: none.
+Remaining work at original delivery: none; see the follow-up below.
+
+### Follow-up: crosshair resets on repeated firing (2026-11-01)
+
+Owner report: after moving the captured pointer, starting fire again jumps the
+crosshair to an unwanted position. Investigation found that `onPointerDown`
+copies `clientX/clientY` even while pointer lock holds those coordinates at the
+original capture point. Relative pointer movement already maintains virtual aim.
+
+Implementation choice: retain the virtual aim on button presses while locked;
+keep absolute click coordinates when unlocked, including touch and capture-off.
+This follows the owner's request to fix aim jumps without changing controls.
+
+Changed files: `js/input.js`, `tools/ci/pointer-lock.spec.cjs`, this issue,
+and the backlog index.
+
+Validation on 2026-11-01, Windows:
+
+- Before the fix, the new repeated-firing test failed in both Chromium and
+  Firefox: a fresh press reset virtual aim to the capture point `(400, 420)`.
+- After the fix, the focused pointer-lock suite passed all 14 tests. It checks
+  three press/release cycles without aim movement, plus existing lock, pause,
+  focus-loss, denied-capture, and capture-off behavior. No page/console errors.
+- `npm run check` passed syntax, lint, unit checks, and all 108 browser tests
+  (browser phase 4.4 minutes). Playwright Chromium 156.0.8078.4 and Firefox
+  157.0; Google Chrome and physical controller checks were not run separately.
+- `git diff --check` passed.
+
+Owner gameplay validation, 2026-11-01: the owner confirmed the fix
+"works perfectly." The reported crosshair reset is resolved.
+
+Remaining validation for this follow-up: none.
+Branch: `codex/fix-pointer-lock-aim-reset`. Changes are uncommitted.
