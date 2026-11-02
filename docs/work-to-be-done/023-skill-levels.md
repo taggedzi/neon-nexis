@@ -188,7 +188,7 @@ Issue 005 tuning constants are unchanged.
   `tools/ci/skill-levels.spec.cjs`, `tools/ci/coop-smoke.spec.cjs`: baseline,
   multipliers, real wave spawning, persistence, save compatibility, permanent
   co-op death, wipe and readiness coverage.
-- Task branch: `codex/023-skill-levels`. Implementation commit pending.
+- Task branch: `codex/023-skill-levels`. Implementation commit: `4d19a4c`.
 - Syntax/lint and the unit suite passed. Four new focused browser checks passed
   on Windows, Chromium 156.0.8078.4 and Firefox 157.0. Ten focused checks then
   passed, including compact keyboard access, shield scaling, preservation of a
