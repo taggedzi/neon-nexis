@@ -281,3 +281,18 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Normal new runs and loaded stored checkpoints retain ordinary save behavior.
   See [issue 021](work-to-be-done/021-dev-mode.md) for implementation choices.
 - Supersedes: Nothing.
+
+## 2026-11-02 — Add debugging only when needed
+
+- Decision: Do not implement a debug logging subsystem now. Add focused
+  debugging when a concrete problem requires it.
+- Rationale: The owner wants to keep performance optimal and avoid diagnostic
+  work without a current need. No performance improvement is claimed or measured.
+- Approval: Owner instruction in chat on 2026-11-02: debugging can be added
+  when needed. See [issue 022](work-to-be-done/022-debug-logging.md).
+- Consequences: Issue 022 is Done as a decision with no logging code added.
+  [Issue 021](work-to-be-done/021-dev-mode.md) needs no logging subsystem.
+  [Issue 034](work-to-be-done/034-crash-reports.md) remains a separate,
+  unapproved proposal. Existing error reporting stays unchanged.
+- Supersedes: The unresolved logging proposal in issue 022; this records the
+  owner's decision rather than approving a logging implementation.

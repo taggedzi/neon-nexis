@@ -15,7 +15,7 @@ decisions those features need.
 | 3 | Lock the pointer to the game and pause when focus leaves | [019](work-to-be-done/019-pointer-lock-and-focus-pause.md) |
 | 4 | Export and import all save data | [020](work-to-be-done/020-save-export-import.md) |
 | 5 | Add an in-game dev mode for setting up test scenarios | [021](work-to-be-done/021-dev-mode.md) |
-| 6 | Decide whether debug logging is required | [022](work-to-be-done/022-debug-logging.md) |
+| 6 | Debug logging declined; add debugging only when needed (decision complete) | [022](work-to-be-done/022-debug-logging.md) |
 | 7 | Add easy, medium, hard, and hardcore skill levels | [023](work-to-be-done/023-skill-levels.md) |
 | 8 | Save a limited list of named ships and load them into a new run | [024](work-to-be-done/024-named-ship-loadouts.md) |
 | 9 | Track per-player stats and show a tally at the end of a run | [025](work-to-be-done/025-player-stats.md) |

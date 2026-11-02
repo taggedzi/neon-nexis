@@ -72,7 +72,9 @@ After the decisions:
   A dev setup can save only through the normal checkpoint action.
 - Add a regression that the production bundle does not expose the command, and
   a source-page check that one ship setup and one enemy spawn work.
-- Do not log secrets. See [issue 022](022-debug-logging.md).
+- Do not log secrets. The owner declined a logging subsystem; add debugging
+  only when needed. See the [decision](../decisions.md#2026-11-02--add-debugging-only-when-needed)
+  and [issue 022](022-debug-logging.md).
 
 ## Acceptance criteria
 
