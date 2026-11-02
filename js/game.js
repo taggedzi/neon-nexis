@@ -155,7 +155,7 @@ G.rebuildStats=function(p,initial=false){
   const oldHpMax=p.stats?p.stats.maxHp:null;
   const oldShMax=p.stats?p.stats.maxShield:null;
   const oldDashMax=p.maxDashCharges||null;
-  const s=Object.assign({},N.BASE_STATS);
+  const s=N.Ships.baseStats(p);
   for(const m of (p.passives||[])){
     const def=N.MOD_BY_ID[m.id]; if(!def) continue;
     for(let i=0;i<(m.stacks||1);i++) applyEffects(s,def.effect);
@@ -193,7 +193,7 @@ G.rebuildStats=function(p,initial=false){
   s.damageTakenMul=Math.max(.2,s.damageTakenMul);
   s.shieldRegenMul=Math.max(.1,s.shieldRegenMul);
   s.pickupRadius=95*s.pickupMul;
-  s.moveSpeed=N.BASE_STATS.speed*s.moveMul;
+  s.moveSpeed=s.speed*s.moveMul;
   s.shieldDelay=4.2;
   p.stats=s;
   p.maxDashCharges=s.dashCharges;
@@ -228,10 +228,10 @@ function makeWeapon(id,tier=1,level=1){
   const def=N.WEAPON_BY_ID[id]||N.WEAPON_BY_ID[N.STARTING_WEAPON];
   return {id:def.id,name:def.name,color:def.color,base:def.base,level:clamp(level|0,1,5),tier:clamp(tier|0,1,3),cooldown:0};
 }
-function makePlayer(){
+function makePlayer(selection){
   const p={
     x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:-Math.PI/2,
-    shipType:'dart',shipColor:'#00f0ff',
+    ...N.Ships.selection(selection),hullStatsVersion:1,
     hp:null,shield:null,level:1,xp:0,xpNext:G.xpForLevel(1),
     weapons:[makeWeapon(N.STARTING_WEAPON,1,1)],
     passives:[{id:'vector',stacks:1}],
@@ -390,8 +390,7 @@ G.newRun=function(selection,options){
   }
   G.coopRun=!!options.coop;
   G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
-  G.player=makePlayer();
-  Object.assign(G.player,N.Ships.selection(selection));
+  G.player=makePlayer(selection);
   if(loadout) N.Loadouts.apply(G.player,loadout);
   G.player.name=options.name||'PLAYER 1';
   G.level=generateLevel(sector,null);
@@ -514,7 +513,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
     rewards:N.Rewards.snapshot(),
     run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,highestSector:Math.max(G.run.highestSector||1,G.run.level),tally:G.run.tally?{...G.run.tally}:undefined,skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
-      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
+      x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,hullStatsVersion:p.hullStatsVersion,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
       core:(p.core||[]).slice(),activeWeapon:p.activeWeapon,weaponSlots:p.weaponSlots,passiveSlots:p.passiveSlots,
       dashCharges:p.dashCharges,dashTimer:p.dashTimer,buffs:Object.assign({},p.buffs),invuln:0
@@ -572,6 +571,9 @@ G.canLoadSave=function(save){
   if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
   if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
   const run=save.run, player=save.player;
+  if (player.hullStatsVersion !== undefined && player.hullStatsVersion !== 0 && player.hullStatsVersion !== 1) {
+    return false;
+  }
   if(run.skill!=null && !Object.hasOwn(N.SKILLS,run.skill)){
     return false;
   }
@@ -664,6 +666,7 @@ function hydratePlayer(sp,lvl){
   };
   if(!p.weapons.length) p.weapons=[makeWeapon(N.STARTING_WEAPON,1,1)];
   Object.assign(p,N.Ships.selection(sp));
+  p.hullStatsVersion=sp.hullStatsVersion===1?1:0;
   p.activeWeapon=clamp(p.activeWeapon,0,p.weapons.length-1);
   G.rebuildStats(p,false);
   p.hp=clamp(+sp.hp||p.stats.maxHp,1,p.stats.maxHp);

@@ -38,7 +38,7 @@ in [the decision log](../decisions.md).
 | 026 | [Add an enemy logbook](026-enemy-logbook.md) | Done |
 | 027 | [Enemy friendly fire declined](027-enemy-friendly-fire.md) | Done |
 | 028 | [Raise co-op capacity to 4](028-coop-four-players.md) | Implemented — needs validation |
-| 029 | [Give ships stats and decide what colors mean](029-ship-stats-and-colors.md) | Planned |
+| 029 | [Give ships stats and decide what colors mean](029-ship-stats-and-colors.md) | Done |
 | 030 | [Add an About page](030-about-page.md) | Planned |
 | 031 | [Add a README screenshot](031-readme-screenshot.md) | Planned |
 | 032 | [Minify the production package](032-production-minification.md) | Planned |
@@ -65,7 +65,11 @@ Issue 027 is Done as a decision: the owner declined enemy friendly fire on
 Issue 028 is implemented with four seats, a locked starting roster, and optional
 host-approved saved ships. Automated Chromium/Firefox checks passed; owner
 multiplayer/WAN and real-player performance validation remain pending.
-Issues 029 through 037 remain plans only and do not change play.
+Issue 029 implements the owner-approved hull stat table for new runs; colors remain
+cosmetic and old checkpoints keep their original stats. Automated Chromium/Firefox
+checks passed; the owner accepted hull handling/balance after playtesting on
+2026-11-02. Issue 029 is Done.
+Issues 030 through 037 remain plans only and do not change play.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
 2026-11-01. See the issue follow-up for evidence.

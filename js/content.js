@@ -346,6 +346,13 @@ N.SLOT_MILESTONES={
 N.START_SLOTS={weapons:2,passives:2};
 
 // ——— base player stats ———
+// Hull roles apply before the shared upgrades, only in new runs (issue 029).
+N.HULL_STATS={
+  dart:{role:'FAST SCOUT',maxHp:80,maxShield:20,speed:1.15,damageMul:1},
+  delta:{role:'HEAVY',maxHp:140,maxShield:30,speed:.85,damageMul:1},
+  kite:{role:'BALANCED',maxHp:100,maxShield:20,speed:1,damageMul:1},
+  talon:{role:'GLASS CANNON',maxHp:75,maxShield:20,speed:1,damageMul:1.25}
+};
 N.BASE_STATS={
   maxHp:100,maxShield:20,speed:245,armor:0,damageMul:1,rateMul:1,speedMul:1,moveMul:1,
   areaMul:1,sizeMul:1,multishot:0,pierce:0,bounce:0,chain:0,critChance:.05,critMul:1.75,

@@ -2,6 +2,12 @@
 
 Status: Implemented — needs validation
 
+2026-11-02 scope update: the owner approved hull roles for new runs in
+[issue 029](029-ship-stats-and-colors.md), superseding the equal-stat/cosmetic-only
+hull decision below. Colors, shapes, outline hitboxes and shared equipment remain
+as recorded here. Existing checkpoints keep their original stats. Earlier equal-stat
+checks below describe historical validation, not the new hull-role behavior.
+
 ## Problem
 
 The player wants to choose a ship type and color when starting a new run.

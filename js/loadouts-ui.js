@@ -67,9 +67,11 @@
     for (const el of document.querySelectorAll('#ship-types button,#ship-colors button')) el.disabled = !!ship;
     if (ship) {
       N.Ships.preview($('ship-preview'), ship.player);
+      $('ship-stats').textContent=N.Ships.description(ship.player.shipType);
     } else {
       const hull=document.querySelector('#ship-types [aria-pressed="true"]');
       const color=document.querySelector('#ship-colors [aria-pressed="true"]');
+      $('ship-stats').textContent=N.Ships.description(hull?.dataset.shipType);
       N.Ships.preview($('ship-preview'),N.Ships.selection({shipType:hull?.dataset.shipType,shipColor:color?.dataset.shipColor}));
     }
     if(focused) Array.from(box.children).find(el=>el.textContent===focused&&!el.disabled)?.focus();
@@ -90,6 +92,7 @@
     $('coop-sector-down').disabled=!host||!editable||lobby.startSector<=1;
     $('coop-sector-up').disabled=!host||!editable||lobby.startSector>=lobby.sectorCap;
     const selected=lobby.members.find(member=>member.clientId===N.Net.clientId)?.profile.loadout;
+    $('coop-ship-stats').textContent=N.Ships.description(selected?.player.shipType||N.Coop.localProfile.shipType);
     const found=L.read();
     const signature=JSON.stringify([lobby.allowLoadouts,lobby.skill,lobby.phase,selected?.name,found]);
     if(signature===coopSignature) return;

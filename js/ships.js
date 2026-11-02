@@ -1,4 +1,4 @@
-/* NEON NEXUS — cosmetic hulls, previews and shape-matched hitboxes */
+/* NEON NEXUS — hull selection, previews and shape-matched hitboxes */
 (function(){
 'use strict';
 const N=window.NEON;
@@ -14,6 +14,21 @@ const palette=[{name:'CYAN',color:'#66ffff'},{name:'MAGENTA',color:'#ff77e6'},
   {name:'VIOLET',color:'#bf99ff'},{name:'ICE',color:'#a6e8ff'}];
 const get=id=>types.find(t=>t.id===id)||types[0];
 N.Ships={types,palette,get,
+  baseStats(player) {
+    const stats = {...N.BASE_STATS};
+    if (player.hullStatsVersion === 1) {
+      const hull = N.HULL_STATS[get(player.shipType).id];
+      stats.maxHp = hull.maxHp;
+      stats.maxShield = hull.maxShield;
+      stats.speed *= hull.speed;
+      stats.damageMul *= hull.damageMul;
+    }
+    return stats;
+  },
+  description(id) {
+    const hull = N.HULL_STATS[get(id).id];
+    return `${hull.role} // HEALTH ${hull.maxHp} · SHIELD ${hull.maxShield} · SPEED ${Math.round(hull.speed*100)}% · DAMAGE ${Math.round(hull.damageMul*100)}%`;
+  },
   selection(value){
     return {shipType:get(value?.shipType).id,shipColor:palette.some(p=>p.color===value?.shipColor)||value?.shipColor==='#00f0ff'?value.shipColor:'#00f0ff'};
   },

@@ -410,3 +410,12 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   PHP introduction, and client updates must ship together. Merge is authorized;
   deployment remains separate. Owner multiplayer validation is still required.
 - Supersedes: Issue 028's proposed count selector and per-player respawn formula.
+
+## 2026-11-02 — Hull roles for new runs (issue 029)
+
+- Decision: implement the exact owner-approved table in [issue 029](work-to-be-done/029-ship-stats-and-colors.md).
+- Approval source: owner's voice-chat approval explicitly relayed in the implementation request on 2026-11-02.
+- Rationale: distinguish fast scout, heavy, balanced and glass cannon roles while preserving the current visuals.
+- Consequences: colors stay cosmetic; weapons/upgrades remain shared; shapes and outline hitboxes stay unchanged. New solo/co-op runs use hull bases before upgrades. Existing checkpoints retain legacy bases through later rebuilds. This supersedes issue 002's equal-stat hull decision only.
+- Agent implementation choice: named saved ships begin new runs using current hull bases and saved equipment/upgrades, rather than freezing old hull balance. Checkpoints remain distinct from named ships.
+- Owner playtest approval, 2026-11-02: the owner played the game and likes the changes; the follow-up instruction explicitly accepts hull handling/balance. This completes the pending subjective acceptance for issue 029. No detailed per-hull/device/WAN test is claimed.
