@@ -31,7 +31,7 @@ in [the decision log](../decisions.md).
 | 019 | [Lock the pointer and pause when focus leaves](019-pointer-lock-and-focus-pause.md) | Done |
 | 020 | [Export and import all save data](020-save-export-import.md) | Done |
 | 021 | [Add a dev mode for scenario setup](021-dev-mode.md) | Done |
-| 022 | [Decide whether debug logging is required](022-debug-logging.md) | Planned |
+| 022 | [Decide whether debug logging is required](022-debug-logging.md) | Done |
 | 023 | [Add skill levels](023-skill-levels.md) | Planned |
 | 024 | [Save named ship loadouts](024-named-ship-loadouts.md) | Planned |
 | 025 | [Track player stats and an end-of-run tally](025-player-stats.md) | Planned |
@@ -52,7 +52,9 @@ in [the decision log](../decisions.md).
 
 Issue 020 is done. It adds a voluntary save-file backup and does not change
 combat. Issue 021 is done; the owner confirmed it works as expected on
-2026-11-02. Issues 022 through 037 are plans only; they
+2026-11-02. Issue 022 is done as a decision: the owner declined logging
+implementation and will add debugging only when needed. Issues 023 through 037
+are plans only; they
 do not change how the game plays.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on

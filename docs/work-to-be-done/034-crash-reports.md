@@ -106,8 +106,10 @@ If a server is approved instead:
 
 ## Dependencies
 
-Follow the no-default-telemetry decision in
-[issue 022](022-debug-logging.md). Copy must match
+Follow the [2026-11-02 debugging decision](../decisions.md#2026-11-02--add-debugging-only-when-needed):
+the owner declined a logging subsystem and will add debugging only when needed.
+[Issue 022](022-debug-logging.md) is closed as a decision, not a logging
+implementation. Crash reporting remains unapproved under this issue. Copy must match
 [issue 030](030-about-page.md). This does not depend on minification or on
 four-player co-op.
 
