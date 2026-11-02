@@ -324,3 +324,21 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   and 026 must preserve their profile data after Hardcore death. Combat feel
   still requires owner playtesting.
 - Supersedes: Single-player-only Hardcore and unresolved wipe proposals in 023.
+
+
+## 2026-11-02 — Named earned ships and sector unlocks
+
+- Decision: Keep up to three uniquely named earned ships (32-character names),
+  storing hull/color, level/XP, equipment, cores and slot counts without power
+  scaling. A new map may begin up to that ship's highest reached sector. Hardcore
+  requires fresh pilots. The owner accepted the completed strong-ship rule.
+- Rationale: Preserve earned pilots and shorten the route to later sectors.
+- Approval: Owner answers in chat on 2026-11-02; see
+  [issue 024](work-to-be-done/024-named-ship-loadouts.md).
+- Consequences: Co-op requires host opt-in, defaults off, displays chosen ships
+  before readiness, and limits the starting sector to every pilot's unlock.
+  Unknown equipment prevents a launch visibly without removing the stored ship.
+  Hull/color remain fixed within a run; checkpoint deletion preserves ships.
+  Backup version 2 includes the list; version 1 imports preserve an existing list.
+- Supersedes: Conflicting unapproved sector-1-only and co-op proposals in 024;
+  extends the version-1-only backup rule without changing its confirmation flow.

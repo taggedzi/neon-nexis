@@ -376,27 +376,38 @@ G.newRun=function(selection,options){
   N.Input.resetMovement();
   N.Input.resetFire();
   const seed=Number.isFinite(options.seed)?options.seed>>>0:(Math.random()*0xFFFFFFFF)>>>0;
-  G.coopRun=!!options.coop;
+  const loadout=options.loadout||null;
   const requestedSkill=options.skill||G.settings.skill;
   const skill=Object.hasOwn(N.SKILLS,requestedSkill)?requestedSkill:'medium';
-  G.run={skill,seed,mapVersion:1,level:1,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
+  if(loadout && (skill==='hardcore' || !N.Loadouts.validateShip(loadout))){
+    G.notify('SAVED SHIP REFUSED // INCOMPATIBLE OR HARDCORE RUN','danger');
+    return false;
+  }
+  const sector=options.sector==null?1:options.sector;
+  if(!Number.isSafeInteger(sector)||sector<1||sector>(loadout?.highestSector||1)){
+    G.notify('STARTING SECTOR IS NOT UNLOCKED','danger');
+    return false;
+  }
+  G.coopRun=!!options.coop;
+  G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer();
   Object.assign(G.player,N.Ships.selection(selection));
+  if(loadout) N.Loadouts.apply(G.player,loadout);
   G.player.name=options.name||'PLAYER 1';
-  G.level=generateLevel(1,null);
+  G.level=generateLevel(sector,null);
   G.player.x=G.level.layout?.spawn.x||G.level.cx;G.player.y=G.level.layout?.spawn.y||G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
   G.camera.shake=0;G.camera.sx=0;G.camera.sy=0;
   G.resetEntityArrays();
   G.mode='playing';
   G.time=0;G.glitch=0;G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;
-  G.pendingLevelUps=0;G.overflow=null;G.lastSummary=null;
+  G.pendingLevelUps=Math.max(0,G.player.level-1-G.player.core.length);G.overflow=null;G.lastSummary=null;
   N.Rewards.reset();
   G.spawnInitialEnemies();
   G.setMode('playing');
   if(N.UI) N.UI.hideAll();
   if(!options.coop) G.saveCheckpoint(true,'start');
-  G.notify(options.coop?'CO-OP SECTOR 01 // LINK ENGAGED':'SECTOR 01 // SURVIVAL PROTOCOL ENGAGED','loot',3000);
+  G.notify((options.coop?'CO-OP ':'')+'SECTOR '+String(sector).padStart(2,'0')+' // RUN ENGAGED','loot',3000);
   G.triggerGlitch(.45,'#00f0ff');
   N.Audio.glitch();
 };
@@ -501,7 +512,7 @@ G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
     rewards:N.Rewards.snapshot(),
-    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
+    run:{seed:G.run.seed,mapVersion:G.run.mapVersion||0,highestSector:Math.max(G.run.highestSector||1,G.run.level),skill:G.run.skill||'medium',level:G.run.level,sectors:G.run.sectors||0,kills:G.run.kills||0,totalTime:G.run.totalTime||0,damage:G.run.damage||0,startedAt:G.run.startedAt,lastCheckpointAt:Date.now(),checkpointLevel:G.run.level,reason},
     player:{
       x:p.x,y:p.y,hp:p.hp,shield:p.shield,level:p.level,xp:p.xp,xpNext:p.xpNext,heading:p.heading,aim:p.aim,shipType:p.shipType,shipColor:p.shipColor,
       weapons:p.weapons.map(w=>({id:w.id,level:w.level,tier:w.tier})),passives:p.passives.map(m=>({id:m.id,stacks:m.stacks})),
@@ -570,6 +581,7 @@ G.canLoadSave=function(save){
   // fractional, or negative value passes a finite check, then level generation
   // throws after the live run has already been replaced.
   if('level' in run && !sectorNumber(run.level,1)) return false;
+  if('highestSector' in run && !sectorNumber(run.highestSector,1)) return false;
   if('sectors' in run && !sectorNumber(run.sectors,0)) return false;
   if(!listField(player.weapons)||!listField(player.passives)||!listField(player.core)) return false;
   for(const key of ['x','y','hp','shield','level','xp','xpNext','heading','aim','activeWeapon','weaponSlots','passiveSlots','dashCharges','dashTimer']){

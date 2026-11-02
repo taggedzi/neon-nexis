@@ -159,3 +159,13 @@ imported.
 
 Remaining work: none.
 Implementation commit: `a8d50d6`.
+
+
+### 2026-11-02 — Named-ship extension (issue 024)
+
+[Issue 024](024-named-ship-loadouts.md) extends the existing backup to file
+version 2, adding the versioned saved-ship list. Version 1 imports remain
+supported and preserve the destination's existing ships. Version 2 replaces the
+list after confirmation; rollback includes checkpoint, settings and ships.
+Malformed ship lists are refused without changing the checkpoint. This is the
+same export/import flow, not a separate file. Owner approved these rules in chat.

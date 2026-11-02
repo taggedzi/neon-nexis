@@ -34,6 +34,7 @@
   function snapshot(player, local) {
     const result = {};
     for (const key of PLAYER_FIELDS) result[key] = copy(player[key] === undefined ? null : player[key]);
+    result.unlockedSector = Math.max(G.level.number,player.loadoutHighestSector||1);
     result.weapons = player.weapons.map(w => ({ id: w.id, tier: w.tier, level: w.level }));
     result.rewards = copy(local ? N.Rewards.snapshot() : (player.rewards || { pending: [] }));
     result.pendingLevelUps = local ? G.pendingLevelUps : (player.pendingLevelUps || 0);
@@ -67,6 +68,7 @@
     player.pendingLevelUps = Math.max(0, Math.min(999, Math.floor(Number(data.pendingLevelUps) || 0)));
     player.acceptedGrants = (Array.isArray(data.acceptedGrants) ? data.acceptedGrants : []).filter(id => /^[A-Za-z0-9_-]{1,40}$/.test(id)).slice(-4096);
     player.respawnSeconds = Number.isFinite(data.respawnSeconds) ? Math.max(0, Math.min(3, data.respawnSeconds)) : null;
+    if(Number.isSafeInteger(data.unlockedSector)&&data.unlockedSector>=1) player.loadoutHighestSector=data.unlockedSector;
     player.tx = player.x;
     player.ty = player.y;
     player.ta = player.aim;
@@ -91,7 +93,12 @@
   function attachGuest() {
     if (!C.isHost() || !N.Net.peer) return;
     const retained = C.records.get(N.Net.peer.clientId);
-    const player = C.makeRemotePlayer(N.Net.peer.profile, G.level, 1);
+    const profile=C.lobby.members.find(member=>member.clientId===N.Net.peer.clientId)?.profile||N.Net.peer.profile;
+    const player = C.makeRemotePlayer(profile, G.level, 1);
+    if(profile.loadout && C.lobby.allowLoadouts && G.run.skill!=='hardcore'){
+      N.Loadouts.apply(player,profile.loadout);
+      player.pendingLevelUps=Math.max(0,player.level-1-player.core.length);
+    }
     guestLife = 0;
     if (retained && retained.runId === C.runId) {
       restore(player, retained.player, false);
@@ -157,7 +164,7 @@
   };
 
   C.setLobbyProfile = function (profile) {
-    C.localProfile = Object.assign({}, C.localProfile, N.Ships.selection(profile));
+    C.localProfile = Object.assign({}, C.localProfile, N.Ships.selection(profile), {loadout:profile?.loadout||null});
     N.Net.sendControl({ t: 'lobby_profile', profile: C.localProfile });
   };
   C.readyLobby = function () {
@@ -420,6 +427,7 @@
   C.onMessage = function (message) {
     if (!message || typeof message !== 'object') return;
     if (message.t === 'lobby_state') {
+      if(message.loadoutRules!==1){C.endSession('INCOMPATIBLE SAVED SHIP RULES // UPDATE BOTH CLIENTS');return;}
       if (!Object.hasOwn(N.SKILLS,message.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (C.lobby && message.runId < C.lobby.runId) return;
       C.lobby = message;
@@ -481,6 +489,7 @@
       if (!restore(G.player, message.player, true)) { C.endSession('INVALID RECOVERY STATE'); return; }
       restore(C.remotePlayers[0], message.hostPlayer, false);
       G.run = copy(message.run);
+      G.run.highestSector=Math.max(message.level,G.player.loadoutHighestSector||1);
       C.remainingRespawns = message.pool;
       C.applyGlobalPause(N.Net.clientId);
       if (message.complete && message.summary) C.applyComplete(message.summary);
