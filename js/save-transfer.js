@@ -3,7 +3,7 @@
 'use strict';
 const N = window.NEON;
 const transfer = N.SaveTransfer = {};
-const FILE_VERSION = 2;
+const FILE_VERSION = 3;
 
 // A backup is one sector of checkpoint data plus settings. One million
 // characters is far above that and rejects a huge file before it is applied.
@@ -19,6 +19,7 @@ const FAILURE = {
   unavailable: 'LOCAL STORAGE IS OFFLINE.',
   storage: 'IMPORT FAILED. STORED DATA WAS LEFT UNCHANGED.',
   size: 'THAT FILE IS TOO LARGE. STORED DATA WAS NOT CHANGED.',
+  profile: 'THAT PROFILE CANNOT BE READ. STORED DATA WAS NOT CHANGED.',
   loadouts: 'THAT SHIP LIST CANNOT BE READ. STORED DATA WAS NOT CHANGED.',
   live: 'QUIT TO THE MAIN MENU BEFORE IMPORTING.'
 };
@@ -76,6 +77,9 @@ transfer.build = function() {
     const found = N.SavePolicy.inspect();
     if (found.unavailable) return { ok: false, reason: 'unavailable' };
     if (found.incompatible) return { ok: false, reason: 'incompatible' };
+    N.PlayerStats?.flush();
+    const profile=N.Profile.current();
+    if(!profile) return {ok:false,reason:'profile'};
     const ships = N.Loadouts.read();
     if (!ships.ok) return { ok: false, reason: 'loadouts' };
     const settings = readSettingsForExport();
@@ -88,7 +92,8 @@ transfer.build = function() {
         release: String(N.RELEASE_VERSION || ''),
         checkpoint: found.raw == null ? null : JSON.parse(found.raw),
         settings,
-        loadouts: ships.data
+        loadouts: ships.data,
+        profile: {version:1,stats:{...profile.stats}}
       }
     };
   } catch (error) {
@@ -97,7 +102,7 @@ transfer.build = function() {
 };
 
 transfer.validate = function(file) {
-  if (!plainObject(file) || ![1, FILE_VERSION].includes(file.fileVersion)) {
+  if (!plainObject(file) || ![1, 2, FILE_VERSION].includes(file.fileVersion)) {
     return { ok: false, reason: plainObject(file) ? 'version' : 'invalid' };
   }
   if (!Object.hasOwn(file, 'settings') || !plainObject(file.settings)) {
@@ -107,8 +112,11 @@ transfer.validate = function(file) {
   if (file.checkpoint != null && !N.Game.canLoadSave(file.checkpoint)) {
     return { ok: false, reason: 'checkpoint' };
   }
-  if(file.fileVersion===2 && !N.Loadouts.validate(file.loadouts)){
+  if(file.fileVersion>=2 && !N.Loadouts.validate(file.loadouts)){
     return { ok: false, reason: 'loadouts' };
+  }
+  if(file.fileVersion===3 && !N.Profile.validate(file.profile)){
+    return {ok:false,reason:'profile'};
   }
   return { ok: true, file };
 };
@@ -137,7 +145,8 @@ transfer.summary = function(file) {
     sentences.push('Checkpoint: sector ' + String(sector).padStart(2, '0') + ', pilot level ' + pilot + '.');
     if (hasExisting) sentences.push('This replaces the checkpoint already stored in this browser.');
   }
-  sentences.push(file.fileVersion===2?'Saved ships in the file replace this browser’s saved ship list.':'This older backup preserves the saved ships already in this browser.');
+  sentences.push(file.fileVersion>=2?'Saved ships in the file replace this browser’s saved ship list.':'This older backup preserves the saved ships already in this browser.');
+  sentences.push(file.fileVersion===3?'Lifetime profile totals in the file replace this browser’s totals.':'This older backup preserves lifetime profile totals already in this browser.');
   sentences.push('Settings in the file replace settings in this browser, including controls, audio, and graphics.');
   return sentences.join(' ');
 };
@@ -152,30 +161,37 @@ transfer.apply = function(file) {
   let previousSave = null;
   let previousSettings = null;
   let previousLoadouts = null;
+  let previousProfile = null;
   let captured = false;
   let normalized;
   try {
+    N.PlayerStats?.flush();
     previousSave = localStorage.getItem(saveKey);
     previousSettings = localStorage.getItem(settingsKey);
     previousLoadouts = localStorage.getItem(N.Loadouts.key);
+    previousProfile = localStorage.getItem(N.Profile.key);
     captured = true;
     normalized = N.normalizeSettings(knownSettings(file.settings));
     if (file.checkpoint == null) localStorage.removeItem(saveKey);
     else localStorage.setItem(saveKey, JSON.stringify(file.checkpoint));
     localStorage.setItem(settingsKey, JSON.stringify(normalized));
-    if(file.fileVersion===2) localStorage.setItem(N.Loadouts.key,JSON.stringify(file.loadouts));
+    if(file.fileVersion>=2) localStorage.setItem(N.Loadouts.key,JSON.stringify(file.loadouts));
+    if(file.fileVersion===3) localStorage.setItem(N.Profile.key,JSON.stringify({version:1,stats:N.Profile.cleanStats(file.profile.stats)}));
   } catch (error) {
     if (captured) {
       try {
         putBack(saveKey, previousSave);
         putBack(settingsKey, previousSettings);
         putBack(N.Loadouts.key, previousLoadouts);
+        putBack(N.Profile.key, previousProfile);
       } catch (restoreError) {
         return { ok: false, reason: 'storage' };
       }
     }
     return { ok: false, reason: 'storage' };
   }
+  N.Profile.reload();
+  if(N.PlayerStats){N.PlayerStats.lastBoard=null;}
   N.Game.settings = N.loadSettings();
   try {
     if (typeof N.Game.applySettings === 'function') N.Game.applySettings(false);

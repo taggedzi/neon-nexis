@@ -403,3 +403,12 @@ body.controller-nav #ui .screen :is(button,input,select,[tabindex]):focus{
 .coop-life-status{position:absolute;bottom:80px;left:16px;z-index:5;color:var(--cyan,#00f0ff);font-size:14px;pointer-events:none;}
 
 .coop-panel [hidden],.coop-life-status[hidden]{display:none;}
+
+/* Match/lifetime tables use the existing panel colors and menu focus path. */
+.tally-container{max-width:100%;max-height:320px;overflow:auto;margin-top:16px;scrollbar-width:thin}
+.tally-table{width:100%;border-collapse:collapse;text-align:left}
+.tally-table caption{text-align:left;font-weight:600;padding:8px}
+.tally-table th,.tally-table td{padding:8px;border:1px solid var(--line);font-size:14px;line-height:20px}
+.tally-table td:focus{outline:2px solid var(--cyan);outline-offset:-2px}
+
+.gameover-wrap:has(.tally-container:not([hidden])){max-height:calc(100vh - 32px);overflow:auto}

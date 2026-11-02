@@ -44,7 +44,7 @@ test('024 earned ships persist, refuse invalid equipment, and join backups',asyn
   expect(result.applied).toEqual([4,4,7,5,true]);
   for(const key of ['locked','hardcore','refused'])expect(result[key]).toBe(false);
   for(const key of ['lockedUntouched','invalidUntouched','unknownPreserved','corruptionPreserved'])expect(result[key]).toBe(true);
-  expect(result.version).toBe(2);expect(result.afterRestore).toBe(3);expect(result.oldPreserves).toBe(3);expect(result.checkpointPreserves).toBe(3);
+  expect(result.version).toBe(3);expect(result.afterRestore).toBe(3);expect(result.oldPreserves).toBe(3);expect(result.checkpointPreserves).toBe(3);
   expect(result.bad.ok).toBe(false);
   await page.reload();await page.locator('#btn-boot').click();await page.locator('#btn-new-run').click();
   await expect(page.locator('#solo-loadouts')).toContainText('Veteran');

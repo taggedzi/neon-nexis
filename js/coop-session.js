@@ -95,6 +95,8 @@
     const retained = C.records.get(N.Net.peer.clientId);
     const profile=C.lobby.members.find(member=>member.clientId===N.Net.peer.clientId)?.profile||N.Net.peer.profile;
     const player = C.makeRemotePlayer(profile, G.level, 1);
+    player.statsPeerId=N.Net.peer.clientId;
+    N.PlayerStats?.selectPeer(N.Net.peer.clientId);
     if(profile.loadout && C.lobby.allowLoadouts && G.run.skill!=='hardcore'){
       N.Loadouts.apply(player,profile.loadout);
       player.pendingLevelUps=Math.max(0,player.level-1-player.core.length);
@@ -129,7 +131,7 @@
     lastSyncAt = now;
     N.Net.send({ t: 'session_sync', syncId: syncSerial, seed: G.run.seed, level: G.level.number,
       host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
-      autoReady: launchSetup, run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
+      autoReady: launchSetup, statsPeer: N.PlayerStats?.peerRow(N.Net.peerId) || null, run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
       complete: G.mode === 'complete', summary: G.lastSummary });
     C.sendWorld();
     const hazards = C.captureHazards();
@@ -434,7 +436,7 @@
       C.runId = message.runId;
       if (message.phase === 'lobby') {
         returnPending = false;
-        if (C.active) returnToLobby(C.lastGame);
+        if (C.active){N.PlayerStats?.endLocal();returnToLobby(C.lastGame);}
       }
       const own = message.members.find(member => member.clientId === N.Net.clientId);
       const peer = message.members.find(member => member.clientId !== N.Net.clientId);
@@ -469,6 +471,7 @@
     if (message.t === 'bye') return; // Membership comes from the host browser.
     if (message._run !== C.runId) return;
     if (message.t === 'mission_end' && N.Net.role === 'guest') {
+      N.PlayerStats?.endLocal();
       returnToLobby(message.summary);
       return;
     }
@@ -490,6 +493,7 @@
       restore(C.remotePlayers[0], message.hostPlayer, false);
       G.run = copy(message.run);
       G.run.highestSector=Math.max(message.level,G.player.loadoutHighestSector||1);
+      N.PlayerStats?.recoverGuest(message.statsPeer);
       C.remainingRespawns = message.pool;
       C.applyGlobalPause(N.Net.clientId);
       if (message.complete && message.summary) C.applyComplete(message.summary);

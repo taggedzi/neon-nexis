@@ -19,7 +19,7 @@ const box = {
   }
 };
 vm.createContext(box);
-for (const file of ['util', 'game', 'save-policy', 'loadouts', 'save-transfer']) {
+for (const file of ['util', 'game', 'save-policy', 'loadouts', 'profile', 'save-transfer']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), box);
 }
 const N = box.window.NEON;
@@ -68,7 +68,7 @@ G.mode = 'menu';
 
 const built = N.SaveTransfer.build();
 assert.equal(built.ok, true);
-assert.equal(built.file.fileVersion, 2);
+assert.equal(built.file.fileVersion, 3);
 assert.equal(built.file.release, 'development');
 same(built.file.checkpoint, checkpoint);
 assert.equal(built.file.settings.deadzone, 0.31);
@@ -192,4 +192,29 @@ delete N.Coop;
 G.run = null;
 G.player = null;
 G.level = null;
-console.log('Save transfer checks passed.');
+// A late failure writing the new profile must roll back every imported key.
+G.mode='menu';
+memory.set(N.Loadouts.key,JSON.stringify({version:1,ships:[]}));
+memory.set(N.Profile.key,JSON.stringify({version:1,stats:{shotsFired:7}}));
+N.Profile.reload();
+const allBefore=Object.fromEntries(memory);
+const incoming=JSON.parse(JSON.stringify(built.file));
+incoming.checkpoint=null;incoming.settings.deadzone=.2;incoming.profile.stats.shotsFired=99;
+let failProfile=true;
+box.localStorage.setItem=function(key,value){
+  if(key===N.Profile.key&&failProfile){failProfile=false;throw Error('profile write failed');}
+  realSet.call(box.localStorage,key,value);
+};
+assert.equal(N.SaveTransfer.apply(incoming).reason,'storage');
+assert.deepEqual(Object.fromEntries(memory),allBefore);
+box.localStorage.setItem=realSet;
+const invalidProfile=JSON.parse(JSON.stringify(incoming));invalidProfile.profile.stats.shotsFired=-1;
+assert.equal(N.SaveTransfer.apply(invalidProfile).reason,'profile');
+assert.deepEqual(Object.fromEntries(memory),allBefore);
+memory.set(N.Profile.key,'{broken profile');
+assert.equal(N.Profile.reload(),null);
+N.Profile.addStat('shotsFired',1);
+assert.equal(N.Profile.flush(),false);
+assert.equal(memory.get(N.Profile.key),'{broken profile');
+assert.equal(memory.get(saveKey),allBefore[saveKey]);
+console.log('Save transfer checks passed, including profile validation and four-key rollback.');
