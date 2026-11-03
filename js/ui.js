@@ -5,7 +5,7 @@ const N=window.NEON;
 const G=N.Game;
 const UI=N.UI={};
 const $=id=>document.getElementById(id);
-const screens=['boot','menu','ship','loadouts','playerstats','logbook','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','credits','confirm','oldsave'];
+const screens=['boot','menu','ship','loadouts','playerstats','logbook','coop','settings','pause','inventory','rewards','levelup','overflow','gameover','complete','howto','about','credits','confirm','oldsave'];
 let currentScreen=null;
 let settingsReturn='menu';
 let settingsTab='controls';
@@ -41,7 +41,7 @@ UI.currentScreen=()=>currentScreen;
 
 function focusables(){
   const s=screenEl(currentScreen);if(!s)return [];
-  return Array.from(s.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+  return Array.from(s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
     .filter(el=>el.offsetParent!==null);
 }
 function focusControl(el){
@@ -80,6 +80,7 @@ UI.toast=function(text,type='info',duration){
 };
 
 UI.init=function(){
+  $('about-version').textContent = N.RELEASE_VERSION;
   $('menu-version').textContent = 'BUILD ' + N.RELEASE_VERSION + ' // CLIENT-SIDE ASSET SYNTHESIS';
   for (const [id, shouldExport] of [['btn-old-save-export', true], ['btn-old-save-remove', false]]) {
     $(id).addEventListener('click', () => {
@@ -137,6 +138,9 @@ UI.init=function(){
   });
   $('btn-howto').addEventListener('click',()=>showScreen('howto'));
   $('btn-settings').addEventListener('click',()=>openSettings('menu'));
+  $('btn-about').addEventListener('click', () => showScreen('about'));
+  $('btn-about-close').addEventListener('click', () => UI.showMenu());
+  $('btn-about-done').addEventListener('click', () => UI.showMenu());
   $('btn-credits').addEventListener('click',()=>showScreen('credits'));
   $('btn-howto-close').addEventListener('click',()=>UI.showMenu());
   $('btn-howto-done').addEventListener('click',()=>UI.showMenu());
@@ -1148,7 +1152,7 @@ function backAction(){
     case 'inventory': G.closeInventory();break;
     case 'rewards': G.closeRewards();break;
     case 'coop': UI.closeCoop();break;
-    case 'howto': case 'credits': case 'ship': UI.showMenu();break;
+    case 'howto': case 'about': case 'credits': case 'ship': UI.showMenu();break;
     case 'confirm': {
       confirmYes=null;
       const ret=confirmReturn;confirmReturn=null;
@@ -1172,7 +1176,7 @@ function onKeyDown(e){
       e.preventDefault();e.stopPropagation();
       return;
     }
-    if(currentScreen==='logbook'||currentScreen==='playerstats'||currentScreen==='loadouts'||currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
+    if(currentScreen==='logbook'||currentScreen==='playerstats'||currentScreen==='loadouts'||currentScreen==='settings'||currentScreen==='pause'||currentScreen==='inventory'||currentScreen==='rewards'||currentScreen==='howto'||currentScreen==='about'||currentScreen==='credits'||currentScreen==='confirm'||currentScreen==='coop'){
       // Stop the event so the gameplay input layer does not also register this
       // press and immediately re-open the pause screen after resuming.
       e.preventDefault();e.stopPropagation();backAction();

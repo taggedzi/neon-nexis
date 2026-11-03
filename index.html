@@ -48,6 +48,7 @@
               <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
               <button class="neon-btn" id="btn-logbook" type="button">ENEMY LOGBOOK</button>
               <button class="neon-btn" id="btn-player-stats" type="button">PLAYER STATS</button>
+              <button class="neon-btn" id="btn-about" type="button">ABOUT</button>
               <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
             </div>
           </div>
@@ -359,6 +360,24 @@
         </div>
       </section>
 
+      <section class="screen" id="screen-about" aria-labelledby="about-title">
+        <div class="panel about-panel">
+          <div class="panel-head">
+            <div><span class="eyebrow">SIGNAL INFORMATION</span><h2 id="about-title">ABOUT NEON NEXUS</h2></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-about-close" type="button" aria-label="Back to main menu">✕</button></div>
+          </div>
+          <div class="about-content">
+            <p>NEON NEXUS is a solo hobby project: a top-down combat game set in a dark neon world of geometric wireframes.</p>
+            <p>Pilot your ship through hostile sectors, fight enemies, collect equipment, and choose upgrades to shape your run.</p>
+            <p>The game runs in your browser with HTML5 Canvas and Web Audio. Visuals are procedural and audio is synthesized locally. Saves stay in your browser. Play solo or connect for optional co-op.</p>
+            <p>Version: <span id="about-version"></span></p>
+            <p>Contributor: taggedzi</p>
+            <p><a class="neon-btn" href="https://github.com/taggedzi/neon-nexis" target="_blank" rel="noopener noreferrer">GitHub project (opens a new tab)</a></p>
+          </div>
+          <div class="panel-footer"><button class="neon-btn primary" id="btn-about-done" type="button">BACK TO NEXUS</button></div>
+        </div>
+      </section>
+
       <section class="screen" id="screen-credits">
         <div class="panel credits-panel">
           <div class="panel-head">
@@ -371,7 +390,7 @@
             <div class="credit-row"><b>ENGINE</b><span>Vanilla HTML5 Canvas + Web Audio</span></div>
             <div class="credit-row"><b>GEOMETRY</b><span>Procedural low-poly wireframes</span></div>
             <div class="credit-row"><b>AUDIO</b><span>Synthesized in real time</span></div>
-            <div class="credit-row"><b>NETWORK</b><span>Offline. Local saves only. No tracking.</span></div>
+            <div class="credit-row"><b>NETWORK</b><span>Optional co-op. Local saves. No score server.</span></div>
             <div class="credit-quote">“THE NETWORK IS DARK. YOUR SIGNAL IS NOT.”</div>
           </div>
           <div class="panel-footer"><button class="neon-btn primary" id="btn-credits-done" type="button">BACK TO NEXUS</button></div>
