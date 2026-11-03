@@ -4,6 +4,8 @@ A browser-based, top-down survival shooter with neon wireframe visuals,
 procedural sectors, and synthesized audio. Survive enemy waves, collect equipment,
 choose upgrades, and push into increasingly difficult sectors.
 
+![Neon wireframe ship firing at geometric enemies on a dark sector map, with health, weapons, sector timer, and minimap visible.](docs/images/readme-playfield.webp)
+
 This is a solo hobby project, built with plain JavaScript, HTML5 Canvas, CSS,
 and Web Audio. Development and support happen as time allows.
 

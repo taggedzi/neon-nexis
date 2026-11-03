@@ -1,9 +1,10 @@
 # 031 — Add a README screenshot
 
-Status: Planned
+Status: Implemented — needs validation
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Implemented on `codex/031-readme-screenshot`. Owner accepted the screenshot
+and WebP format on 2026-11-02. Remote GitHub rendering awaits branch delivery.
+No gameplay changes.
 
 Priority 15 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -64,11 +65,11 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] The README shows one real gameplay screenshot.
-- [ ] The alt text describes the image.
-- [ ] The file size is within the approved limit.
-- [ ] The image is not part of the published game package.
-- [ ] The owner has accepted that the picture represents the game.
+- [x] The README shows one real gameplay screenshot.
+- [x] The alt text describes the image.
+- [x] The file size is within the approved limit.
+- [x] The image is not part of the published game package.
+- [x] The owner has accepted that the picture represents the game.
 
 ## Open questions
 
@@ -83,5 +84,41 @@ players who already have the game.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No screenshot has been
-captured.
+Implementation choices (2026-11-02): agent captures a real local run at
+1280×720 using default graphics, under 500,000 bytes in `docs/images/`.
+One playfield image follows the opening paragraph; no ship-select image or
+wait for issue 036. These are agent implementation choices under the owner’s
+request to implement this issue. Owner acceptance of the actual image remains
+required. No dependencies or image pipeline will be added.
+
+Changed files: `README.md`, `docs/images/readme-playfield.webp`, and issue/index
+records. No game code changed.
+
+Image credit: real local gameplay captured by the agent on Windows using
+Playwright Chromium 156.0.8078.4 at 1280×720, device scale 1, default graphics,
+2026-11-02. Normal menu launch, movement keys, and firing only; no scene,
+entity, camera, or quality modifications. A fresh automation browser context
+was used; the owner’s browser data was untouched. No page errors observed.
+
+Format decision: PNG captures were 745,504–827,688 bytes; lossless recompression
+of the selected frame still exceeded 500,000 bytes. Browser-native WebP export
+at quality 0.95 preserves the frame dimensions and uses 104,282 bytes. This
+replaces the original PNG proposal without adding dependencies or an image
+pipeline. Agent inspected the exported image for readable HUD and visible ship,
+enemies, and projectiles.
+
+README uses a repository-relative image link with descriptive alt text.
+Validation (2026-11-02):
+- PowerShell’s existing `ConvertFrom-Markdown` rendered the README locally.
+  Chromium loaded its relative image link successfully as exactly one
+  1280×720 image; alt text matched the Markdown. Agent inspected the WebP.
+- `node tools/ci/package.cjs` passed; `dist/docs/images/readme-playfield.webp`
+  does not exist. The README image is not linked from `index.html`.
+- File size: 104,282 bytes, below the 500,000-byte limit.
+- Owner approved the screenshot and WebP format as representative of the game.
+- `git diff --check` passed. No gameplay suite rerun for these image/docs-only
+  edits; a future push still runs the mandatory repository hook.
+
+Owner delivery authorization (2026-11-02): commit, push, create PR, and merge.
+Remaining: check the image on GitHub after branch delivery. No implementation
+work has started on issue 032.
