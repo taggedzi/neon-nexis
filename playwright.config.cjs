@@ -22,7 +22,8 @@ module.exports = defineConfig({
     trace: 'retain-on-failure'
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Full Chromium headless preserves native locked-pointer input on Linux.
+    { name: 'chromium', use: { browserName: 'chromium', channel: 'chromium' } },
     { name: 'firefox', use: { browserName: 'firefox' } }
   ],
   webServer: [

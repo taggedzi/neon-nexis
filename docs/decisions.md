@@ -464,3 +464,18 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: Issue 033's minified-only Pages proposal; the approved issue 032
   checkbox remains. Issue 013's first deployment and changelog validation remain
   separate; no release history or deployment success is assumed.
+
+## 2026-11-03 — Use full Chromium for native input checks
+
+- Decision: Select the existing locked Playwright Chromium binary through its
+  `chromium` channel, preserving native pointer-lock assertions. Keep Firefox.
+- Approval source: Agent implementation choice during the owner-authorized
+  [issue 033](work-to-be-done/033-github-release-packages.md) publication fix.
+- Rationale: Linux Headless Shell emits extra locked-pointer recentering events;
+  the same-version full Chromium passes both native-input checks. This mode is
+  [documented by Playwright](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
+- Consequences: No dependency/version change or synthetic input fallback. An
+  explicit empty favicon avoids full Chromium requesting a nonexistent file.
+  Test environment evidence must distinguish full Chromium from Headless Shell;
+  neither establishes physical-controller or real-GPU validation.
+- Supersedes: The test runner's implicit Chromium Headless Shell selection only.

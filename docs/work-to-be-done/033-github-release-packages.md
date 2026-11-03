@@ -236,4 +236,59 @@ First publication attempt (2026-11-02 America/New_York):
   action references use full commit SHAs. `git diff --check` passed.
 
 First successful version and download/deployment verification remain pending.
-The owner authorized one attempt; request another dispatch after merging the fix.
+The owner authorized one new attempt after PR #38 merged as `33d03bf`.
+
+Second publication attempt (2026-11-02 America/New_York):
+- [Run 41574221605](https://github.com/taggedzi/neon-nexis/actions/runs/41574221605),
+  workflow run number 2, passed setup, syntax, lint, unit checks, and both package
+  builds. The minified browser suite reported 144 passed and six failed (10.5
+  minutes). Unminified tests, uploads, deployment, and Release jobs were skipped.
+  No site, tag, or Release was published.
+- All four three/four-player revival cases timed out at the 15-second wall-clock
+  wait. Two Chromium pointer-lock cases failed on deltas/button state. Branch
+  `codex/033-publish-browser-fixtures` investigates these without changing gameplay
+  or weakening the publication gate.
+- Local Ubuntu/WSL with the existing locked Chromium 156.0.8078.4 binary reproduces
+  both pointer failures. Native event tracing shows extra recentering pointer
+  events, including zero-button moves. The three-player test passes in isolation
+  (39.6 seconds); concurrency/timing investigation remains open.
+- No additional package, version, system dependency, account, or service was added.
+  Linux browser binaries are the same existing locked Playwright dependency;
+  ignored reproduction scripts use the existing Windows PHP fixture via loopback.
+
+Further publication requires a corrected, verified implementation and another
+owner-authorized dispatch; do not retry this failed attempt automatically.
+
+Publication-check follow-up (agent implementation choices, 2026-11-03):
+- Select Playwright's full `chromium` channel rather than Headless Shell. With
+  the same Chromium 156.0.8078.4 version on Linux, native pointer tests fail in
+  Shell and pass in full Chromium (two tests, 9.9 seconds). Event tracing in
+  Shell records extra recentering moves and zero-button events; full Chromium
+  preserves the intended deltas and button state. No synthetic input replacement,
+  skipped assertion, new package, or game-input change is used. See
+  [Playwright's browser-mode documentation](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
+- Full Chromium requests an absent `/favicon.ico`. Declare an empty `data:,`
+  favicon in `index.html` to prevent that 404 without adding an asset or changing
+  the game presentation.
+- Increase only the multiplayer revival wall-clock budget from 15 to 60 seconds,
+  require observing the dead state, and assert at least 2.9 simulation seconds
+  before revival. Preserve equipment, pool, global-pause, and rejoin checks.
+  Failure diagnostics include host simulation progress and replacement timers.
+  The game still uses its original three-second timer and capped frame delta.
+- A controlled slow-frame Linux reproduction failed the old wait with only
+  2.15 simulation seconds elapsed, 0.85 seconds remaining, and host state PLAY.
+  The strengthened fixture passed the same slow-frame condition on Windows
+  (58.2 seconds for the full scenario). This explains a reproducible timing
+  failure; the original GitHub run had no retained trace to prove its exact state.
+- Linux Firefox 157.0 passed both three- and four-player scenarios (2.7 minutes).
+  Linux/WSL tests through the loopback proxy also encountered ICE setup timeouts
+  under concurrency; they are recorded as failed diagnostics, not passes. One
+  overlapping local test invocation invalidated another's trace-output directory;
+  subsequent invocations use separate outputs. No product networking change made.
+- Reuse the approved pinned upload action to retain `test-results/` for three
+  days on failed checks. This does not bypass the failed publication gate or
+  upload a public site/Release. Syntax, lint, package modes, and archive fixtures
+  pass. The full minified suite passed all 150 tests (9.6 minutes) on Windows,
+  full Chromium 156.0.8078.4 and Firefox 157.0. The full unminified suite also
+  passed all 150 tests (9.5 minutes). Required source pre-push results belong in
+  the delivery PR; live publication still requires another authorized attempt.
