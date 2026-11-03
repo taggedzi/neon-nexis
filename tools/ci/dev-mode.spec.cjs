@@ -1,11 +1,18 @@
 const { test, expect } = require('@playwright/test');
 
-test('source scenarios preserve storage, pause safely, and use normal combat', async ({ page, browser }) => {
+test(process.env.SERVE_DIR ? 'public package excludes the source commands' :
+  'source scenarios preserve storage, pause safely, and use normal combat', async ({ page, browser }) => {
   console.log('Dev mode: ' + browser.browserType().name() + ' ' + browser.version());
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.locator('#btn-boot').click();
+  if (process.env.SERVE_DIR) {
+    expect(await page.evaluate(() => typeof window.NEON.Dev)).toBe('undefined');
+    expect((await page.request.get('/js/dev.js')).status()).toBe(404);
+    expect(errors).toEqual([]);
+    return;
+  }
   const result = await page.evaluate(() => {
     const N = window.NEON, G = N.Game, D = N.Dev;
     const stored = () => JSON.stringify(Object.entries(localStorage));
