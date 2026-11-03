@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { expectRevival } = require('./coop-revival.cjs');
 
 const ROOM_SETUP_TIMEOUT = 30000;
 const openContexts = [];
@@ -857,7 +858,7 @@ async function quietWorld(host) {
 }
 
 test('014 guest death drops storage once, revives with protection, and preserves the lobby across runs', async ({ browser }) => {
-  test.setTimeout(90000);
+  test.setTimeout(120000);
   const { host, guest, code, errors } = await startCoopRun(browser);
   await quietWorld(host);
   // Random death drops may land within the survivor's normal pickup radius.
@@ -869,6 +870,7 @@ test('014 guest death drops storage once, revives with protection, and preserves
     player.buffs.magnet = 0;
     return radius;
   });
+  const revivalStarted = await host.evaluate(() => window.NEON.Game.level.elapsed);
   const before = await guest.evaluate(() => {
     const G = window.NEON.Game;
     G.player.invuln = 999;
@@ -880,7 +882,7 @@ test('014 guest death drops storage once, revives with protection, and preserves
   });
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.remotePlayers[0].dead)).toBe(true);
   await expect.poll(() => host.evaluate(() => window.NEON.Game.groundItems.filter(i=>i.itemId==='vector').length)).toBe(1);
-  await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.dead), {timeout:12000}).toBe(false);
+  await expectRevival(host, guest, revivalStarted);
   await expect.poll(() => host.evaluate(() => window.NEON.Coop.pauseState)).toBe('PAUSED');
   const restored = await guest.evaluate(() => ({x:window.NEON.Game.player.x,y:window.NEON.Game.player.y,
     hp:window.NEON.Game.player.hp,max:window.NEON.Game.player.stats.maxHp,invuln:window.NEON.Game.player.invuln,

@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { expectRevival } = require('./coop-revival.cjs');
 const { installMetrics, measureFight, captureHudComparison } = require('./coop-four-metrics.cjs');
 
 for (const count of [3, 4]) {
@@ -86,8 +87,11 @@ for (const count of [3, 4]) {
       await host.evaluate(() => {
         const N = window.NEON, G = N.Game;
         G.enemies.length = 0;
+        G.enemyBullets.length = 0;
         G.nextSurge = G.nextWarden = G.nextBoss = 1e9;
-        G.spawnWave = () => {};
+        // Keep this lifecycle fixture free of incidental combat deaths.
+        G.updateSpawning = () => {};
+        G.updateAnchors = () => {};
         for (const player of N.Coop.players()) {player.invuln = 999;}
       });
       // Every guest's fire and confirmed kills must stay attached to that seat.
@@ -147,21 +151,7 @@ for (const count of [3, 4]) {
         window.NEON.Game.gameOver();
       });
       expect(await last.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
-      try {
-        // Three simulation seconds can exceed 15 wall seconds when several
-        // pages share a slow CI runner. Keep the actual clock check.
-        await expect.poll(() => last.evaluate(() => window.NEON.Game.player.dead), { timeout: 60000 }).toBe(false);
-      } catch (error) {
-        console.log('Revival diagnostic:', await host.evaluate(start => {
-          const N = window.NEON, G = N.Game, C = N.Coop;
-          return { simulationSeconds: G.level.elapsed - start, fps: G.fps, mode: G.mode,
-            pause: C.pauseState, pool: C.remainingRespawns,
-            players: C.players().map(player => ({ seat: player.seat, dead: player.dead,
-              seconds: player.respawnSeconds })) };
-        }, revivalStarted));
-        throw error;
-      }
-      expect(await host.evaluate(start => window.NEON.Game.level.elapsed - start, revivalStarted)).toBeGreaterThanOrEqual(2.9);
+      await expectRevival(host, last, revivalStarted);
       expect(await last.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(3);
       expect(await host.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(3);
       for (const page of pages) {
