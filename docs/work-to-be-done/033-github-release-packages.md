@@ -4,7 +4,7 @@ Status: Implemented — needs validation
 
 Owner approved the release flow and both MIT workflow actions on 2026-11-02.
 Implementation and local validation are complete. The owner authorized delivery and one first real release on 2026-11-02;
-no real release has been run yet.
+the first attempt failed during job setup before any publication.
 
 Priority 17 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -215,5 +215,25 @@ Owner authorization (2026-11-02): commit, push, create PR, merge, configure
 Pages in this existing repository, and run one first public Publish workflow.
 No additional account is authorized or needed.
 
-First real run/version/URLs: none yet. Authorized post-merge setup, deployment,
-and download validation remain; do not check those boxes from mocks.
+First publication attempt (2026-11-02 America/New_York):
+- Implementation merged as PR #37, main commit `4ed91f64245a2bcf70e8752d3565b2d3e76b68b7`.
+- Configured Pages with workflow builds and its automatically created
+  `github-pages` environment restricted to main. Configured target URL:
+  https://taggedzi.github.io/neon-nexis/ (not yet verified as deployed).
+- [Run 41572454707](https://github.com/taggedzi/neon-nexis/actions/runs/41572454707),
+  workflow run number 1, failed during prepare job setup. The existing composite
+  Pages uploader internally calls `actions/upload-artifact@v4`, rejected by the
+  repository's full-commit-SHA policy. Deployment and Release jobs were skipped;
+  no version was generated, tag created, or site/download published.
+- Follow-up branch `codex/033-pages-artifact-pinning` replaces that composite
+  with its tar format and the already approved, SHA-pinned upload action. The
+  security policy stays intact; no dependency or service is added.
+- Local Windows tar does not support GNU's `--hard-dereference`; the equivalent
+  portable archive command passed an independent Python tar reader comparison
+  of all 37 regular files against `dist/`. The workflow retains GNU flags for
+  Ubuntu. Exact Ubuntu execution remains pending the next authorized run.
+- The pinned uploader is a Node 24 action with no nested actions. All workflow
+  action references use full commit SHAs. `git diff --check` passed.
+
+First successful version and download/deployment verification remain pending.
+The owner authorized one attempt; request another dispatch after merging the fix.
