@@ -92,7 +92,8 @@ request to implement this issue. Owner acceptance of the actual image remains
 required. No dependencies or image pipeline will be added.
 
 Changed files: `README.md`, `docs/images/readme-playfield.webp`, and issue/index
-records. No game code changed.
+records. Delivery also includes the bounded test-maintenance fix below; no
+game code changed.
 
 Image credit: real local gameplay captured by the agent on Windows using
 Playwright Chromium 156.0.8078.4 at 1280×720, device scale 1, default graphics,
@@ -130,5 +131,16 @@ The remote image is 104,282 bytes and its Git blob SHA matches the local file
 (`afb89d3efe49068805d1241f3e33d71c670d22bb`). Implementation and test-evidence
 commits: `6e007e5`, `2aaebae`.
 
-All acceptance criteria are verified. Authorized PR/merge delivery remains;
+Delivery test maintenance (agent choice, 2026-11-02): the final documentation
+push hit the same Firefox assertion again. That failed run was stopped. The
+host’s actual offline grace is 10,000 ms (`js/coop-host.js`); the fixture had
+assumed negotiation completed at exactly four seconds. In
+`tools/ci/coop-smoke.spec.cjs`, the test now observes a real peer loss, then polls
+for both peers and active sessions within eight seconds of the drop. Existing
+post-recovery assertions remain. This checks recovery inside the existing grace
+without changing game behavior or manually forcing reconnection. The final
+fixture passed twice per browser with four workers (four tests, 25.2 seconds).
+A complete pre-push run is required before delivery; its result belongs in the PR.
+
+All screenshot acceptance criteria are verified. Authorized PR/merge delivery remains;
 no implementation work has started on issue 032.
