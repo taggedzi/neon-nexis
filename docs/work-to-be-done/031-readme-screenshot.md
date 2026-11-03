@@ -1,9 +1,9 @@
 # 031 — Add a README screenshot
 
-Status: Implemented — needs validation
+Status: Done
 
 Implemented on `codex/031-readme-screenshot`. Owner accepted the screenshot
-and WebP format on 2026-11-02. Remote GitHub rendering awaits branch delivery.
+and WebP format on 2026-11-02. Remote GitHub rendering and image contents are verified.
 No gameplay changes.
 
 Priority 15 of 21 in the proposed order in [the todo list](../TODO.md).
@@ -120,9 +120,15 @@ Validation (2026-11-02):
   and unit checks; browser results were 149 passed and one Firefox failure at
   `coop-smoke.spec.cjs:334` (guest peer absent at the fixed four-second recovery
   assertion). The same recovery test then passed twice in isolation, with no
-  game or test changes. A fresh complete pre-push run remains required.
+  game or test changes. The fresh complete pre-push run then passed: syntax,
+  lint, all unit checks, and 150 browser tests (7.5 minutes).
 - Implementation commit: `6e007e5`.
 
 Owner delivery authorization (2026-11-02): commit, push, create PR, and merge.
-Remaining: check the image on GitHub after branch delivery. No implementation
-work has started on issue 032.
+GitHub validation: the branch README rendered the expected image and alt text.
+The remote image is 104,282 bytes and its Git blob SHA matches the local file
+(`afb89d3efe49068805d1241f3e33d71c670d22bb`). Implementation and test-evidence
+commits: `6e007e5`, `2aaebae`.
+
+All acceptance criteria are verified. Authorized PR/merge delivery remains;
+no implementation work has started on issue 032.
