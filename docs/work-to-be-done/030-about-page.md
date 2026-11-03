@@ -1,9 +1,11 @@
 # 030 — Add an About page
 
-Status: Implemented — needs validation
+Status: Done
 
-Implemented on `codex/030-about-page`. Owner approved copy and appearance on 2026-11-02; physical
-controller validation remains pending. This issue does not change gameplay.
+Implemented on `codex/030-about-page` and merged in PR #34. Owner approved copy
+and appearance on 2026-11-02 and accepted the keyboard/synthetic-controller
+checks as sufficient to close this issue on 2026-11-03. Physical-controller
+testing remains an untested limitation. This issue does not change gameplay.
 
 Priority 14 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -86,7 +88,9 @@ After the decisions:
 - [x] The GitHub project link is present and correct.
 - [x] Contributors match the approved rule.
 - [x] The Credits network line is no longer false, if that fix was included.
-- [ ] Menu controls still work with keyboard and controller focus.
+- [x] Menu controls still work with keyboard and controller focus.
+      (Keyboard and synthetic-controller checks passed; owner accepted this
+      evidence with physical-controller testing explicitly untested.)
 
 ## Resolved questions
 
@@ -119,7 +123,7 @@ Validation (agent, Windows, 2026-11-02):
   keyboard focus reaches the native link; synthetic controller Back returns to
   menu. Engage still starts a run. No page errors observed.
 - Synthetic controller directional focus reaches the GitHub link. Physical
-  controller validation is pending.
+  controller validation was not performed; see the owner's acceptance below.
 - Desktop 1280×720 and narrow 360×740 screenshots inspected; no horizontal
   overflow, content and footer remain reachable. Captures are local ignored
   artifacts in `.playwright-mcp/about/`, not release assets.
@@ -133,7 +137,17 @@ Validation (agent, Windows, 2026-11-02):
 Owner review (2026-11-02): approved the About screen copy and appearance
 from the supplied screenshot. This does not claim physical-controller testing.
 
-Limitations/remaining work: physical controller check and owner-managed
-delivery. The owner explicitly authorized commit, push, and merge on
-2026-11-02. Google Chrome was not checked
-separately. No dependencies added. Implementation is ready for the authorized commit and merge.
+Delivery: [PR #34](https://github.com/taggedzi/neon-nexis/pull/34) merged as
+`f4136464c67f4f1f91f4a390f330609051df0a4e` after the owner explicitly authorized
+commit, push, and merge on 2026-11-02.
+
+Owner acceptance (2026-11-03): no physical controller is available. In response
+to the explicit question whether the passed keyboard and synthetic-controller
+focus checks are sufficient to close 030, with physical testing retained as an
+untested limitation, the owner answered “Accept checks and close 030.” This
+supersedes the pending physical-device acceptance gate; it does not claim a
+hardware test or broaden device-support guarantees.
+
+Limitations: physical-controller testing and separate stable Google Chrome
+checks were not performed. No dependencies added. All acceptance criteria have
+supporting checks or explicit owner acceptance; no implementation work remains.
