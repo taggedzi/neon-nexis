@@ -1,9 +1,9 @@
 # 030 — Add an About page
 
-Status: Planned
+Status: Implemented — needs validation
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Implemented on `codex/030-about-page`. Owner approved copy and appearance on 2026-11-02; physical
+controller validation remains pending. This issue does not change gameplay.
 
 Priority 14 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -49,7 +49,7 @@ plan should invent.
   project" until a second contributor has a commit.
 - Whether the stale Credits network line is corrected in this issue.
 
-Proposal, not approved:
+Original proposal (approved by the owner on 2026-11-02 as recorded below):
 
 - Add an About screen next to How to Play and Credits, using the same menu
   navigation. Do not add a second site.
@@ -79,19 +79,19 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] About is reachable from the main menu and returns to the menu.
-- [ ] The page says what the game is, what the player does, and how it runs,
+- [x] About is reachable from the main menu and returns to the menu.
+- [x] The page says what the game is, what the player does, and how it runs,
       in the approved words.
-- [ ] The version matches `N.RELEASE_VERSION` for that file set.
-- [ ] The GitHub project link is present and correct.
-- [ ] Contributors match the approved rule.
-- [ ] The Credits network line is no longer false, if that fix was included.
+- [x] The version matches `N.RELEASE_VERSION` for that file set.
+- [x] The GitHub project link is present and correct.
+- [x] Contributors match the approved rule.
+- [x] The Credits network line is no longer false, if that fix was included.
 - [ ] Menu controls still work with keyboard and controller focus.
 
-## Open questions
+## Resolved questions
 
-- Should About also link to the README or the license?
-- Is the page needed on the pause menu as well as the main menu?
+Owner approved main-menu access only and no additional README/license links
+on 2026-11-02.
 
 ## Dependencies
 
@@ -104,4 +104,36 @@ issue.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+Owner decision (2026-11-02): approved the main-menu About screen, keeping Credits
+and correcting its network text, contributor taggedzi, existing runtime version,
+and GitHub link. No pause-menu entry or additional README/license links.
+
+Changed files: `index.html`, `js/ui.js`, `css/style.css`, and issue/index records.
+About reuses existing panels and navigation. Native links participate in shared
+keyboard/controller focus. No dependencies added. History check: both author
+emails in `git shortlog -sne HEAD` belong to Matthew Craig (taggedzi).
+
+Validation (agent, Windows, 2026-11-02):
+- Chromium 156.0.8078.4 and Firefox 157.0: About opens, Back and Escape return
+  to menu; source version equals `N.RELEASE_VERSION`; GitHub href is correct;
+  keyboard focus reaches the native link; synthetic controller Back returns to
+  menu. Engage still starts a run. No page errors observed.
+- Synthetic controller directional focus reaches the GitHub link. Physical
+  controller validation is pending.
+- Desktop 1280×720 and narrow 360×740 screenshots inspected; no horizontal
+  overflow, content and footer remain reachable. Captures are local ignored
+  artifacts in `.playwright-mcp/about/`, not release assets.
+- Source staging (`node tools/ci/package.cjs`) passed. No release was published.
+- `npm run check` passed: syntax, ESLint, all unit checks, and 150 browser
+  tests (7.6 minutes for the browser suite). The initial sandboxed attempt could
+  not start its PHP server; the retry with local process permissions passed.
+- `git diff --check` passed. Controller link focus has a visible solid outline
+  in both checked browsers (including after mouse use).
+
+Owner review (2026-11-02): approved the About screen copy and appearance
+from the supplied screenshot. This does not claim physical-controller testing.
+
+Limitations/remaining work: physical controller check and owner-managed
+delivery. The owner explicitly authorized commit, push, and merge on
+2026-11-02. Google Chrome was not checked
+separately. No dependencies added. Implementation is ready for the authorized commit and merge.
