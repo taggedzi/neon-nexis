@@ -9,6 +9,11 @@ choose upgrades, and push into increasingly difficult sectors.
 This is a solo hobby project, built with plain JavaScript, HTML5 Canvas, CSS,
 and Web Audio. Development and support happen as time allows.
 
+[Play online](https://taggedzi.github.io/neon-nexis/) or get both package variants
+from [GitHub Releases](https://github.com/taggedzi/neon-nexis/releases/latest).
+The Pages site offers solo play; co-op needs a separately configured PHP
+introduction service.
+
 ## Run locally
 
 Clone or download this repository, then serve its root with a static HTTP server.
@@ -90,7 +95,8 @@ defaults on; clear it to publish an unminified copy. After Pages succeeds, the
 same dispatch publishes both staged-game ZIPs on a matching GitHub Release.
 Local play still needs no
 build. Versions use `YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
-deployment has not yet been validated. See the
+deployment and both public downloads were verified with
+[2026.11.03.0004](https://github.com/taggedzi/neon-nexis/releases/tag/2026.11.03.0004). See the
 [development and release guide](docs/development-and-releases.md) for setup,
 save policy, limitations and deferred work. There is no rollback procedure during
 this development phase.
@@ -101,8 +107,8 @@ The game is under active hobby development. Some implemented features still
 need player, controller, or performance validation. See the
 [local backlog](docs/work-to-be-done/README.md) for current status and known work.
 
-Release versions use the date convention described above. No public deployment
-has been performed. Changelog setup remains pending deployment validation; see
+Release versions use the date convention described above. The first public
+deployment is verified. Changelog setup still requires separately approved work; see
 [issue 013](docs/work-to-be-done/013-deployment-and-changelog.md).
 
 Bug reports, focused improvements, and documentation fixes are welcome. Read

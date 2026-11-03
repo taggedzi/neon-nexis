@@ -3,7 +3,9 @@
 This is the approved initial CI/CD setup for the client-side game. Hosting is
 GitHub Pages. Routine pushes are checked by a local pre-push hook. GitHub
 Actions publishes only on manual request, and that publication runs the check
-suite against the staged site. No public deployment has been validated yet.
+suite against the staged site. The first public deployment and both downloads
+were verified on 2026-11-03 as
+[2026.11.03.0004](work-to-be-done/033-github-release-packages.md#first-successful-publication).
 
 ## Local checks
 
@@ -76,8 +78,9 @@ single manual approval. Repository/account restrictions may override this.
 Use the Pages URL GitHub supplies as the initial stable address. A custom domain
 has not been selected. Changing origin later changes access to browser saves.
 
-The owner continues to push, open PRs, review and merge. These implementation
-changes do not authorize publishing from this chat.
+The owner controls delivery and publication and can explicitly delegate them.
+The first publication was explicitly authorized and verified; that authorization
+does not approve later releases. Merging never publishes.
 
 ## Publish a release
 
@@ -158,12 +161,15 @@ run number and can get a different date across New York midnight, as before.
    assume that rerunning the Release job is a repair. If the tag or bytes differ,
    stop and resolve that mismatch before publishing.
 
-The first real dispatch still needs explicit owner authorization and validation.
-Record its actual Pages URL, Release URL, version, and download checks in
-[issue 033](work-to-be-done/033-github-release-packages.md); local fixtures and
-mocked API tests are not publication evidence. Static Pages does not provide the
-PHP introduction service; co-op checks use a CI fixture and do not establish
-hosted co-op availability.
+The first successful authorized dispatch is recorded in
+[issue 033](work-to-be-done/033-github-release-packages.md#first-successful-publication):
+[live game](https://taggedzi.github.io/neon-nexis/) and
+[Release 2026.11.03.0004](https://github.com/taggedzi/neon-nexis/releases/tag/2026.11.03.0004).
+Both public ZIPs, all hosted files, and the actual Pages tar matched the tested
+manifest. Local fixtures and mocked API tests alone are not publication evidence.
+Static Pages does not provide the PHP introduction service; live checks confirm
+co-op is disabled there. CI co-op checks use a PHP fixture and do not establish
+a public co-op service.
 
 ## Saved games
 
@@ -191,11 +197,11 @@ There is still no automatic migration.
 
 ## Remaining validation and deferred scope
 
-Hosted deployment and Actions execution require owner setup and an authorized
-first publication. Headless Chromium and Playwright Firefox checks do not prove
+Hosted deployment and Actions execution were verified by the first authorized
+publication above. Headless full Chromium and Playwright Firefox checks do not prove
 stable Chrome/Firefox compatibility, real GPU performance, or physical controller
 usability. Those remain release checks on actual devices.
 
 Cache strategy and broader security checks remain deferred. GitHub release
-download automation awaits its first authorized live validation. Changelog implementation remains
-pending until the deployment process is validated; no release history is invented.
+downloads are now verified. Changelog implementation still needs separately
+approved work in issue 013; no earlier release history is invented.

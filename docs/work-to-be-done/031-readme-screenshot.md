@@ -140,7 +140,11 @@ for both peers and active sessions within eight seconds of the drop. Existing
 post-recovery assertions remain. This checks recovery inside the existing grace
 without changing game behavior or manually forcing reconnection. The final
 fixture passed twice per browser with four workers (four tests, 25.2 seconds).
-A complete pre-push run is required before delivery; its result belongs in the PR.
+A complete pre-push run passed before delivery; its result is recorded in the PR.
 
-All screenshot acceptance criteria are verified. Authorized PR/merge delivery remains;
-no implementation work has started on issue 032.
+All screenshot acceptance criteria are verified.
+[PR #35](https://github.com/taggedzi/neon-nexis/pull/35) merged as
+`a6ba14c8f060e7fc83569f666778b10b4c7db368`. The current main image still has
+the accepted 104,282 bytes and blob SHA `afb89d3efe49068805d1241f3e33d71c670d22bb`.
+Its exclusion from both real public ZIPs is also verified by
+[issue 033](033-github-release-packages.md#first-successful-publication).

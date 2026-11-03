@@ -16,9 +16,17 @@ Later checklist topics remain deferred. See [decisions](../decisions.md).
 - [x] Record the approved hosting, approval, version and save policies.
 - [x] Implement syntax/lint, regression and browser smoke checks and verify locally.
 - [x] Implement and verify incompatible-save export/removal in isolated browsers.
-- [ ] Implement and validate the manually triggered Pages workflow.
-- [ ] Validate one-time GitHub settings and first hosted deployment.
+- [x] Implement and validate the manually triggered Pages workflow.
+- [x] Validate one-time GitHub settings and first hosted deployment.
 - [ ] After deployment validation, introduce a changelog in separately approved work.
+
+The deployment criteria were completed on 2026-11-03 by the owner-authorized
+[issue 033 publication](033-github-release-packages.md#first-successful-publication),
+version `2026.11.03.0004`. Pages uses GitHub Actions and a main-only
+`github-pages` environment. Both staged browser suites, the real uploaded
+artifact, all public game files, both downloads, and live browser checks passed.
+Earlier pending-deployment notes below are historical. Changelog work still
+requires separate approval and keeps this issue open; none was introduced here.
 
 ## Implementation and validation
 
