@@ -1,10 +1,12 @@
 # 033 — Publish both release packages from one process
 
-Status: Implemented — needs validation
+Status: Done
 
 Owner approved the release flow and both MIT workflow actions on 2026-11-02.
-Implementation and local validation are complete. The owner authorized delivery and one first real release on 2026-11-02;
-the first attempt failed during job setup before any publication.
+Implementation is merged and the first successful publication is verified:
+`2026.11.03.0004`, from main `92c41ab85e25eb6d859bd011e655195ae8c8ae0b`.
+The owner explicitly authorized the successful fourth dispatch on 2026-11-03.
+Earlier failed attempts and their corrections remain recorded below.
 
 Priority 17 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -90,15 +92,18 @@ After issue 032 can emit both trees, and after the decisions above:
 
 ## Acceptance criteria
 
-- [ ] One manual dispatch on main produces the Pages site and both downloads.
-- [ ] The version on the tag, the Release, the stamped JS, and `release.json`
+- [x] One manual dispatch on main produces the Pages site and both downloads.
+- [x] The version on the tag, the Release, the stamped JS, and `release.json`
       is the same `YYYY.MM.DD.####` value.
-- [ ] The minified and unminified archives are both downloadable from that Release.
-- [ ] A second run does not overwrite an existing tag.
+- [x] The minified and unminified archives are both downloadable from that Release.
+- [x] A second run does not overwrite an existing tag.
+      (Real existing-tag preflight refused the published version before any
+      changes; mocked creation-race checks also pass. No second publication made.)
 - [x] No changelog was added unless issue 013's remaining changelog work was
       separately approved.
 - [x] The browser suite passed against the artifact that Pages will serve.
-      (Local fixture bytes verified; live workflow/deployment is still pending.)
+      (Both actual staged variants passed 150 tests each in the successful run;
+      uploaded and publicly served bytes were independently compared.)
 
 ## Resolved questions
 
@@ -346,3 +351,62 @@ Shared-clock validation:
   timing, equipment, and rejoin assertions retained. These focused checks cover
   the fixture-only changes; public source/packager bytes did not change. Required
   full-source pre-push results will be recorded in the delivery PR.
+
+## First successful publication
+
+Owner authorization (2026-11-03): one attempt only from updated main. This
+authorization was used by the successful run below; it does not authorize
+another publication. Implementation/fix PRs #37, #38, #39, and #41 are merged.
+PR #41 merged as `92c41ab85e25eb6d859bd011e655195ae8c8ae0b` after syntax, lint,
+unit checks, all 150 source browser tests, and the focused staged checks passed.
+
+- [Publish run 41655744844](https://github.com/taggedzi/neon-nexis/actions/runs/41655744844)
+  completed successfully: prepare, Pages deployment, and Release jobs all passed.
+- Version: `2026.11.03.0004`. Frozen build date: `2026-11-03T14:41:13.568Z`.
+  Run number 4 does not reset daily; failed runs 1–3 created no public release.
+- Reviewed source: main `92c41ab85e25eb6d859bd011e655195ae8c8ae0b`.
+- [Live game](https://taggedzi.github.io/neon-nexis/).
+- [GitHub Release and lightweight tag](https://github.com/taggedzi/neon-nexis/releases/tag/2026.11.03.0004).
+  Release published at `2026-11-03T15:02:20Z`. Its title/tag equal the version,
+  its body contains only version and commit, and the Git ref is type `commit`
+  pointing to the reviewed source. No changelog or generated notes were added.
+
+| Public asset | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [Minified ZIP](https://github.com/taggedzi/neon-nexis/releases/download/2026.11.03.0004/neon-nexus-2026.11.03.0004-min.zip) | 158,140 | `13e056d7728641eca0f78d2ebff829ff23de7ca5ee14d248a39d0cf0dc5ae5ac` |
+| [Unminified ZIP](https://github.com/taggedzi/neon-nexis/releases/download/2026.11.03.0004/neon-nexus-2026.11.03.0004-full.zip) | 174,764 | `00c6c60194c9181bc9935f207f984f5f3fce9440b49e37378cc4f1b3a5b9c67f` |
+
+Verification (agent, 2026-11-03):
+- Actual GitHub staged suites: 150 minified tests passed (9.8 minutes) and 150
+  unminified tests passed (9.9 minutes). Ubuntu 24.04 runner image
+  `20261025.353.1`, Node v24.22.1, full Chromium 156.0.8078.4, Firefox 157.0.
+- Downloaded both public ZIPs anonymously. Independent Python ZIP/CRC readers
+  verified all 37 entries per archive against the tested manifest, including
+  LICENSE, `index.html`, the JS version stamp, and `release.json`. Public sizes
+  and SHA-256 values match both the manifest and GitHub asset digests.
+- Downloaded the actual `github-pages` artifact. All 37 regular files in its
+  tar match the minified ZIP input. All 37 public HTTP file responses, including
+  `.nojekyll`, independently match those tested minified bytes exactly.
+- Windows live-browser checks in fresh full Chromium 156.0.8078.4 and Firefox
+  157.0 contexts passed: boot, About at 1280×720 and 360×740, stamped version,
+  native keyboard link focus, GitHub opening in a new tab without starting a
+  run, Escape return, Engage, movement, pause, save/quit, reload, and Continue.
+  No owner browser profile or stored data was opened or cleared.
+- Inspected live desktop/narrow screenshots after waiting for the 250 ms screen
+  entrance animation. Initial captures caught opacity zero and were replaced;
+  the settled About copy, version, link, and footer are readable and reachable.
+- No unexpected script/console errors. Chromium logged the expected 404 for
+  the absent PHP introduction endpoint on initial load/reload. The co-op button
+  correctly stays disabled. Static Pages does not provide hosted co-op; CI uses
+  its own PHP fixture and does not prove a public co-op service.
+- A read-only real same-version build preflight refused the existing tag before
+  changing a sentinel artifact. No GitHub write or second dispatch was requested.
+  Existing mocked API creation-race/partial-failure checks still pass.
+- Physical controllers, separate stable Google Chrome, real-GPU performance,
+  WAN co-op, and rollback were not validated or claimed. The owner accepted
+  issue 030's keyboard/synthetic-controller evidence with physical testing
+  retained as a limitation. No account, service signup, or new dependency added.
+
+The final evidence update changes documentation only and does not republish the
+site. The published version remains tied to its reviewed source commit above.
+All acceptance criteria have supporting verification; no issue 033 work remains.

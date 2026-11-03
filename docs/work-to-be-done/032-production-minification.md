@@ -225,7 +225,11 @@ Validation so far (Windows, Chromium 156.0.8078.4, Firefox 157.0):
   staged suite runs. Final `git diff --check` passed.
 
 All acceptance criteria and both staged-suite checks are supported by the
-results above. Actual GitHub Actions publication, hosted behavior, and separate
-Google Chrome/device checks are not claimed. No workflow has been dispatched.
+results above. These were local checks at implementation time; subsequent real
+GitHub publication, public bytes, and both ZIPs are verified in
+[issue 033](033-github-release-packages.md#first-successful-publication).
+Separate stable Google Chrome/device checks are not claimed.
 Owner explicitly authorized commit, push, PR creation, and merge on 2026-11-02.
-Delivery branch: `codex/032-production-minification`. Issue 033 has not started.
+Delivery branch: `codex/032-production-minification`.
+[PR #36](https://github.com/taggedzi/neon-nexis/pull/36) merged as
+`a52f0fc58425dee739446627ab3f78d0ae96654e`. No issue 032 work remains.

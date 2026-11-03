@@ -42,7 +42,7 @@ in [the decision log](../decisions.md).
 | 030 | [Add an About page](030-about-page.md) | Done |
 | 031 | [Add a README screenshot](031-readme-screenshot.md) | Done |
 | 032 | [Minify the production package](032-production-minification.md) | Done |
-| 033 | [Publish both release packages from one process](033-github-release-packages.md) | Implemented — needs validation |
+| 033 | [Publish both release packages from one process](033-github-release-packages.md) | Done |
 | 034 | [Optional crash reports](034-crash-reports.md) | Planned |
 | 035 | [Improve the music](035-music.md) | Planned |
 | 036 | [Optional extra visual detail](036-graphics-polish.md) | Planned |
@@ -69,7 +69,7 @@ Issue 029 implements the owner-approved hull stat table for new runs; colors rem
 cosmetic and old checkpoints keep their original stats. Automated Chromium/Firefox
 checks passed; the owner accepted hull handling/balance after playtesting on
 2026-11-02. Issue 029 is Done.
-Issue 030 is Done: the owner approved copy and appearance on 2026-11-02 and accepted the passed keyboard/synthetic-controller checks on 2026-11-03. Physical-controller testing remains untested because no controller is available. Issue 031 is Done: the owner approved the screenshot and WebP format; local and GitHub rendering, byte size, and package exclusion are verified. Issue 032 is Done: optional minification and the unminified fallback passed source and staged checks, including 150 browser tests per mode. Issue 033 is implemented with local source/archive/staged checks passing; Pages setup is complete. Three authorized attempts failed before publication. The latest run passed 149 browser tests; a shared revival-clock assertion is being verified for its remaining two-player timing failure; first successful publication remains pending. Issues 034 through 037 remain plans only.
+Issues 030–033 are Done. The owner accepted About's copy, appearance, and keyboard/synthetic-controller checks; physical-controller testing remains untested because no controller is available. The approved README screenshot is verified and excluded from the game package. Both minification modes passed their staged suites. Issue 033's [first public release, 2026.11.03.0004](033-github-release-packages.md#first-successful-publication), passed both actual 150-test staged suites; both public ZIPs and all 37 hosted files match the tested artifacts. Live Chromium/Firefox boot, About, link, movement, and save/continue checks passed. Issues 034 through 037 remain plans only.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
 2026-11-01. See the issue follow-up for evidence.
