@@ -313,6 +313,7 @@ test('session survives a brief direct-link drop inside the grace window', async 
     expect(await host.evaluate(() => window.NEON.Coop.active)).toBe(true);
     expect(await guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
 
+    const recoveryDeadline = Date.now() + 8000;
     const closed = await guest.evaluate(() => {
       const channel = (window.__coopChannels || []).find(item => item.readyState === 'open');
       if (!channel) return false;
@@ -322,12 +323,24 @@ test('session survives a brief direct-link drop inside the grace window', async 
     expect(closed).toBe(true);
 
     await expect.poll(
+      () => guest.evaluate(() => !!window.NEON.Net.peer),
+      { timeout: 3000, intervals: [50, 100, 200] }
+    ).toBe(false);
+
+    await expect.poll(
       () => guest.evaluate(() => window.NEON.Net.state),
       { timeout: 5000, intervals: [100, 200, 300] }
     ).toMatch(/reconnecting|connecting|connected|waiting/);
 
-    // The host keeps the guest for about 10s. The guest offers again after 1.5s.
-    await guest.waitForTimeout(4000);
+    // Allow recovery within the host's 10s grace instead of assuming Firefox's
+    // negotiation always finishes at the same fixed delay under parallel load.
+    await expect.poll(async () => Promise.all([
+      host.evaluate(() => window.NEON.Coop.active && !!window.NEON.Net.peer),
+      guest.evaluate(() => window.NEON.Coop.active && !!window.NEON.Net.peer)
+    ]), {
+      timeout: Math.max(1, recoveryDeadline - Date.now()),
+      intervals: [100, 250, 500]
+    }).toEqual([true, true]);
 
     expect(await guest.evaluate(() => window.NEON.Coop.active)).toBe(true);
     expect(await host.evaluate(() => window.NEON.Coop.active)).toBe(true);
