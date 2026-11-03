@@ -86,7 +86,9 @@ machine and is rejected if it fails.
 GitHub Actions does not run those checks on pull requests or on main. The
 **Publish game** workflow publishes to GitHub Pages only when manually run on
 main, and it runs the checks against the staged site first. Its **Minify** checkbox
-defaults on; clear it to publish an unminified copy. Local play still needs no
+defaults on; clear it to publish an unminified copy. After Pages succeeds, the
+same dispatch publishes both staged-game ZIPs on a matching GitHub Release.
+Local play still needs no
 build. Versions use `YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
 deployment has not yet been validated. See the
 [development and release guide](docs/development-and-releases.md) for setup,

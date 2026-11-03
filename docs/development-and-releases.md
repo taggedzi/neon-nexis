@@ -86,8 +86,20 @@ workflow**. This is the one manual approval. Merging never publishes. A dispatch
 on another branch skips publication. Only dispatch reviewed main commits.
 
 The workflow installs locked development dependencies, runs syntax/lint/Node
-checks, stages an explicit allowlist of public files, runs both browser suites
-against that exact staged game, and uploads/deploys it only if everything passes.
+checks, then stages both public variants using one frozen New York date and run
+number. It rejects an existing tag before staging, runs both browser suites
+against each staged variant, and verifies that the selected Pages tree matches
+its archive's input bytes. Only then are artifacts uploaded and Pages deployed.
+After Pages succeeds, a separate job creates the matching lightweight Git tag,
+uploads both ZIPs to a draft GitHub Release, verifies their SHA-256 digests and
+the tag target, and publishes the Release. Only that job gains `contents: write`.
+
+Both downloads are staged games, not repository archives: index, local JS/CSS,
+LICENSE, `release.json`, and `.nojekyll`. Both are always attached, regardless of
+which Pages variant is selected. ZIP creation uses Node's existing facilities;
+artifact transfer uses the owner-approved pinned MIT upload/download actions.
+No database, changelog, generated notes, or automatic rollback is added. The
+Release title/tag are the version; its body contains only version and commit.
 The dispatch’s **Minify** checkbox defaults on. Clear it to publish the
 unminified copy. Both choices use the same allowlist, version stamp, checks,
 and deployment path. Separate scripts retain their load order, identifiers,
@@ -127,6 +139,32 @@ Application release versions are separate from checkpoint schema versions.
 There is no rollback procedure during this development phase, by owner decision.
 Do not treat platform deployment history as a tested recovery process.
 
+## Partial-release recovery
+
+A failure before Pages deployment blocks publication. A Release failure after
+Pages deployment makes the run fail visibly; the successful site remains live.
+A tag and/or draft Release may already exist. The workflow never deletes or
+moves tags, replaces existing assets, deletes the Pages deploy, or rolls it back.
+Rerunning a version with an existing tag is rejected, including after partial
+publication. A new dispatch normally gets a new run number; a rerun keeps its
+run number and can get a different date across New York midnight, as before.
+
+1. Inspect the failed run, its internal `release-downloads-<run>-<attempt>`
+   artifact, and the tag/draft Release. Compare the manifest commit/version and
+   archive hashes with the tag and existing assets. Keep those exact artifacts.
+2. The owner decides whether to finish the missing uploads/draft publication
+   manually using those verified bytes, or leave the partial release and make a
+   new reviewed dispatch. Do not force a tag, overwrite a published asset, or
+   assume that rerunning the Release job is a repair. If the tag or bytes differ,
+   stop and resolve that mismatch before publishing.
+
+The first real dispatch still needs explicit owner authorization and validation.
+Record its actual Pages URL, Release URL, version, and download checks in
+[issue 033](work-to-be-done/033-github-release-packages.md); local fixtures and
+mocked API tests are not publication evidence. Static Pages does not provide the
+PHP introduction service; co-op checks use a CI fixture and do not establish
+hosted co-op availability.
+
 ## Saved games
 
 Developers own save-format compatibility and any migrations. Compatible saves
@@ -158,6 +196,6 @@ first publication. Headless Chromium and Playwright Firefox checks do not prove
 stable Chrome/Firefox compatibility, real GPU performance, or physical controller
 usability. Those remain release checks on actual devices.
 
-Cache strategy, broader security checks, distribution beyond Pages,
-and public release preparation remain deferred. Changelog implementation remains
+Cache strategy and broader security checks remain deferred. GitHub release
+download automation awaits its first authorized live validation. Changelog implementation remains
 pending until the deployment process is validated; no release history is invented.
