@@ -419,3 +419,26 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Consequences: colors stay cosmetic; weapons/upgrades remain shared; shapes and outline hitboxes stay unchanged. New solo/co-op runs use hull bases before upgrades. Existing checkpoints retain legacy bases through later rebuilds. This supersedes issue 002's equal-stat hull decision only.
 - Agent implementation choice: named saved ships begin new runs using current hull bases and saved equipment/upgrades, rather than freezing old hull balance. Checkpoints remain distinct from named ships.
 - Owner playtest approval, 2026-11-02: the owner played the game and likes the changes; the follow-up instruction explicitly accepts hull handling/balance. This completes the pending subjective acceptance for issue 029. No detailed per-hull/device/WAN test is claimed.
+
+## 2026-11-02 — Optional production minification
+
+- Decision: Minify separate HTML, CSS, and classic JS files through the existing
+  public packager. Publish defaults to minified output with an explicit
+  unminified switch. Keep local source play build-free, retain LICENSE/version
+  metadata, publish no source maps, and add no image tooling while the artifact
+  contains no images.
+- Approval: Owner explicitly approved the proposed scope and pinned build-only
+  dependencies in chat: Terser 5.51.2 (BSD-2-Clause), Clean-CSS 5.3.3 (MIT), and
+  HTML-Minifier-Terser 7.2.0 (MIT), after direct/transitive licensing review. See
+  [issue 032](work-to-be-done/032-production-minification.md).
+- Rationale: Reduce the production transfer size while keeping the unminified
+  fallback, source workflow, namespace properties, and load order intact.
+- Consequences: No bundling or property renaming. Agent implementation choice:
+  strip comments/whitespace with JS compression and mangling disabled, CSS level
+  0, and conservative HTML whitespace. Stage validation must serve actual public
+  bytes; the co-op PHP endpoint remains a CI fixture rather than an artifact file.
+  [Issue 033](work-to-be-done/033-github-release-packages.md) must reuse this
+  packager for both download variants. No publication is authorized here.
+- Supersedes: Issue 013’s minification deferral only. Deployment validation,
+  changelog setup, source maps, bundling, and broader release work retain their
+  existing limits.

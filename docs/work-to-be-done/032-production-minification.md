@@ -1,9 +1,10 @@
 # 032 — Minify the production package
 
-Status: Planned
+Status: Done
 
-This document is a plan only. It does not change how the game plays.
-Building the work is a separate later task.
+Owner approved the proposed dependencies and packaging scope on 2026-11-02.
+Implementation and local validation are complete. Commit/PR/merge delivery
+remains owner-controlled; no publication has been performed.
 
 Priority 16 of 21 in the proposed order in [the todo list](../TODO.md).
 
@@ -91,13 +92,13 @@ After the decisions:
 
 ## Acceptance criteria
 
-- [ ] A production staging path can emit minified HTML, CSS, and JS.
-- [ ] A staging path can still emit the unminified copy.
-- [ ] Local play from the repository root still needs no build.
-- [ ] The browser suite passes against the minified output.
-- [ ] Sizes before and after are recorded.
-- [ ] `LICENSE` and the version stamp are still in the package.
-- [ ] No image tool was added unless the package gained images.
+- [x] A production staging path can emit minified HTML, CSS, and JS.
+- [x] A staging path can still emit the unminified copy.
+- [x] Local play from the repository root still needs no build.
+- [x] The browser suite passes against the minified output.
+- [x] Sizes before and after are recorded.
+- [x] `LICENSE` and the version stamp are still in the package.
+- [x] No image tool was added unless the package gained images.
 
 ## Open questions
 
@@ -117,5 +118,114 @@ issue chooses a source-only command.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
-No byte sizes have been measured yet.
+Research (2026-11-02), based on merged main `a6ba14c` after issue 031:
+
+| Staged type | Files | Bytes before minification |
+| --- | ---: | ---: |
+| JavaScript | 32 | 537,921 |
+| CSS | 1 | 37,850 |
+| HTML | 1 | 28,054 |
+
+`node tools/ci/package.cjs` passed. The staged set contains no images. The README
+WebP is excluded. The existing publisher is `.github/workflows/release.yml`;
+local play still uses source files with no build.
+
+Owner-approved scope (2026-11-02): add pinned build-only `terser@5.51.2`,
+`clean-css@5.3.3`, and `html-minifier-terser@7.2.0`. Use the existing packager,
+keep separate scripts and load order, disable property renaming, default Publish
+to minified with an unminified workflow switch, publish no source maps, and keep
+`LICENSE`, `release.json`, and `.nojekyll`. Do not add an image toolchain.
+The owner explicitly approved the dependency versions, licenses, and scope in chat.
+
+Direct license files checked:
+- [Terser: BSD-2-Clause](https://github.com/terser/terser/blob/master/LICENSE)
+- [Clean-CSS: MIT](https://github.com/clean-css/clean-css/blob/master/LICENSE)
+- [HTML-Minifier-Terser: MIT](https://github.com/terser/html-minifier-terser/blob/master/LICENSE)
+
+The following versions/licenses were read from npm metadata by following the
+proposed dependency ranges without installing packages. This is a pre-install
+review, not a claim about a future lockfile. Verify the resolved lockfile after
+approval; retain tool license notices in the development installation. No tools
+or their dependency trees are intended to be copied into the public artifact.
+
+| Package | Resolved metadata version | License |
+| --- | --- | --- |
+| @jridgewell/gen-mapping | 0.3.13 | MIT |
+| @jridgewell/resolve-uri | 3.1.2 | MIT |
+| @jridgewell/source-map | 0.3.11 | MIT |
+| @jridgewell/sourcemap-codec | 1.6.0 | MIT |
+| @jridgewell/trace-mapping | 0.3.31 | MIT |
+| acorn | 8.19.0 | MIT |
+| buffer-from | 1.1.2 | MIT |
+| camel-case | 4.1.2 | MIT |
+| clean-css | 5.3.3 | MIT |
+| commander | 10.0.1 | MIT |
+| commander | 2.20.3 | MIT |
+| dot-case | 3.0.4 | MIT |
+| entities | 4.5.0 | BSD-2-Clause |
+| html-minifier-terser | 7.2.0 | MIT |
+| lower-case | 2.0.2 | MIT |
+| no-case | 3.0.4 | MIT |
+| param-case | 3.0.4 | MIT |
+| pascal-case | 3.1.2 | MIT |
+| relateurl | 0.2.7 | MIT |
+| source-map | 0.6.1 | BSD-3-Clause |
+| source-map-support | 0.5.21 | MIT |
+| terser | 5.51.2 | BSD-2-Clause |
+| tslib | 2.9.1 | 0BSD |
+
+Implementation notes:
+- Installed only the three approved direct tools, pinned exactly. Resolved
+  lockfile licenses match the review; npm reported 0 vulnerabilities.
+- `package.cjs --minify` strips comments/whitespace while keeping separate
+  scripts, identifiers, and properties (`compress: false`, `mangle: false`).
+  CSS uses Clean-CSS level 0; HTML preserves conservative whitespace. Default
+  staging and `--no-minify` preserve the unminified path.
+- Publish has a boolean `minify` input defaulting to true. Local play is unchanged.
+- Validation gap found: `serve-php.cjs` ignored `SERVE_DIR`. It now selects
+  the requested public document root with a CI-only PHP router for the existing
+  co-op fixture endpoint. Public files cannot fall back to source. The source
+  dev scenario becomes a public-command-exclusion check for staged suites.
+  Smoke tests compare served HTML, CSS, and JS with the exact staged bytes.
+- `tools/check-package.cjs` exercises both modes, allowlist, load order, license,
+  source isolation, syntax, invalid flags, size reductions, and release stamps.
+  These checks, ESLint, PHP router syntax, and `git diff --check` passed.
+
+First local trial (development stamp, same source files):
+
+| Type | Before bytes | Minified bytes |
+| --- | ---: | ---: |
+| JS | 537,921 | 455,614 |
+| CSS | 37,850 | 37,298 |
+| HTML | 28,054 | 23,791 |
+| Total | 603,825 | 516,703 |
+
+Reduction: 87,122 bytes (14.43%). LICENSE and release metadata are additional
+unchanged files; source maps and images are absent. This is a transfer-byte
+comparison, not a performance measurement.
+
+Changed files: package manifests, packager, release workflow, CI server/router,
+package and browser checks, development/README guidance, project decisions, and
+issue/index records.
+Validation so far (Windows, Chromium 156.0.8078.4, Firefox 157.0):
+- Full source `npm run check` passed syntax, lint, all unit checks, and 150
+  browser tests (7.6 minutes for the browser suite).
+- Full browser suite against the actual minified snapshot passed: 150 tests,
+  7.5 minutes. Served HTML/CSS/JS matched the staged files; runtime version
+  matched `release.json`; the public build excluded development commands.
+- Full browser suite against the actual unminified snapshot passed: 150 tests,
+  7.7 minutes. The same served-byte, version, and public exclusion checks passed.
+- Targeted local release-fixture checks passed in both browsers for both package
+  modes: runtime version and About display matched the generated release version;
+  development commands stayed absent. This used a local fixture run number, not
+  a dispatched workflow or published release. `dist/` was then restored to a
+  minified development build.
+- Environment: Windows, Node v24.14.1; headless Chromium and Firefox versions
+  above. PHP 8.4.13 router syntax passed. No code changes followed the source and
+  staged suite runs. Final `git diff --check` passed.
+
+All acceptance criteria and both staged-suite checks are supported by the
+results above. Actual GitHub Actions publication, hosted behavior, and separate
+Google Chrome/device checks are not claimed. No workflow has been dispatched.
+Owner explicitly authorized commit, push, PR creation, and merge on 2026-11-02.
+Delivery branch: `codex/032-production-minification`. Issue 033 has not started.

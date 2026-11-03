@@ -3,6 +3,11 @@ name: Publish game
 # This dispatch is the single release approval. Merges never publish.
 on:
   workflow_dispatch:
+    inputs:
+      minify:
+        description: Minify the published HTML, CSS, and JavaScript
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -25,7 +30,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium firefox
       - run: npm run check:syntax && npm run lint && npm run test:unit
-      - run: node tools/ci/package.cjs
+      - run: node tools/ci/package.cjs ${{ inputs.minify && '--minify' || '--no-minify' }}
       # Exercise the exact public files that will be uploaded, with fresh browser storage.
       - run: npm run test:browser
         env:

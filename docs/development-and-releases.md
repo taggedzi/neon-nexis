@@ -88,9 +88,30 @@ on another branch skips publication. Only dispatch reviewed main commits.
 The workflow installs locked development dependencies, runs syntax/lint/Node
 checks, stages an explicit allowlist of public files, runs both browser suites
 against that exact staged game, and uploads/deploys it only if everything passes.
-No minification, bundling, runtime dependencies, security scanning service, or
-automatic release-note generation is introduced. Minimal staging is required
-to avoid publishing repository documents, tools, or local files.
+The dispatch’s **Minify** checkbox defaults on. Clear it to publish the
+unminified copy. Both choices use the same allowlist, version stamp, checks,
+and deployment path. Separate scripts retain their load order, identifiers,
+and shared properties; no bundling or source maps are published. LICENSE stays
+in both outputs. Build-only minifiers are pinned in the development lockfile;
+they are not runtime dependencies. No images are currently part of the game
+artifact, so no image optimizer is installed.
+
+For local staging and verification:
+
+```sh
+node tools/ci/package.cjs --minify
+SERVE_DIR=dist npm run test:browser
+node tools/ci/package.cjs --no-minify
+SERVE_DIR=dist npm run test:browser
+```
+
+The environment assignment above uses POSIX shell syntax. In PowerShell, set
+`$env:SERVE_DIR = 'dist'` before the browser command, then remove it with
+`Remove-Item Env:SERVE_DIR` afterward. Staging recreates only `dist/`; source
+play needs neither this command nor Node. Omitted flags preserve unminified
+staging. Browser tests serve the exact public directory; the co-op PHP endpoint
+comes from the test fixture, not the public artifact. Repository documents,
+tools, development commands, and local files remain excluded.
 
 Versions use `YYYY.MM.DD.####`: the date in `America/New_York` and the release
 workflow's run number padded to four digits, without a daily reset. Failed runs
@@ -137,6 +158,6 @@ first publication. Headless Chromium and Playwright Firefox checks do not prove
 stable Chrome/Firefox compatibility, real GPU performance, or physical controller
 usability. Those remain release checks on actual devices.
 
-Minification/cache strategy, broader security checks, distribution beyond Pages,
+Cache strategy, broader security checks, distribution beyond Pages,
 and public release preparation remain deferred. Changelog implementation remains
 pending until the deployment process is validated; no release history is invented.

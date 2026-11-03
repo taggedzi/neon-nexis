@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
 
 test('start, move, pause, save, reload and continue', async ({ page, browser }) => {
   console.log('Browser: ' + browser.browserType().name() + ' ' + browser.version());
@@ -10,6 +12,15 @@ test('start, move, pause, save, reload and continue', async ({ page, browser }) 
     }
   });
   await page.goto('/');
+  if (process.env.SERVE_DIR) {
+    for (const name of ['index.html', 'js/util.js', 'css/style.css']) {
+      const response = await page.request.get('/' + name);
+      expect(response.ok()).toBe(true);
+      expect(await response.text()).toBe(readFileSync(path.resolve(process.env.SERVE_DIR, name), 'utf8'));
+    }
+    const release = await (await page.request.get('/release.json')).json();
+    expect(await page.evaluate(() => window.NEON.RELEASE_VERSION)).toBe(release.version);
+  }
   await page.locator('#btn-boot').click();
   await expect(page.locator('#menu-version')).toContainText(await page.evaluate(() => window.NEON.RELEASE_VERSION));
   await page.locator('#btn-new-run').click();
