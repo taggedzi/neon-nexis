@@ -116,8 +116,12 @@ Validation (2026-11-02):
   does not exist. The README image is not linked from `index.html`.
 - File size: 104,282 bytes, below the 500,000-byte limit.
 - Owner approved the screenshot and WebP format as representative of the game.
-- `git diff --check` passed. No gameplay suite rerun for these image/docs-only
-  edits; a future push still runs the mandatory repository hook.
+- `git diff --check` passed. The mandatory pre-push suite passed syntax, lint,
+  and unit checks; browser results were 149 passed and one Firefox failure at
+  `coop-smoke.spec.cjs:334` (guest peer absent at the fixed four-second recovery
+  assertion). The same recovery test then passed twice in isolation, with no
+  game or test changes. A fresh complete pre-push run remains required.
+- Implementation commit: `6e007e5`.
 
 Owner delivery authorization (2026-11-02): commit, push, create PR, and merge.
 Remaining: check the image on GitHub after branch delivery. No implementation
