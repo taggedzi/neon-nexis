@@ -54,9 +54,17 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           archive: true
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+      # The composite Pages uploader contains a tag-pinned nested action, which
+      # the repository's full-SHA policy rejects. Preserve its tar format here.
+      - name: Archive verified Pages site
+        run: tar --dereference --hard-dereference --directory dist -cf "$RUNNER_TEMP/artifact.tar" .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, MIT
         with:
-          path: dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          compression-level: 0
+          archive: true
   publish:
     needs: prepare
     runs-on: ubuntu-latest
