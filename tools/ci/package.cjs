@@ -20,7 +20,7 @@ if (output !== path.join(root, 'dist')) {
 async function stage() {
   let version = 'development';
   if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
-    version = releaseVersion(new Date(), process.env.GITHUB_RUN_NUMBER);
+    version = releaseVersion(new Date(process.env.NEON_RELEASE_DATE || Date.now()), process.env.GITHUB_RUN_NUMBER);
   }
   // Only this fixed, verified child directory is recreated.
   fs.rmSync(output, { recursive: true, force: true });

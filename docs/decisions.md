@@ -442,3 +442,25 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: Issue 013’s minification deferral only. Deployment validation,
   changelog setup, source maps, bundling, and broader release work retain their
   existing limits.
+
+## 2026-11-02 — One process for Pages and both release downloads
+
+- Decision: Keep one manual Publish dispatch on main. Retain the Pages Minify
+  checkbox, always attach both staged-site ZIPs, use a lightweight Git tag equal
+  to the existing date/run version, and add no database or changelog. Release
+  notes contain only version and source commit. Names are
+  `neon-nexus-<version>-min.zip` and `neon-nexus-<version>-full.zip`.
+- Approval: Owner explicitly approved this flow and both MIT artifact actions
+  (upload v7.0.2, download v8.0.2) after licensing review; see
+  [issue 033](work-to-be-done/033-github-release-packages.md). This approves
+  implementation, not executing a real release.
+- Rationale: Give players both packages without a second publication process or
+  a second minifier. Keep the selected Pages artifact and download bytes aligned.
+- Consequences: Freeze the date for both builds; reject existing tags and verify
+  context, hashes, and the tag target. Agent implementation choice: upload to a
+  draft and publish only after both assets pass digest verification. Partial
+  failure is visible and leaves successful Pages publication in place, with
+  manual recovery and no automatic rollback, deletion, or replacement.
+- Supersedes: Issue 033's minified-only Pages proposal; the approved issue 032
+  checkbox remains. Issue 013's first deployment and changelog validation remain
+  separate; no release history or deployment success is assumed.

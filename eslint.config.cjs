@@ -1,7 +1,7 @@
 const globals = require('globals');
 
 module.exports = [
-  { ignores: ['node_modules/**', 'dist/**', '.playwright-mcp/**', 'test-results/**', 'playwright-report/**'] },
+  { ignores: ['node_modules/**', 'dist/**', 'release-assets/**', '.playwright-mcp/**', 'test-results/**', 'playwright-report/**'] },
   {
     files: ['js/**/*.js', 'tools/**/*.js'],
     languageOptions: { sourceType: 'script', globals: globals.browser }
