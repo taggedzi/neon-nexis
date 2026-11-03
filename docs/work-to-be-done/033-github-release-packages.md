@@ -292,3 +292,57 @@ Publication-check follow-up (agent implementation choices, 2026-11-03):
   full Chromium 156.0.8078.4 and Firefox 157.0. The full unminified suite also
   passed all 150 tests (9.5 minutes). Required source pre-push results belong in
   the delivery PR; live publication still requires another authorized attempt.
+
+Third publication attempt (2026-11-03 America/New_York):
+- Owner explicitly authorized one new dispatch after PR #39. The accepted issue
+  030 record merged in PR #40 first; the run used main `0dbf667d5b1a4003f14bcbcb65dfc8b6e201ad3f`.
+- [Run 41601058443](https://github.com/taggedzi/neon-nexis/actions/runs/41601058443),
+  workflow run number 3, passed setup, syntax, lint, unit checks, both package
+  builds, and 149 minified browser tests. All pointer and three/four-player
+  checks passed. One two-player Firefox revival check exhausted its separate
+  12-second wall-clock wait. Remaining publication jobs were skipped; no site,
+  tag, or Release was published.
+- The retained failure artifact was retrieved and inspected. Its last guest
+  DOM snapshots show `TEAM RESPAWNS 3 / 4 // REPLACEMENT IN 1s`: the replacement
+  timer was still running at the assertion deadline. This provides actual CI
+  evidence of the same wall-clock/simulation-clock mismatch. Retention worked.
+- Agent correction on `codex/033-revival-clock-validation`: share the bounded
+  60-second revival wait, simulation-clock minimum, and failure diagnostics in
+  `tools/ci/coop-revival.cjs` across two-, three-, and four-player fixtures.
+  Increase the two-player scenario's overall budget to 120 seconds to fit that
+  bounded wait plus setup and post-revival checks. Preserve drop-once, equipment,
+  health, protection, pool, global-pause, and next-run assertions. No game code,
+  packager, dependency, or service changes. Validation is in progress.
+- Initial lint required the helper's browser-evaluation `window` global
+  declaration; syntax, lint, and `git diff --check` now pass.
+
+This attempt's authorization is spent. Request another dispatch only after
+the correction is verified and merged; do not retry automatically.
+
+Shared-clock validation:
+- The complete two-player scenario passed with host animation frames deliberately
+  delayed by 300 ms (48.4 seconds). Its existing drop/recovery/next-run assertions
+  and the minimum simulation-time check remained enabled.
+- All six two-/three-/four-player cases passed against the existing minified
+  staged tree in full Chromium 156.0.8078.4 and Firefox 157.0 (2.6 minutes).
+  No public file changed in this fixture-only correction. The prior full staged
+  suites remain recorded above; focused unminified and required full-source
+  checks are pending.
+- The first focused unminified run had five passes and one Chromium four-player
+  failure after rejoining: pool 2 instead of 3. Its HUD screenshot and retained
+  trace show enemies and active anchor projectiles in the supposedly quiet arena.
+  Inspection found that setup stubbed nonexistent `spawnWave` rather than the
+  real `updateSpawning`/`updateAnchors` methods, and did not clear enemy bullets.
+  Correct those fixture hooks to match the existing two-player quiet-world
+  setup. Preserve the pool/rejoin assertion; no game behavior changes. This
+  removes an observed source of unintended combat, not proof by itself of the
+  extra death's exact cause. Revalidation remains pending.
+- A subsequent minified diagnostic run reported four passes and two trace-ZIP
+  finalization errors during context cleanup. The agent edited the fixture
+  source while it was running; that invalidated the diagnostic run as evidence.
+  Freeze source during browser checks and use distinct output directories.
+- Final frozen-source runs passed all six scenarios per mode: minified 2.1
+  minutes, unminified 2.2 minutes, with normal trace finalization and all pool,
+  timing, equipment, and rejoin assertions retained. These focused checks cover
+  the fixture-only changes; public source/packager bytes did not change. Required
+  full-source pre-push results will be recorded in the delivery PR.
