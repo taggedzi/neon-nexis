@@ -572,3 +572,22 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: Nothing. The 2026-11-01 rule that an unreadable file does not
   change local storage stays in effect. This covers a readable file whose write
   fails after storage has already changed.
+
+## 2026-11-05 — Fractional active-weapon indexes are rejected
+
+- Decision: A checkpoint whose `activeWeapon` is present and not a safe integer
+  is rejected. Loading and import do not replace live or stored state. Omitted
+  and null indexes stay valid and hydrate as bay 0. An accepted integer that
+  falls outside the weapon list is clamped to the final hydrated array.
+  Hydration itself always stores a safe integer in that range.
+- Rationale: `0.5` with two valid weapons passed the finite-number check, then
+  survived clamping, so the ship had no active weapon and weapon switching
+  could not recover firing. Rejecting the checkpoint keeps a damaged file from
+  replacing a working save. Normalizing only at hydration would still import
+  the damaged checkpoint.
+- Approval: Agent implementation choice for GitHub issue 47 on 2026-11-05.
+  The owner delegated the fix through the open-issue queue. No new gameplay.
+- Consequences: Continue is not offered for that checkpoint; the existing
+  incompatible-save prompt applies. Saved ships already require an in-range
+  integer index, so their rule is unchanged.
+- Supersedes: Nothing.

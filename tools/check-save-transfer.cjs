@@ -131,6 +131,41 @@ assert.deepEqual(snap(), kept);
 assert.equal(G.settings.deadzone, 0.31);
 assert.equal(G.settings.keyboard.moveUp, 'KeyT');
 
+memory.set(N.Loadouts.key, '{"version":1,"ships":[]}');
+memory.set(N.Profile.key, '{"version":2,"stats":{"shotsFired":2},"book":{}}');
+const fourBefore = {
+  save: memory.get(saveKey),
+  settings: memory.get(settingsKey),
+  loadouts: memory.get(N.Loadouts.key),
+  profile: memory.get(N.Profile.key)
+};
+const fractionalWeapon = {
+  fileVersion: 1,
+  checkpoint: {
+    version: 1,
+    run: { seed: 5, mapVersion: 1, level: 2 },
+    player: {
+      weapons: [
+        { id: 'pulse', level: 1, tier: 1 },
+        { id: 'scatter', level: 1, tier: 1 }
+      ],
+      activeWeapon: 0.5
+    }
+  },
+  settings: { deadzone: 0.2 }
+};
+assert.equal(N.SaveTransfer.validate(fractionalWeapon).ok, false);
+assert.equal(N.SaveTransfer.apply(fractionalWeapon).reason, 'checkpoint');
+assert.deepEqual({
+  save: memory.get(saveKey),
+  settings: memory.get(settingsKey),
+  loadouts: memory.get(N.Loadouts.key),
+  profile: memory.get(N.Profile.key)
+}, fourBefore);
+memory.delete(N.Loadouts.key);
+memory.delete(N.Profile.key);
+assert.deepEqual(snap(), kept);
+
 const parsedRound = N.SaveTransfer.parse(JSON.stringify(built.file));
 assert.equal(parsedRound.ok, true);
 same(parsedRound.file.checkpoint, checkpoint);

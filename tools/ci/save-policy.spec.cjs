@@ -86,6 +86,85 @@ test('legacy current-version checkpoint continues', async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem('unrelated-data'))).toBe('keep');
 });
 
+test('fractional active weapon opens recovery and keeps stored bytes', async ({ page }) => {
+  const raw = JSON.stringify({
+    version: 1,
+    run: { seed: 5, mapVersion: 1, level: 2 },
+    player: {
+      level: 3,
+      weapons: [
+        { id: 'pulse', level: 1, tier: 1 },
+        { id: 'scatter', level: 1, tier: 1 }
+      ],
+      activeWeapon: 0.5
+    }
+  });
+  const settings = '{"version":1,"deadzone":0.31}';
+  const loadouts = '{"version":1,"ships":[]}';
+  const profile = '{"version":2,"stats":{"shotsFired":1},"book":{}}';
+  await page.addInitScript(stored => {
+    localStorage.setItem('neon_nexus_save_v1', stored.raw);
+    localStorage.setItem('neon_nexus_settings_v1', stored.settings);
+    localStorage.setItem('neon_nexus_loadouts_v1', stored.loadouts);
+    localStorage.setItem('neon_nexus_profile_v1', stored.profile);
+  }, { raw, settings, loadouts, profile });
+  await page.goto('/');
+  await page.locator('#btn-boot').click();
+  await expect(page.locator('#screen-oldsave')).toHaveClass(/active/);
+  expect(await page.evaluate(() => window.NEON.Game.mode)).not.toBe('playing');
+  expect(await page.evaluate(() => ({
+    save: localStorage.getItem('neon_nexus_save_v1'),
+    settings: localStorage.getItem('neon_nexus_settings_v1'),
+    loadouts: localStorage.getItem('neon_nexus_loadouts_v1'),
+    profile: localStorage.getItem('neon_nexus_profile_v1')
+  }))).toEqual({ save: raw, settings, loadouts, profile });
+});
+
+test('two weapons continue on an integer bay and can switch and fire', async ({ page }) => {
+  const raw = JSON.stringify({
+    version: 1,
+    run: { seed: 6, mapVersion: 1, level: 1 },
+    player: {
+      level: 2,
+      weapons: [
+        { id: 'pulse', level: 1, tier: 1 },
+        { id: 'scatter', level: 1, tier: 1 }
+      ],
+      activeWeapon: 0
+    }
+  });
+  await page.addInitScript(value => {
+    localStorage.setItem('neon_nexus_save_v1', value);
+  }, raw);
+  await page.goto('/');
+  await page.locator('#btn-boot').click();
+  await expect(page.locator('#screen-menu')).toHaveClass(/active/);
+  await page.locator('#btn-continue').click();
+  await expect.poll(() => page.evaluate(() => window.NEON.Game.mode)).toBe('playing');
+  const armed = await page.evaluate(() => {
+    const player = window.NEON.Game.player;
+    const weapon = player.weapons[player.activeWeapon];
+    return {
+      index: player.activeWeapon,
+      count: player.weapons.length,
+      id: weapon ? weapon.id : null
+    };
+  });
+  expect(Number.isInteger(armed.index)).toBe(true);
+  expect(armed.index).toBe(0);
+  expect(armed.count).toBe(2);
+  expect(armed.id).toBe('pulse');
+  await page.keyboard.press('KeyE');
+  await expect.poll(() => page.evaluate(() => {
+    const player = window.NEON.Game.player;
+    const weapon = player.weapons[player.activeWeapon];
+    return Number.isInteger(player.activeWeapon) && weapon ? weapon.id : '';
+  })).toBe('scatter');
+  await page.keyboard.down('KeyF');
+  await expect.poll(() => page.evaluate(() => window.NEON.Game.playerBullets.length)).toBeGreaterThan(0);
+  await page.keyboard.up('KeyF');
+});
+
 test('storage removal failure preserves checkpoint and reports failure', async ({ page }) => {
   const raw = '{"version":0}';
   await openOldSave(page, raw);

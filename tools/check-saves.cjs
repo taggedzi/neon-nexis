@@ -76,6 +76,49 @@ assert.equal(G.canLoadSave(omitted), true);
 assert.equal(G.loadFromSave(omitted), true);
 assert.equal(G.run.level, 1);
 assert.ok(G.player.weapons.length >= 1);
+assert.equal(Number.isSafeInteger(G.player.activeWeapon), true);
+assert.ok(G.player.weapons[G.player.activeWeapon]);
+
+const mapOne = { version: 1, run: { seed: 8, mapVersion: 1, level: 1 }, player: { level: 2 } };
+assert.equal(G.canLoadSave(mapOne), true);
+assert.equal(G.loadFromSave(mapOne), true);
+assert.equal(G.run.mapVersion, 1);
+assert.equal(G.player.activeWeapon, 0);
+assert.ok(G.player.weapons[0]);
+
+const twoWeapons = [
+  { id: 'pulse', level: 1, tier: 1 },
+  { id: 'scatter', level: 1, tier: 1 }
+];
+const fractional = {
+  version: 1,
+  run: { seed: 5, mapVersion: 1, level: 2 },
+  player: { weapons: twoWeapons, activeWeapon: 0.5 }
+};
+const liveBeforeFraction = G.run;
+const playerBeforeFraction = G.player;
+assert.equal(G.canLoadSave(fractional), false);
+assert.equal(G.loadFromSave(fractional), false);
+assert.equal(G.run, liveBeforeFraction, 'fractional active weapon does not replace the live run');
+assert.equal(G.player, playerBeforeFraction, 'fractional active weapon does not load a ship');
+
+assert.equal(G.loadFromSave({
+  version: 1,
+  run: { seed: 6, mapVersion: 1, level: 1 },
+  player: { weapons: twoWeapons, activeWeapon: 0 }
+}), true);
+assert.equal(G.player.activeWeapon, 0);
+assert.equal(G.player.weapons[0].id, 'pulse');
+assert.equal(G.player.weapons.length, 2);
+
+assert.equal(G.loadFromSave({
+  version: 1,
+  run: { seed: 6, mapVersion: 1, level: 1 },
+  player: { weapons: twoWeapons, activeWeapon: 5 }
+}), true);
+assert.equal(G.player.activeWeapon, 1);
+assert.equal(G.player.weapons[G.player.activeWeapon].id, 'scatter');
+assert.equal(Number.isSafeInteger(G.player.activeWeapon), true);
 
 for (const level of [null, 0, -1, 1.5]) {
   assert.equal(G.canLoadSave({
