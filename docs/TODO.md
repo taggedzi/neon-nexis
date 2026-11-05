@@ -29,5 +29,5 @@ decisions those features need.
 | 17 | Publish minified and unminified downloads from one release process | [033](work-to-be-done/033-github-release-packages.md) |
 | 18 | Optional crash reports | [034](work-to-be-done/034-crash-reports.md) |
 | 19 | Replace the current music with a stronger arcade or electronic score | [035](work-to-be-done/035-music.md) |
-| 20 | Optional extra visual detail that does not change the default look | [036](work-to-be-done/036-graphics-polish.md) |
-| 21 | Find out whether mobile play is realistic | [037](work-to-be-done/037-mobile-play.md) |
+| 20 | Optional extra visual detail declined (decision complete) | [036](work-to-be-done/036-graphics-polish.md) |
+| 21 | Mobile play investigation declined (decision complete) | [037](work-to-be-done/037-mobile-play.md) |
