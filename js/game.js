@@ -1107,12 +1107,18 @@ R.bank=function(item){
 R.count=()=>R.state().pending.length+G.pendingLevelUps;
 G.openRewards=function(){
   if((G.mode!=='playing'&&G.mode!=='paused')||!G.player||G.player.dead)return false;
+  G.rewardsFromPause = G.mode === 'paused';
   G.setMode('rewards');N.Input.resetFire();N.Audio.setScene('paused');
   N.UI.showRewards();return true;
 };
 G.closeRewards=function(){
   if(G.mode!=='rewards') return;
   if(G.returnToCoopPause()) return;
+  if (G.rewardsFromPause) {
+    G.setMode('paused');
+    N.UI.showPause(G.getPauseData());
+    return;
+  }
   G.resumeGame();
 };
 G.takeReward=function(index){

@@ -47,6 +47,7 @@ in [the decision log](../decisions.md).
 | 035 | [Improve the music](035-music.md) | Implemented — needs validation |
 | 036 | [Optional extra visual detail declined](036-graphics-polish.md) | Done |
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
+| 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
 
 ## Plans from the 2026-11-01 todo list
 

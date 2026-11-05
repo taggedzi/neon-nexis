@@ -119,6 +119,12 @@ conflicting proposals above.
   saved ships, included in the existing backup and preserved by Hardcore death.
 - Default on. Off hides the board and stops recording without deleting totals.
   The board sits below existing end-of-run information.
+
+### Decision — 2026-11-05
+
+Approval source: owner. The main menu no longer shows the last match tally.
+Player Stats remains the lifetime view. The death screen and the co-op end
+board still show that match.
 - Shots fired: each emitted projectile/pellet, beam, mine or strike, including
   misses and wall hits. Shots hit: at most once per shot when it damages an
   enemy or objective. Persistent orbitals are individual emitted projectiles;

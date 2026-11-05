@@ -38,23 +38,33 @@
             <h1 class="logo glitch-title" data-text="NEON NEXUS">NEON NEXUS</h1>
             <div class="logo-rule"></div>
             <div class="subtitle">WIREFRAME SURVIVAL PROTOCOL</div>
-            <div class="menu-buttons">
-              <button class="neon-btn primary" id="btn-continue" type="button">
-                <span>CONTINUE RUN</span><small class="save-meta" id="save-meta"></small>
-              </button>
-              <button class="neon-btn" id="btn-new-run" type="button">NEW RUN</button>
-              <button class="neon-btn" id="btn-coop" type="button">CO-OP UPLINK</button>
-              <p class="micro" id="coop-unavailable" hidden>Co-op is unavailable until the site admin enables it.</p>
-              <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
-              <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
-              <button class="neon-btn" id="btn-logbook" type="button">ENEMY LOGBOOK</button>
-              <button class="neon-btn" id="btn-player-stats" type="button">PLAYER STATS</button>
-              <button class="neon-btn" id="btn-about" type="button">ABOUT</button>
-              <button class="neon-btn" id="btn-credits" type="button">CREDITS</button>
-            </div>
+            <nav class="menu-actions" aria-label="Main menu">
+              <div class="menu-buttons menu-primary">
+                <button class="neon-btn primary" id="btn-continue" type="button">
+                  <span>CONTINUE RUN</span><small class="save-meta" id="save-meta"></small>
+                </button>
+                <button class="neon-btn" id="btn-new-run" type="button">NEW RUN</button>
+                <button class="neon-btn" id="btn-coop" type="button">CO-OP UPLINK</button>
+                <p class="micro" id="coop-unavailable" hidden>Co-op is unavailable until the site admin enables it.</p>
+              </div>
+              <div class="menu-pair">
+                <button class="neon-btn" id="btn-howto" type="button">HOW TO PLAY</button>
+                <button class="neon-btn" id="btn-settings" type="button">SETTINGS</button>
+              </div>
+              <div class="menu-records" role="group" aria-labelledby="menu-records-title">
+                <h3 class="menu-group-title" id="menu-records-title">PLAYER RECORDS</h3>
+                <div class="menu-pair">
+                  <button class="neon-btn" id="btn-logbook" type="button">ENEMY LOGBOOK</button>
+                  <button class="neon-btn" id="btn-player-stats" type="button">PLAYER STATS</button>
+                </div>
+              </div>
+              <div class="menu-pair menu-footer">
+                <button class="neon-btn subtle" id="btn-about" type="button">ABOUT</button>
+                <button class="neon-btn subtle" id="btn-credits" type="button">CREDITS</button>
+              </div>
+            </nav>
           </div>
           <div class="menu-side">
-            <div id="menu-match-tally" class="tally-container" hidden></div>
             <div class="holo-panel">
               <div class="holo-head">LIVE SECTOR FEED <span>ENCRYPTED</span></div>
               <div class="holo-diagram" aria-hidden="true">
@@ -105,7 +115,7 @@
         <div class="panel wide settings-panel">
           <div class="panel-head">
             <div><span class="eyebrow">SYSTEM CONFIG</span><h2>SETTINGS</h2></div>
-            <div class="panel-actions"><button class="icon-btn" id="btn-settings-close" type="button" title="Back">✕</button></div>
+            <div class="panel-actions"><button class="icon-btn" id="btn-settings-close" type="button" title="Back" aria-label="Back from settings">✕</button></div>
           </div>
           <div class="settings-tabs" role="tablist">
             <button class="tab active" data-tab="controls" type="button">CONTROLS</button>
@@ -133,15 +143,25 @@
             <div class="pause-coop-status" id="pause-coop-status"></div>
             <div class="pause-coop-countdown" id="pause-coop-countdown" hidden></div>
           </div>
-          <div class="menu-buttons compact">
+          <div class="pause-actions">
             <button class="neon-btn primary" id="btn-resume" type="button">RESUME</button>
-            <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
-            <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
-            <button class="neon-btn" id="btn-pause-logbook" type="button">ENEMY LOGBOOK</button>
-            <button class="neon-btn" id="btn-pause-stats" type="button">PLAYER STATS</button>
-            <button class="neon-btn" id="btn-pause-loadouts" type="button">SAVED SHIPS</button>
-            <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
-            <button class="neon-btn" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
+            <div class="pause-groups">
+              <div class="pause-group" role="group" aria-labelledby="pause-run-title">
+                <h3 class="menu-group-title" id="pause-run-title">RUN MANAGEMENT</h3>
+                <button class="neon-btn" id="btn-pause-rewards" type="button">PENDING REWARDS</button>
+                <button class="neon-btn" id="btn-inventory" type="button">INVENTORY</button>
+                <button class="neon-btn" id="btn-pause-loadouts" type="button">SAVED SHIPS</button>
+              </div>
+              <div class="pause-group" role="group" aria-labelledby="pause-reference-title">
+                <h3 class="menu-group-title" id="pause-reference-title">REFERENCE</h3>
+                <button class="neon-btn" id="btn-pause-logbook" type="button">ENEMY LOGBOOK</button>
+                <button class="neon-btn" id="btn-pause-stats" type="button">PLAYER STATS</button>
+              </div>
+            </div>
+            <div class="pause-footer">
+              <button class="neon-btn" id="btn-pause-settings" type="button">SETTINGS</button>
+              <button class="neon-btn danger" id="btn-save-quit" type="button">SAVE &amp; QUIT</button>
+            </div>
           </div>
           <div class="micro" id="pause-micro">PROGRESS IS AUTO-SYNCED AT CHECKPOINTS AND SECTOR ENDS.</div>
           <p class="micro" id="pause-pointer-hint" hidden></p>
@@ -194,18 +214,31 @@
       <section class="screen" id="screen-ship">
         <div class="panel wide ship-panel">
           <div class="panel-head"><div><span class="eyebrow">NEW RUN // PILOT CONFIGURATION</span><h2>CHOOSE YOUR SHIP</h2></div></div>
-          <canvas id="ship-preview" width="320" height="200" aria-label="Selected ship preview"></canvas>
-          <div class="ship-choices" id="ship-types" aria-label="Ship type"></div>
-          <p class="micro" id="ship-stats"></p>
-          <div class="ship-choices" id="ship-colors" aria-label="Ship color"></div>
-          <div class="coop-label">SAVED SHIP</div>
-          <div class="ship-choices" id="solo-loadouts"></div>
-          <div class="ship-choices"><button type="button" id="solo-sector-down">PREVIOUS SECTOR</button><span id="solo-sector-label"></span><button type="button" id="solo-sector-up">NEXT SECTOR</button><button type="button" id="solo-manage-loadouts">MANAGE SHIPS</button></div>
-          <p class="micro" id="solo-loadout-note"></p>
-          <div class="coop-label">SKILL LEVEL</div>
-          <div class="ship-choices" id="ship-skills" aria-label="Skill level"></div>
-          <p class="micro" id="ship-skill-note"></p>
-          <p class="micro">BASE STATS BEFORE UPGRADES · SPEED AND DAMAGE RELATIVE TO THE SHARED BASE. COLORS ARE COSMETIC. WEAPONS AND UPGRADES ARE SHARED. HITBOXES FOLLOW EACH HULL'S OUTLINE. SELECTION IS FIXED FOR THIS SAVE.</p>
+          <div class="ship-body">
+            <section class="ship-column" aria-labelledby="ship-column-title">
+              <h3 class="menu-group-title" id="ship-column-title">SHIP</h3>
+              <div class="ship-choices" id="ship-types" aria-label="Ship type"></div>
+              <canvas id="ship-preview" width="320" height="200" aria-label="Selected ship preview"></canvas>
+              <p class="micro" id="ship-stats"></p>
+              <div class="coop-label">COLOR</div>
+              <div class="ship-choices" id="ship-colors" aria-label="Ship color"></div>
+              <p class="micro">HULL AND COLOR ARE FIXED FOR THIS SAVE.</p>
+              <details class="menu-details"><summary>Hull details</summary><p>Base stats are before upgrades. Speed and damage are relative to the shared base. Colors are cosmetic. Weapons and upgrades are shared. Hitboxes follow each hull's outline.</p></details>
+            </section>
+            <section class="ship-column" aria-labelledby="run-column-title">
+              <h3 class="menu-group-title" id="run-column-title">RUN SETUP</h3>
+              <div class="coop-label">SAVED SHIP</div>
+              <div class="ship-choices" id="solo-loadouts"></div>
+              <p class="micro" id="solo-loadout-note"></p>
+              <button class="neon-btn subtle" type="button" id="solo-manage-loadouts">MANAGE SHIPS</button>
+              <div class="coop-label">STARTING SECTOR</div>
+              <div class="ship-choices sector-choices"><button type="button" id="solo-sector-down" aria-label="Previous starting sector">PREVIOUS</button><span id="solo-sector-label"></span><button type="button" id="solo-sector-up" aria-label="Next starting sector">NEXT</button></div>
+              <div class="coop-label">DIFFICULTY</div>
+              <div class="ship-choices" id="ship-skills" aria-label="Skill level"></div>
+              <p class="micro" id="ship-skill-note"></p>
+              <details class="menu-details"><summary>Saved ship details</summary><p>A saved ship keeps earned equipment and pilot progress, and starts a fresh map up to its highest reached sector. Its hull and color replace the fresh selection. Hardcore requires a fresh pilot. Manage Ships keeps up to three named ships.</p></details>
+            </section>
+          </div>
           <div class="panel-footer"><button class="neon-btn subtle" id="btn-ship-cancel" type="button">BACK</button><button class="neon-btn primary" id="btn-ship-launch" type="button">LAUNCH RUN</button></div>
         </div>
       </section>
