@@ -549,3 +549,26 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Supersedes: The Planned status, proposed work, open questions, and original
   implementation acceptance criteria in issues 036 and 037. No release or
   deployment is authorized by this decision.
+
+## 2026-11-05 — Save import restores stored bytes under quota pressure
+
+- Decision: If a validated backup fails while it is being written, restore the
+  captured checkpoint, settings, ship list, and profile bytes. Remove or shrink
+  imported values before writing an original value that needs more space, and
+  continue the remaining keys after one write fails. When every captured value
+  is back, the failure may say stored data was left unchanged. When any value
+  cannot be restored, the failure must not say that, and the import offers a
+  recovery backup built from the captured bytes. Backup file versions 1–4 and
+  unrelated origin keys stay intact.
+- Rationale: A smaller incoming checkpoint and a larger incoming ship list can
+  fill the origin quota before the profile write. Restoring the old checkpoint
+  first then fails, and the previous message claimed the stored data was unchanged.
+- Approval: Agent implementation choice for GitHub issue 46 on 2026-11-05.
+  The owner delegated the fix through the open-issue queue. No new gameplay.
+- Consequences: A partial restore can leave storage different from both the
+  original and the imported file. The recovery backup is a file-version 4
+  download, and a tab copy when session storage accepts it. See
+  [issue 020](work-to-be-done/020-save-export-import.md) for the preservation contract.
+- Supersedes: Nothing. The 2026-11-01 rule that an unreadable file does not
+  change local storage stays in effect. This covers a readable file whose write
+  fails after storage has already changed.

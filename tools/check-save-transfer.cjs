@@ -217,4 +217,196 @@ N.Profile.addStat('shotsFired',1);
 assert.equal(N.Profile.flush(),false);
 assert.equal(memory.get(N.Profile.key),'{broken profile');
 assert.equal(memory.get(saveKey),allBefore[saveKey]);
-console.log('Save transfer checks passed, including profile validation and four-key rollback.');
+
+// A total quota applies to every write, including rollback. The incoming
+// checkpoint is smaller, the incoming ship list is larger, and loadouts plus
+// profile are absent beforehand.
+function checkpointPad(text) {
+  return {
+    version: 1,
+    run: { seed: 4, mapVersion: 1, level: 3, sectors: 2 },
+    player: { level: 5, weapons: [], passives: [], core: [], pad: text },
+    level: { elapsed: 12, groundItems: [], destroyedAnchors: [], destroyedCaches: [] }
+  };
+}
+function shipList(padLength) {
+  return {
+    version: 1,
+    ships: [{
+      name: 'Quota',
+      highestSector: 1,
+      player: {
+        shipType: 'dart',
+        shipColor: '#00f0ff',
+        level: 2,
+        xp: 0,
+        xpNext: 10,
+        weapons: [{ id: 'pulse', level: 1, tier: 1 }],
+        passives: [],
+        core: ['x'.repeat(padLength)],
+        weaponSlots: 1,
+        passiveSlots: 1,
+        activeWeapon: 0
+      }
+    }]
+  };
+}
+const bigCheckpoint = checkpointPad('C'.repeat(8000));
+const smallCheckpoint = checkpointPad('c');
+const bigText = JSON.stringify(bigCheckpoint);
+const smallText = JSON.stringify(smallCheckpoint);
+const enemyBook = {};
+for (const id of Object.keys(N.ENEMY_BY_ID)) enemyBook[id] = { seen: true, kills: 1 };
+const profileFile = { version: 2, stats: { shotsFired: 4 }, book: enemyBook };
+const writtenProfile = JSON.stringify({
+  version: 2,
+  stats: N.Profile.cleanStats(profileFile.stats),
+  book: N.Profile.cleanBook(profileFile.book)
+});
+let loadoutPad = 0;
+let loadoutText = JSON.stringify(shipList(0));
+const loadoutLimit = bigText.length - smallText.length - 1;
+while (loadoutPad < loadoutLimit) {
+  const nextText = JSON.stringify(shipList(loadoutPad + 1));
+  if (nextText.length > loadoutLimit) break;
+  loadoutPad += 1;
+  loadoutText = nextText;
+}
+const loadoutFile = shipList(loadoutPad);
+const leftover = bigText.length - smallText.length - loadoutText.length;
+assert.ok(leftover >= 1);
+assert.ok(writtenProfile.length > leftover);
+assert.ok(N.Game.canLoadSave(bigCheckpoint));
+assert.ok(N.Game.canLoadSave(smallCheckpoint));
+assert.equal(N.Loadouts.validate(loadoutFile), true);
+assert.equal(N.Profile.validate(profileFile), true);
+
+const quotaPrefs = N.normalizeSettings({ deadzone: 0.31, keyboard: { moveUp: 'KeyT' } });
+let quota = Number.POSITIVE_INFINITY;
+let dropQuotaOnProfile = false;
+let quotaRejections = 0;
+function usedStorage() {
+  let total = 0;
+  for (const value of memory.values()) total += value.length;
+  return total;
+}
+box.localStorage.setItem = function(key, value) {
+  const text = String(value);
+  const previous = memory.has(key) ? memory.get(key).length : 0;
+  if (usedStorage() - previous + text.length > quota) {
+    quotaRejections += 1;
+    if (dropQuotaOnProfile && key === N.Profile.key) {
+      quota = 0;
+      dropQuotaOnProfile = false;
+    }
+    throw new Error('quota');
+  }
+  memory.set(key, text);
+};
+
+function stageQuotaOrigin() {
+  memory.clear();
+  memory.set(saveKey, bigText);
+  memory.set(settingsKey, JSON.stringify(quotaPrefs));
+  memory.set('neon-coop-identity-v1', identity);
+  memory.set('unrelated-data', 'keep');
+  G.mode = 'menu';
+  G.settings = N.loadSettings();
+}
+function quotaFile() {
+  return {
+    fileVersion: 4,
+    checkpoint: smallCheckpoint,
+    settings: JSON.parse(memory.get(settingsKey)),
+    loadouts: loadoutFile,
+    profile: profileFile
+  };
+}
+stageQuotaOrigin();
+const learned = N.SaveTransfer.apply(quotaFile());
+assert.equal(learned.ok, true);
+const canonicalSettings = memory.get(settingsKey);
+stageQuotaOrigin();
+memory.set(settingsKey, canonicalSettings);
+const originSnap = Object.fromEntries(memory);
+assert.equal(Object.hasOwn(originSnap, N.Loadouts.key), false);
+assert.equal(Object.hasOwn(originSnap, N.Profile.key), false);
+quota = usedStorage();
+quotaRejections = 0;
+dropQuotaOnProfile = false;
+const quotaResult = N.SaveTransfer.apply(quotaFile());
+assert.equal(quotaResult.ok, false);
+assert.equal(quotaResult.reason, 'storage');
+assert.equal(quotaRejections >= 1, true);
+assert.deepEqual(Object.fromEntries(memory), originSnap);
+assert.equal(memory.get(saveKey), bigText);
+assert.equal(memory.get(settingsKey), canonicalSettings);
+assert.equal(memory.has(N.Loadouts.key), false);
+assert.equal(memory.has(N.Profile.key), false);
+assert.equal(memory.get('unrelated-data'), 'keep');
+assert.equal(memory.get('neon-coop-identity-v1'), identity);
+
+stageQuotaOrigin();
+memory.set(settingsKey, canonicalSettings);
+quota = usedStorage();
+quotaRejections = 0;
+dropQuotaOnProfile = true;
+const partial = N.SaveTransfer.apply(quotaFile());
+assert.equal(partial.ok, false);
+assert.equal(partial.reason, 'storagePartial');
+assert.equal(/UNCHANGED|NOT CHANGED/i.test(N.SaveTransfer.failureText(partial.reason)), false);
+assert.equal(quotaRejections >= 2, true);
+assert.notDeepEqual(Object.fromEntries(memory), originSnap);
+assert.equal(memory.get('unrelated-data'), 'keep');
+assert.equal(memory.get('neon-coop-identity-v1'), identity);
+assert.equal(partial.recovery && partial.recovery.checkpoint.player.pad, bigCheckpoint.player.pad);
+box.localStorage.setItem = realSet;
+quota = Number.POSITIVE_INFINITY;
+
+// Backup formats 1–4 keep unrelated origin data, and older files leave later keys alone.
+memory.clear();
+memory.set(saveKey, bigText);
+memory.set(settingsKey, canonicalSettings);
+memory.set(N.Loadouts.key, loadoutText);
+memory.set(N.Profile.key, writtenProfile);
+memory.set('unrelated-data', 'keep');
+G.mode = 'menu';
+const olderShips = memory.get(N.Loadouts.key);
+const olderProfile = memory.get(N.Profile.key);
+assert.equal(N.SaveTransfer.apply({
+  fileVersion: 1,
+  checkpoint: smallCheckpoint,
+  settings: JSON.parse(canonicalSettings)
+}).ok, true);
+assert.equal(memory.get(N.Loadouts.key), olderShips);
+assert.equal(memory.get(N.Profile.key), olderProfile);
+assert.equal(memory.get('unrelated-data'), 'keep');
+const versionTwoShips = shipList(3);
+assert.equal(N.SaveTransfer.apply({
+  fileVersion: 2,
+  checkpoint: smallCheckpoint,
+  settings: JSON.parse(canonicalSettings),
+  loadouts: versionTwoShips
+}).ok, true);
+assert.equal(memory.get(N.Loadouts.key), JSON.stringify(versionTwoShips));
+assert.equal(memory.get(N.Profile.key), olderProfile);
+assert.equal(memory.get('unrelated-data'), 'keep');
+assert.equal(N.SaveTransfer.apply({
+  fileVersion: 3,
+  checkpoint: smallCheckpoint,
+  settings: JSON.parse(canonicalSettings),
+  loadouts: versionTwoShips,
+  profile: { version: 2, stats: { shotsFired: 9 } }
+}).ok, true);
+assert.equal(JSON.parse(memory.get(N.Profile.key)).stats.shotsFired, 9);
+assert.equal(memory.get('unrelated-data'), 'keep');
+assert.equal(N.SaveTransfer.apply({
+  fileVersion: 4,
+  checkpoint: smallCheckpoint,
+  settings: JSON.parse(canonicalSettings),
+  loadouts: versionTwoShips,
+  profile: profileFile
+}).ok, true);
+assert.equal(JSON.parse(memory.get(N.Profile.key)).book.dart.kills, 1);
+assert.equal(memory.get('unrelated-data'), 'keep');
+console.log('Save transfer checks passed, including quota rollback and profile validation.');

@@ -302,6 +302,10 @@ UI.init=function(){
         const applied=N.SaveTransfer.apply(parsed.file);
         if(!applied.ok){
           UI.toast(N.SaveTransfer.failureText(applied.reason),'danger');
+          if(applied.recovery){
+            try{ N.SaveTransfer.download(applied.recovery); }
+            catch(error){ /* The toast already reports that stored data was not restored. */ }
+          }
           return;
         }
         if(G.mode==='menu'){

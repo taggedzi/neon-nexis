@@ -18,6 +18,8 @@ const FAILURE = {
   incompatible: 'THIS CHECKPOINT CANNOT BE EXPORTED HERE. USE THE RECOVERY SCREEN.',
   unavailable: 'LOCAL STORAGE IS OFFLINE.',
   storage: 'IMPORT FAILED. STORED DATA WAS LEFT UNCHANGED.',
+  // Quota can reject a later rollback write. Do not describe that result as unchanged.
+  storagePartial: 'IMPORT FAILED. SOME STORED DATA COULD NOT BE RESTORED.',
   size: 'THAT FILE IS TOO LARGE. STORED DATA WAS NOT CHANGED.',
   profile: 'THAT PROFILE CANNOT BE READ. STORED DATA WAS NOT CHANGED.',
   loadouts: 'THAT SHIP LIST CANNOT BE READ. STORED DATA WAS NOT CHANGED.',
@@ -65,6 +67,124 @@ function readSettingsForExport() {
 function putBack(key, raw) {
   if (raw === null) localStorage.removeItem(key);
   else localStorage.setItem(key, raw);
+}
+
+function storedRaw(key) {
+  return localStorage.getItem(key);
+}
+
+function rawLength(raw) {
+  return raw == null ? 0 : String(raw).length;
+}
+
+// Shrink or remove imported values before writing a larger original. A quota
+// check still counts the key being replaced, so a value that needs more room
+// is removed before it is written again. Later keys still run after one write fails.
+function restoreCaptured(entries) {
+  const pending = entries.slice();
+  const passLimit = entries.length + 2;
+  for (let pass = 0; pass < passLimit && pending.length > 0; pass += 1) {
+    let progressed = false;
+    const blocked = [];
+    const growers = [];
+    for (const entry of pending) {
+      if (storedRaw(entry.key) === entry.raw) {
+        progressed = true;
+        continue;
+      }
+      const current = storedRaw(entry.key);
+      if (rawLength(entry.raw) > rawLength(current)) {
+        growers.push(entry);
+        continue;
+      }
+      try {
+        putBack(entry.key, entry.raw);
+        progressed = true;
+      } catch (error) {
+        blocked.push(entry);
+      }
+    }
+    for (const entry of growers) {
+      if (storedRaw(entry.key) === entry.raw) {
+        progressed = true;
+        continue;
+      }
+      const current = storedRaw(entry.key);
+      try {
+        localStorage.setItem(entry.key, entry.raw);
+        progressed = true;
+        continue;
+      } catch (error) {
+        // The imported value is still stored, so the larger original did not fit.
+      }
+      try {
+        if (current != null) localStorage.removeItem(entry.key);
+        localStorage.setItem(entry.key, entry.raw);
+        progressed = true;
+      } catch (error) {
+        if (current != null && storedRaw(entry.key) == null) {
+          try {
+            localStorage.setItem(entry.key, current);
+          } catch (putError) {
+            // The captured original remains in the recovery file when this also fails.
+          }
+        }
+        blocked.push(entry);
+      }
+    }
+    pending.length = 0;
+    pending.push(...blocked);
+    if (!progressed) break;
+  }
+  return entries.every(entry => storedRaw(entry.key) === entry.raw);
+}
+
+function parseStored(raw) {
+  if (raw == null) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return undefined;
+  }
+}
+
+function recoveryFile(entries) {
+  try {
+    const parsed = entries.map(entry => parseStored(entry.raw));
+    if (parsed.some(value => value === undefined)) return null;
+    const file = {
+      fileVersion: FILE_VERSION,
+      exportedAt: Date.now(),
+      release: String(N.RELEASE_VERSION || ''),
+      checkpoint: parsed[0],
+      settings: parsed[1] || {},
+      loadouts: parsed[2] || { version: 1, ships: [] },
+      profile: parsed[3] || { version: 2, stats: N.Profile.emptyStats(), book: {} }
+    };
+    return transfer.validate(file).ok ? file : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+const recoveryKey = 'neon_nexus_import_recovery_v1';
+
+function rememberRecovery(file) {
+  if (typeof sessionStorage === 'undefined' || !file) return;
+  try {
+    sessionStorage.setItem(recoveryKey, JSON.stringify(file));
+  } catch (error) {
+    // The caller can still download the in-memory copy.
+  }
+}
+
+function clearRecovery() {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.removeItem(recoveryKey);
+  } catch (error) {
+    // Clearing a tab copy must not hide the localStorage result.
+  }
 }
 
 transfer.failureText = function(reason) {
@@ -185,18 +305,28 @@ transfer.apply = function(file) {
         book:file.fileVersion===4?N.Profile.cleanBook(file.profile.book):N.Profile.cleanBook(old?.book)}));
     }
   } catch (error) {
-    if (captured) {
-      try {
-        putBack(saveKey, previousSave);
-        putBack(settingsKey, previousSettings);
-        putBack(N.Loadouts.key, previousLoadouts);
-        putBack(N.Profile.key, previousProfile);
-      } catch (restoreError) {
-        return { ok: false, reason: 'storage' };
-      }
+    if (!captured) return { ok: false, reason: 'storage' };
+    const previous = [
+      { key: saveKey, raw: previousSave },
+      { key: settingsKey, raw: previousSettings },
+      { key: N.Loadouts.key, raw: previousLoadouts },
+      { key: N.Profile.key, raw: previousProfile }
+    ];
+    let complete = false;
+    try {
+      complete = restoreCaptured(previous);
+    } catch (restoreError) {
+      complete = previous.every(entry => storedRaw(entry.key) === entry.raw);
     }
-    return { ok: false, reason: 'storage' };
+    if (complete) {
+      clearRecovery();
+      return { ok: false, reason: 'storage' };
+    }
+    const recovery = recoveryFile(previous);
+    rememberRecovery(recovery);
+    return { ok: false, reason: 'storagePartial', recovery };
   }
+  clearRecovery();
   N.Profile.reload();
   if(N.PlayerStats){N.PlayerStats.lastBoard=null;}
   N.Game.settings = N.loadSettings();
