@@ -531,3 +531,21 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   ignored recordings remain outside Git. No push, PR, merge or publication is
   authorized by this approval.
 - Supersedes: Pending owner listening acceptance for the recorded soundtrack.
+
+## 2026-11-05 — Graphics polish and mobile play declined
+
+- Decision: Close [issue 036](work-to-be-done/036-graphics-polish.md) and
+  [issue 037](work-to-be-done/037-mobile-play.md) as owner-declined work.
+  Do not implement the optional graphics polish or pursue the mobile play
+  investigation. Reopening either requires a new owner decision.
+- Rationale: The owner decided against both proposals; no further rationale
+  was supplied.
+- Approval source: Explicit owner instruction in chat on 2026-11-05, including
+  authorization to commit, push, create a PR, and merge into main.
+- Consequences: Preserve the current graphics and desktop browser targets.
+  No mobile support is claimed and no device trial is planned. Update both
+  issue records, the backlog, and the todo list. Other issues and their pending
+  validation remain unchanged. This is a documentation-only closure.
+- Supersedes: The Planned status, proposed work, open questions, and original
+  implementation acceptance criteria in issues 036 and 037. No release or
+  deployment is authorized by this decision.
