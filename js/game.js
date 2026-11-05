@@ -567,6 +567,11 @@ function sectorNumber(value,min){
 function listField(value){
   return value==null || Array.isArray(value);
 }
+function weaponIndex(value,count){
+  const last=Math.max(0,count-1);
+  const index=Number.isSafeInteger(value)?value:0;
+  return clamp(index,0,last);
+}
 G.canLoadSave=function(save){
   if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
   if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
@@ -589,6 +594,9 @@ G.canLoadSave=function(save){
   for(const key of ['x','y','hp','shield','level','xp','xpNext','heading','aim','activeWeapon','weaponSlots','passiveSlots','dashCharges','dashTimer']){
     if(!finiteField(player[key])) return false;
   }
+  // A fraction stays inside the clamp and selects no weapon. An omitted index
+  // is still accepted and hydrates as bay 0.
+  if(player.activeWeapon!=null && !Number.isSafeInteger(player.activeWeapon)) return false;
   const level=save.level;
   if(level!=null){
     if(typeof level!=='object' || Array.isArray(level)) return false;
@@ -656,7 +664,7 @@ function hydratePlayer(sp,lvl){
     weapons:(sp.weapons||[]).filter(w=>w&&N.WEAPON_BY_ID[w.id]).map(w=>makeWeapon(w.id,w.tier||1,w.level||1)),
     passives:(sp.passives||[]).filter(m=>m&&N.MOD_BY_ID[m.id]).map(m=>({id:m.id,stacks:clamp(m.stacks|0,1,N.MOD_BY_ID[m.id].maxStacks||3)})),
     core:(sp.core||[]).filter(id=>N.PROTOCOL_BY_ID[id]),
-    activeWeapon:clamp(+sp.activeWeapon||0,0,Math.max(0,(sp.weapons||[]).length-1)),
+    activeWeapon:weaponIndex(sp.activeWeapon,(sp.weapons||[]).length),
     weaponSlots:clamp(+sp.weaponSlots||N.START_SLOTS.weapons,1,8),
     passiveSlots:clamp(+sp.passiveSlots||N.START_SLOTS.passives,1,12),
     invuln:0,hitFlash:0,shieldDelay:0,dashCharges:+sp.dashCharges||1,maxDashCharges:1,
@@ -667,7 +675,7 @@ function hydratePlayer(sp,lvl){
   if(!p.weapons.length) p.weapons=[makeWeapon(N.STARTING_WEAPON,1,1)];
   Object.assign(p,N.Ships.selection(sp));
   p.hullStatsVersion=sp.hullStatsVersion===1?1:0;
-  p.activeWeapon=clamp(p.activeWeapon,0,p.weapons.length-1);
+  p.activeWeapon=weaponIndex(p.activeWeapon,p.weapons.length);
   G.rebuildStats(p,false);
   p.hp=clamp(+sp.hp||p.stats.maxHp,1,p.stats.maxHp);
   p.shield=clamp(+sp.shield||0,0,p.stats.maxShield);
