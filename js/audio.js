@@ -4,14 +4,22 @@
 const N = window.NEON;
 const A = N.Audio = {};
 let ctx=null, master=null, musicBus=null, sfxBus=null, comp=null, noiseBuf=null;
+let scoreBus = null, recordedMusic = null;
 let settings=N.deepMerge(N.SETTINGS_DEFAULT,{});
 let unlocked=false, started=false;
 let intensity=.4, scene='menu';
 let schedTimer=null, nextNote=0, step=0, bar=0;
 let lastSfx={};
-const BPM={menu:84,game:116,paused:76,dead:60,complete:104};
-const ROOTS=[110,98,123.47,82.41,110,87.31,130.81,98];
-const SCALE=[0,3,5,7,10,12,15,19,22,24];
+const BPM={menu:96,game:116,paused:80,dead:72,complete:108};
+// Related minor/add9 voicings change every two bars, rather than every beat.
+const HARMONY = [
+  { root: 110, notes: [0, 7, 10, 14] },
+  { root: 87.31, notes: [0, 7, 12, 16] },
+  { root: 130.81, notes: [0, 7, 11, 14] },
+  { root: 98, notes: [0, 7, 12, 14] }
+];
+const BASS_PATTERNS = [[0, 6, 10], [0, 7, 12], [0, 6, 14], [0, 10]];
+const MELODY_STEPS = [[3, 10], [6, 14], [2, 11], [7]];
 
 function now(){return ctx?ctx.currentTime:0;}
 function ensure(){
@@ -24,12 +32,22 @@ function ensure(){
     comp.threshold.value=-20; comp.knee.value=18; comp.ratio.value=5; comp.attack.value=.003; comp.release.value=.25;
     master=ctx.createGain(); master.gain.value=0;
     musicBus=ctx.createGain(); musicBus.gain.value=0;
+    scoreBus = ctx.createGain();
+    scoreBus.connect(musicBus);
     sfxBus=ctx.createGain(); sfxBus.gain.value=0;
     musicBus.connect(master); sfxBus.connect(master); master.connect(comp); comp.connect(ctx.destination);
     const sr=ctx.sampleRate, len=Math.floor(sr*1.2);
     noiseBuf=ctx.createBuffer(1,len,sr);
     const d=noiseBuf.getChannelData(0);
     for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    try {
+      recordedMusic = N.RecordedMusic ? N.RecordedMusic.create(ctx, musicBus, active => {
+        scoreBus.gain.setTargetAtTime(active ? 0 : 1, ctx.currentTime, .15);
+      }) : null;
+    } catch (error) {
+      // Optional media support must never disable procedural audio or SFX.
+      recordedMusic = null;
+    }
     applyGains();
     return true;
   }catch(e){ ctx=null; return false; }
@@ -41,6 +59,9 @@ function applyGains(){
   master.gain.setTargetAtTime(m,ctx.currentTime,.05);
   musicBus.gain.setTargetAtTime((N.clamp(+a.music||0,0,1))*.34,ctx.currentTime,.05);
   sfxBus.gain.setTargetAtTime((N.clamp(+a.sfx||0,0,1))*.42,ctx.currentTime,.05);
+  if (recordedMusic) {
+    recordedMusic.update({ silent: !!a.muted || m === 0 || !(+a.music > 0) });
+  }
 }
 function osc(type,freq,t,dur,vol,dest,detune=0,pan=0){
   if(!ctx) return;
@@ -96,6 +117,9 @@ A.unlock=function(){
   if(!ok) return false;
   unlocked=true;
   A.resume();
+  if (recordedMusic) {
+    recordedMusic.update({ unlocked: true }, true);
+  }
   if(!started){started=true; nextNote=ctx.currentTime+.12; step=0; bar=0; startScheduler();}
   A.startMusic();
   return true;
@@ -109,8 +133,12 @@ A.setSettings=function(s){
 A.setScene=function(s){
   scene=s;
   intensity = s==='game'?1:s==='menu'?.45:s==='paused'?.28:s==='dead'?.18:s==='complete'?.7:.35;
+  if (recordedMusic) {
+    recordedMusic.update({ scene: s });
+  }
 };
 A.setIntensity=function(v){intensity=N.clamp(v,0,1);};
+A.getMusicStatus = () => recordedMusic ? recordedMusic.status() : { mode: 'procedural', track: null, available: 0 };
 
 // ——— music scheduler ———
 function startScheduler(){
@@ -127,7 +155,15 @@ function nextStepTime(){return 60/BPM[scene||'game']/4;}
 function schedule(){
   if(!ctx || ctx.state!=='running' || settings.audio.muted) return;
   if(document.hidden) return;
+  if (recordedMusic && recordedMusic.isActive()) {
+    nextNote = ctx.currentTime + .03;
+    return;
+  }
   try{
+    // Skip missed time after mute/tab throttling; never replay a backlog.
+    if (nextNote < ctx.currentTime) {
+      nextNote = ctx.currentTime + .03;
+    }
     while(nextNote < ctx.currentTime + .18){
       playStep(nextNote, step, bar);
       nextNote += nextStepTime();
@@ -137,42 +173,85 @@ function schedule(){
   }catch(e){ /* audio must never break gameplay */ }
 }
 function padFreq(root, semis){return root*Math.pow(2,semis/12);}
-function playStep(t,st,br){
-  const root=ROOTS[br%ROOTS.length];
-  const amb = scene==='menu' ? .55 : scene==='dead' ? .25 : 1;
-  const I=intensity*amb;
-  const beat=st%4===0;
-  const half=st%8===4;
-  // kick
-  if(beat && I>.3){ sweep('sine',120,42,t,.22,.5*I,musicBus); }
-  if(st===6||st===14){ noise(t,.07,.16*I,900,'highpass',musicBus); }
-  // hats
-  if(I>.25) noise(t,.022,.055*I,5500,'highpass',musicBus,0,.7);
-  if(st%2===1 && I>.55) noise(t,.016,.032*I,7800,'highpass',musicBus,0,.7);
-  // pulsing bass
-  if(st%2===0){
-    const f=padFreq(root,st%8===0?0:st%4===2?0:7);
-    const v=(.16+.1*I)*(scene==='game'?1:.7);
-    osc('sawtooth',f/2,t,.19,v,musicBus,-6);
-    osc('square',f/2,t,.17,v*.32,musicBus,4);
+// Music voices use soft attacks and a moving low-pass filter. SFX keep their
+// existing envelopes and timbres. Every source has a finite lifetime.
+function musicVoice(freq, t, duration, volume, pan, isPad = false) {
+  const voice = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  const stereo = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  const attack = isPad ? .65 : .018;
+  voice.type = isPad ? 'triangle' : 'sine';
+  voice.frequency.setValueAtTime(freq, t);
+  filter.type = 'lowpass';
+  filter.Q.value = .55;
+  filter.frequency.setValueAtTime(isPad ? 550 : 850, t);
+  filter.frequency.linearRampToValueAtTime(isPad ? 1400 : 260, t + duration * .7);
+  gain.gain.setValueAtTime(.0001, t);
+  gain.gain.exponentialRampToValueAtTime(Math.max(.0002, volume), t + attack);
+  gain.gain.exponentialRampToValueAtTime(.0001, t + duration);
+  voice.connect(filter);
+  filter.connect(gain);
+  if (stereo) {
+    stereo.pan.value = pan;
+    gain.connect(stereo);
+    stereo.connect(scoreBus);
+  } else {
+    gain.connect(scoreBus);
   }
-  // arp
-  if(I>.4){
-    const note=SCALE[(st+br*3)%SCALE.length];
-    const f=padFreq(root,note+12);
-    osc(st%4===0?'square':'triangle',f,t,.07,.055*I,musicBus,st%2?6:-6, (st%4-1.5)*.22);
-  }
-  // wide pad on bar changes
-  if(st===0){
-    const notes=[0,3,7,10];
-    for(const n of notes){
-      osc('sawtooth',padFreq(root,n+12),t,.9,.026*I,musicBus,n%2?5:-5);
+  voice.onended = () => {
+    voice.disconnect();
+    filter.disconnect();
+    gain.disconnect();
+    if (stereo) {
+      stereo.disconnect();
     }
+  };
+  voice.start(t);
+  voice.stop(t + duration + .02);
+}
+
+function playStep(t, st, br) {
+  const chord = HARMONY[Math.floor(br / 2) % HARMONY.length];
+  const phrase = Math.floor(br / 8);
+  const section = phrase % 4;
+  const isCombat = scene === 'game';
+  const isQuiet = scene === 'paused' || scene === 'dead';
+  const energy = intensity * (isQuiet ? .45 : scene === 'menu' ? .7 : 1);
+  const stepSeconds = nextStepTime();
+  // One phrase in four breathes: retain the pulse but thin the upper layers.
+  const isBreak = section === 2;
+  const variation = (br + phrase) % BASS_PATTERNS.length;
+
+  if (st % 4 === 0 && !isQuiet) {
+    sweep('sine', 100, 43, t, .24, (isCombat ? .38 : .16) * energy, scoreBus);
   }
-  // glitch stutters during intense combat
-  if(scene==='game' && I>.75 && st===11 && Math.random()<.22){
-    const f=padFreq(root,SCALE[Math.floor(Math.random()*SCALE.length)]+24);
-    osc('square',f,t,.035,.04,musicBus,20);
+  if (!isQuiet && st % 4 === 2 && (!isBreak || st === 10)) {
+    noise(t, .045, .035 * energy, 4300, 'highpass', scoreBus, .15, .5);
+  }
+  if (isCombat && !isBreak && (st === 4 || st === 12)) {
+    noise(t, .095, .065 * energy, 1400, 'bandpass', scoreBus, -.12, .65);
+  }
+  if (!isQuiet && BASS_PATTERNS[variation].includes(st)) {
+    const fifth = st !== 0 && br % 4 === 3 ? 7 : 0;
+    musicVoice(padFreq(chord.root / 2, fifth), t, stepSeconds * 2.4,
+      .17 * energy, 0);
+  }
+  if (st === 0 && br % 2 === 0) {
+    const duration = stepSeconds * 30;
+    chord.notes.forEach((note, index) => {
+      musicVoice(padFreq(chord.root, note), t, duration, .035 * energy,
+        (index - 1.5) * .4, true);
+    });
+  }
+  // Sparse chord-tone phrases with rests, octave changes and quiet echoes.
+  if (!isQuiet && !isBreak && br % 4 !== 3 &&
+      MELODY_STEPS[variation].includes(st)) {
+    const note = chord.notes[(Math.floor(br / 2) + st + phrase) % chord.notes.length];
+    const frequency = padFreq(chord.root, note + (section === 3 ? 12 : 0));
+    const pan = br % 2 ? -.4 : .4;
+    musicVoice(frequency, t, .65, .045 * energy, pan, true);
+    musicVoice(frequency, t + stepSeconds * 3, .85, .016 * energy, -pan, true);
   }
 }
 
@@ -306,6 +385,9 @@ A.checkpoint=function(){
 A.noiseBurst=function(dur=.1,vol=.1,freq=1000){if(unlocked&&!settings.audio.muted)try{noise(sfxTime(),dur,vol,freq,'bandpass',sfxBus);}catch(e){}};
 // Navigation can reject pending state changes asynchronously; audio stays optional.
 A.suspend=function(){
+  if (recordedMusic) {
+    recordedMusic.update({ suspended: true });
+  }
   if(ctx && ctx.state==='running'){
     try{
       ctx.suspend().catch(()=>{});
@@ -313,6 +395,9 @@ A.suspend=function(){
   }
 };
 A.resume=function(){
+  if (recordedMusic) {
+    recordedMusic.update({ suspended: false }, true);
+  }
   if(ctx && ctx.state==='suspended'){
     try{
       ctx.resume().catch(()=>{});

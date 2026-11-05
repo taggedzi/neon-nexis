@@ -479,3 +479,55 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Test environment evidence must distinguish full Chromium from Headless Shell;
   neither establishes physical-controller or real-GPU validation.
 - Supersedes: The test runner's implicit Chromium Headless Shell selection only.
+
+## 2026-11-04 — Defer crash reports; begin procedural music revision
+
+- Decision: Defer [issue 034](work-to-be-done/034-crash-reports.md) without a
+  return date and proceed to [issue 035](work-to-be-done/035-music.md).
+- Approval source: Owner instruction in chat on 2026-11-04.
+- Rationale: The owner wants to postpone crash reports and improve the music now.
+- Consequences: No crash-report implementation; music remains local and generated
+  by code, with an ambient techno / arcade direction throughout the game and
+  reduced repetition/listening fatigue. The owner subsequently chose removal of the old
+  score with no selector, and a steady combat techno beat with ambient layers.
+  Listening approval of the implementation remains required.
+- Agent implementation choices: retain the existing intensity and local co-op
+  playback, without a new boss layer; leave sound effects and volume defaults
+  unchanged. See issue 035 for arrangement details and validation evidence.
+- Supersedes: The proposed immediate sequence from issue 033 to issue 034 only.
+
+## 2026-11-05 — Optional private soundtrack for local website builds
+
+- Decision: Accept owner-supplied generated WAV music as optional local assets;
+  convert and include it only in explicitly requested local website staging.
+  Retain procedural music when recordings are absent or unavailable.
+- Approval source: Owner request in chat and answer selecting local website
+  builds while keeping GitHub release ZIPs music-free, 2026-11-05.
+- Rationale: The procedural revision improved the score but did not meet the
+  owner's intended musical quality. They supplied six generated tracks.
+- Consequences: Keep originals/conversions ignored under assets; no upload,
+  remote asset store, Actions secret or automatic publication. The existing
+  Publish workflow still produces a music-free Pages site and both release ZIPs.
+  Website files remain publicly retrievable after the owner uploads them; Git
+  exclusion does not make hosted media private. The code license grants no
+  rights to the optional soundtrack; include a notice with website music.
+- Agent implementation choices: local FFmpeg conversion to 192 kbps stereo MP3,
+  cache by source/profile/content hashes, generated playlist, shuffled streaming
+  via the existing music bus and controls. Source play stays procedural; local
+  recorded-music testing serves the staged website. See
+  [issue 035](work-to-be-done/035-music.md) and [music guide](music.md).
+- Supersedes: The 2026-11-04 procedural-only music constraint for optional local
+  website builds only. SFX stay procedural; backend/CDN/framework restrictions,
+  manual release approval, and owner-managed commits remain unchanged.
+
+## 2026-11-05 — Accept recorded soundtrack for local testing
+
+- Decision: Accept the implemented soundtrack and commit the current changes
+  locally on the existing music branch.
+- Approval source: Owner in chat: "I like it. Please commit all the changes."
+- Rationale: The owner likes the recorded-music result after local testing.
+- Consequences: Record listening acceptance in issue 035; keep the separate
+  natural tab-hide check pending because it was not explicitly reported. The
+  ignored recordings remain outside Git. No push, PR, merge or publication is
+  authorized by this approval.
+- Supersedes: Pending owner listening acceptance for the recorded soundtrack.

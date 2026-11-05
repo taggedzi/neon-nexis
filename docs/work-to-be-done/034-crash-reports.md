@@ -1,6 +1,6 @@
 # 034 — Optional crash reports
 
-Status: Planned
+Status: Planned (deferred by owner, 2026-11-04)
 
 This document is a plan only. It does not change how the game plays.
 Building the work is a separate later task.
@@ -115,4 +115,7 @@ four-player co-op.
 
 ## Implementation and validation
 
-Not started. No files have been changed for this issue. No checks have been run.
+Owner decision, 2026-11-04: defer crash reports until a later project phase.
+No implementation is authorized now, and no return date is set. The issue stays
+Planned; it is not a dependency of issue 035. No runtime files changed or checks
+required for this deferral.

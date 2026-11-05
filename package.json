@@ -6,6 +6,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "music:convert": "node tools/music.cjs",
+    "build:website": "node tools/ci/package.cjs --minify --with-music",
     "check:syntax": "node tools/ci/syntax.cjs",
     "lint": "eslint .",
     "test:unit": "node tools/ci/unit.cjs",
