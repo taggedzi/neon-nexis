@@ -327,7 +327,7 @@
       if(active)S.endLocal();
       ending=null;clearTimeout(endTimer);endTimer=null;
       const result=original(...args);
-      if(active&&S.enabled())N.StatsUI?.showEnd(name==='leaveToMenu'?'menu':'coop');
+      if(active&&S.enabled()&&name!=='leaveToMenu')N.StatsUI?.showEnd('coop');
       return result;
     });
   }
@@ -335,9 +335,7 @@
     wrap(G,name,(original,args)=>{
       const solo=!N.Coop.isActive()&&G.run&&G.player;
       if(solo)S.endLocal();
-      const result=original(...args);
-      if(solo&&S.enabled()&&(name!=='saveAndQuit'||result))N.StatsUI?.showEnd('menu');
-      return result;
+      return original(...args);
     });
   }
   window.addEventListener('pagehide', S.flush);

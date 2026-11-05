@@ -1,5 +1,31 @@
 const {test,expect}=require('@playwright/test');
 
+async function deathFit(page){
+  return page.locator('#screen-gameover').evaluate(root => {
+    const scrolling = [root, document.documentElement, document.body, ...root.querySelectorAll('*')].filter(el => {
+      if (!el.getClientRects().length) return false;
+      const style = getComputedStyle(el);
+      const vertical = ['auto', 'scroll'].includes(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const horizontal = ['auto', 'scroll'].includes(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      return vertical || horizontal;
+    }).map(el => el.id || String(el.className));
+    const tables = [...root.querySelectorAll('.death-tally-table')];
+    const rects = tables.map(el => el.getBoundingClientRect());
+    const title = root.querySelector('.fatal-glitch').getBoundingClientRect();
+    return {
+      scrolling,
+      tables: tables.length,
+      sideBySide: rects.length === 2 && Math.abs(rects[0].top - rects[1].top) < 2 && rects[1].left > rects[0].right - 1,
+      left: tables[0] ? tables[0].textContent : '',
+      right: tables[1] ? tables[1].textContent : '',
+      clipped: root.scrollHeight > root.clientHeight + 2 || root.scrollWidth > root.clientWidth + 2,
+      titleInside: title.left >= 1 && title.right <= window.innerWidth - 1 && title.top >= 1 && title.bottom <= window.innerHeight - 1,
+      title: {left: title.left, right: title.right, top: title.top, bottom: title.bottom},
+      zoom: root.firstElementChild && root.firstElementChild.style.zoom || ''
+    };
+  });
+}
+
 test('025 combat counters count emitted shots once, including shields and persistent attacks',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/');await page.locator('#btn-boot').click();
@@ -52,11 +78,25 @@ test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing
   });
   await expect(page.locator('#gameover-tally')).toBeVisible();
   await expect(page.locator('#gameover-stats')).toContainText('SECTOR');
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const fit = await deathFit(page);
+  expect(fit.scrolling).toEqual([]);
+  expect(fit.tables).toBe(2);
+  expect(fit.sideBySide).toBe(true);
+  expect(fit.left).toContain('Shots fired');
+  expect(fit.right).toContain('Items lost on death');
+  expect(fit.clipped).toBe(false);
+  expect(fit.titleInside).toBe(true);
   const before=await page.evaluate(()=>({match:{...window.NEON.PlayerStats.match},stats:{...window.NEON.Profile.current().stats},save:window.NEON.readSave()}));
   expect(before.match.itemsLost).toBe(3);expect(before.match.hitsTaken).toBe(1);expect(before.save).toBeNull();
   await page.locator('#gameover-tally').scrollIntoViewIfNeeded();
   await page.screenshot({path:info.outputPath('match-tally.png')});
-  await page.locator('#btn-gameover-menu').click();await page.locator('#btn-player-stats').click();
+  await page.locator('#btn-gameover-menu').click();
+  await expect(page.locator('#screen-menu.active')).toBeVisible();
+  await expect(page.locator('#screen-menu')).not.toContainText('MATCH TALLY');
+  await expect(page.locator('#btn-player-stats')).toBeVisible();
+  await page.locator('#btn-player-stats').click();
   await page.locator('#stats-toggle').click();await expect(page.locator('#stats-toggle')).toHaveAttribute('aria-pressed','false');
   const stopped=await page.evaluate(()=>{
     const N=window.NEON,G=N.Game,S=N.PlayerStats;
@@ -84,6 +124,31 @@ test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing
   await expect(page.locator('#stats-toggle')).toHaveAttribute('aria-pressed','false');
   expect(await page.evaluate(()=>window.NEON.Profile.current().stats.itemsLost)).toBe(3);
 });
+
+for (const size of [{width:1280,height:720},{width:900,height:700},{width:1100,height:640},{width:360,height:640}]) {
+  test.describe('death screen '+size.width+'x'+size.height,()=>{
+    test.use({viewport:size});
+    test('solo tally is two tables and the screen fits',async({page})=>{
+      await page.goto('/');await page.locator('#btn-boot').click();
+      await page.evaluate(()=>{
+        const G=window.NEON.Game;
+        G.settings.skill='hardcore';G.newRun();G.pauseGame();
+        G.player.invuln=0;G.damagePlayer(99999,G.player.x,G.player.y);
+      });
+      await expect(page.locator('#gameover-tally')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const fit = await deathFit(page);
+      expect(fit.scrolling).toEqual([]);
+      expect(fit.tables).toBe(2);
+      expect(fit.sideBySide).toBe(true);
+      expect(fit.left).toContain('Shots fired');
+      expect(fit.right).toContain('Items lost on death');
+      expect(fit.clipped).toBe(false);
+      expect(fit.titleInside).toBe(true);
+    });
+  });
+}
 
 
 test('025 optional tally corruption preserves progress and memory checkpoints retain snapshots',async({page})=>{

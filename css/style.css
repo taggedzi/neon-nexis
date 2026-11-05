@@ -46,6 +46,8 @@ body:not(.playing) #game{cursor:default}
 @keyframes grainShift{0%{background-position:0 0}25%{background-position:30px -20px}50%{background-position:-20px 25px}75%{background-position:12px 35px}100%{background-position:-35px -12px}}
 
 .screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:clamp(16px,3vw,48px);pointer-events:none;overflow:auto}
+#screen-menu,#screen-ship,#screen-settings,#screen-pause,#screen-gameover{overflow:hidden;align-items:center;justify-content:center}
+#screen-menu>.menu-grid,#screen-ship>.ship-panel,#screen-settings>.settings-panel,#screen-pause>.pause-panel,#screen-gameover>.gameover-wrap{flex:0 0 auto;height:auto;max-height:none}
 .screen.active{display:flex;pointer-events:auto;animation:screenIn .25s ease-out}
 @keyframes screenIn{from{opacity:0}to{opacity:1}}
 .screen::before{content:"";position:fixed;inset:0;background:rgba(2,4,9,.58);backdrop-filter:blur(2px);z-index:-1}
@@ -73,6 +75,12 @@ body:not(.playing) #game{cursor:default}
 kbd{display:inline-block;padding:1px 5px;border:1px solid rgba(0,240,255,.4);border-bottom-color:rgba(0,240,255,.16);background:rgba(0,240,255,.06);color:var(--cyan);font-family:var(--mono);font-size:.88em;line-height:1.35;white-space:nowrap;box-shadow:inset 0 -1px 0 rgba(255,255,255,.06)}
 
 /* MENU */
+.menu-actions{display:grid;gap:16px;max-width:480px}
+.menu-actions .menu-buttons{max-width:none;gap:8px}
+.menu-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.menu-group-title{margin:0 0 8px;color:var(--magenta);font-size:12px;line-height:16px;font-weight:400;letter-spacing:.12em}
+.menu-footer .neon-btn{min-height:32px;padding:8px 12px}
+.menu-actions .neon-btn{min-width:0;overflow-wrap:anywhere}
 .menu-screen{justify-content:stretch;align-items:stretch}
 .menu-grid{display:grid;grid-template-columns:minmax(340px,1.1fr) minmax(280px,.75fr);gap:5vw;width:100%;max-width:1420px;margin:auto;align-items:center;padding-left:2vw}
 .menu-main{max-width:720px}
@@ -142,12 +150,32 @@ kbd{display:inline-block;padding:1px 5px;border:1px solid rgba(0,240,255,.4);bor
 .panel-head .eyebrow{margin-bottom:2px}
 
 /* SETTINGS */
+.screen:has(>.settings-panel),.screen:has(>.ship-panel),.screen:has(>.pause-panel){padding:16px}
+.panel.settings-panel,.panel.ship-panel{display:flex;flex-direction:column;width:min(1000px,100%);max-height:none;padding:24px;overflow:visible;min-width:0}
+.settings-panel>.panel-head,.ship-panel>.panel-head{flex-shrink:0;margin-bottom:16px;padding-bottom:12px}
+.settings-panel>.panel-footer,.ship-panel>.panel-footer{flex-shrink:0;flex-wrap:nowrap;gap:12px;margin-top:16px;padding-top:12px}
+.settings-panel>.panel-footer .neon-btn,.ship-panel>.panel-footer .neon-btn{min-width:0;width:auto}
+.settings-panel .settings-tabs{flex-shrink:0;flex-wrap:wrap;margin-bottom:16px}
+.settings-tabs .tab{min-width:80px}
+.settings-panel .settings-body,.ship-body{overflow:visible;min-width:0;padding:4px 8px 4px 4px}
+.control-group{margin-bottom:24px;min-width:0}
+.control-group>h3{margin:0 0 8px;color:var(--cyan);font-size:14px;line-height:20px;letter-spacing:.12em;font-weight:400}
+.control-group>.micro{margin:0 0 12px}
+.menu-details{margin:12px 0;color:var(--muted);font-size:12px;line-height:20px}
+.menu-details summary{cursor:pointer;color:var(--cyan);padding:8px;border:1px solid var(--line);background:rgba(0,240,255,.035)}
+.menu-details summary:hover{background:rgba(0,240,255,.1)}
+.menu-details summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.menu-details p{margin:8px 0}
+.settings-body .setting-row{flex-wrap:wrap;gap:12px}
+.settings-body .setting-label{flex-basis:200px;overflow-wrap:anywhere}
+.settings-body .setting-control{max-width:100%}
+.settings-body .segmented{flex-wrap:wrap;max-width:100%}
 .settings-panel{width:min(900px,95vw)}
 .settings-tabs{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--line)}
 .tab{flex:1;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:10px;letter-spacing:.2em;padding:11px 6px;transition:.14s;text-transform:uppercase}
 .tab:hover,.tab:focus-visible{color:var(--cyan);outline:none;background:rgba(0,240,255,.04)}
 .tab.active{color:#fff;border-bottom-color:var(--cyan);background:linear-gradient(180deg,transparent,rgba(0,240,255,.06))}
-.settings-body{min-height:360px;position:relative;z-index:1}
+.settings-body{min-height:0;position:relative;z-index:1}
 .settings-section{margin-bottom:22px}
 .settings-section h3{margin:0 0 11px;font-size:9px;letter-spacing:.22em;color:var(--magenta);font-weight:400;text-transform:uppercase;display:flex;gap:10px;align-items:center}
 .settings-section h3::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(255,43,214,.3),transparent)}
@@ -184,7 +212,14 @@ input[type=range]:focus-visible{filter:brightness(1.4)}
 .data-block .neon-btn{max-width:240px}
 
 /* PAUSE / INVENTORY */
-.pause-panel{width:min(520px,92vw)}
+.panel.pause-panel{width:min(700px,100%);padding:24px;max-height:none;overflow:visible}
+.pause-actions{display:grid;gap:16px}
+.pause-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.pause-group{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pause-group .menu-group-title{margin-bottom:0}
+.pause-footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px;margin:8px 0 16px}
+.pause-actions .neon-btn{min-width:0;overflow-wrap:anywhere}
+.pause-panel .pause-stats{margin-bottom:16px}
 #pause-pointer-hint{margin:12px 0 0}
 .pause-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.12);margin:0 0 20px}
 .pause-stats div{background:rgba(3,8,14,.8);padding:10px 12px;display:flex;justify-content:space-between;gap:8px}
@@ -249,8 +284,9 @@ input[type=range]:focus-visible{filter:brightness(1.4)}
 .overflow-item .swap-btn:hover,.overflow-item .swap-btn:focus-visible{background:rgba(255,43,214,.16);border-color:var(--magenta);color:#fff;outline:none}
 
 /* GAME OVER / COMPLETE */
-.gameover-wrap{text-align:center;max-width:900px}
-.fatal-glitch{position:relative;font-family:var(--display);font-size:clamp(64px,13vw,160px);line-height:.82;font-weight:900;letter-spacing:-.03em;color:#fff;text-shadow:0 0 6px #fff,0 0 30px var(--red),0 0 80px rgba(255,51,92,.45);transform:skewX(-6deg)}
+/* The title is only as wide as the words. A full-width skewed box was wider than the window. */
+.gameover-wrap{text-align:center;width:min(900px,100%);max-width:900px;padding-left:28px;padding-right:28px}
+.fatal-glitch{display:inline-block;padding:0 18px;white-space:nowrap;position:relative;font-family:var(--display);font-size:clamp(64px,13vw,160px);line-height:.82;font-weight:900;letter-spacing:-.03em;color:#fff;text-shadow:0 0 6px #fff,0 0 30px var(--red),0 0 80px rgba(255,51,92,.45);transform:skewX(-6deg)}
 .fatal-glitch::before,.fatal-glitch::after{content:attr(data-text);position:absolute;inset:0;pointer-events:none}
 .fatal-glitch::before{color:var(--cyan);transform:translate(-5px,2px);clip-path:inset(16% 0 62% 0);animation:failGlitch .7s steps(2) infinite;opacity:.7}
 .fatal-glitch::after{color:var(--magenta);transform:translate(6px,-2px);clip-path:inset(55% 0 18% 0);animation:failGlitch .55s steps(2) infinite reverse;opacity:.7}
@@ -304,6 +340,14 @@ body.playing .gamepad-status{bottom:10px}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 
 .ship-panel #ship-preview{display:block;width:min(320px,100%);height:auto;margin:0 auto;background:radial-gradient(ellipse,rgba(0,240,255,.04),transparent 70%)}
+.ship-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px}
+.ship-column{min-width:0}
+.ship-column .ship-choices{justify-content:flex-start;margin:8px 0 12px}
+.ship-column .coop-label{margin-top:16px}
+.ship-column .micro{line-height:1.7;overflow-wrap:anywhere}
+.ship-column .neon-btn{max-width:100%;overflow-wrap:anywhere}
+.ship-column .sector-choices{align-items:center}
+.ship-column #solo-loadouts{display:grid;grid-template-columns:1fr}
 .ship-choices{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:12px 0}
 .ship-choices button{background:rgba(0,240,255,.035);border:1px solid var(--line);padding:10px 12px;color:var(--text);font-size:10px;letter-spacing:.12em}
 .ship-choices button[aria-pressed="true"]{border-color:var(--choice-color,var(--cyan));box-shadow:inset 0 0 12px rgba(0,240,255,.12);color:var(--choice-color,var(--cyan))}
@@ -340,8 +384,10 @@ body.playing .gamepad-status{bottom:10px}
   .coop-config .micro{text-align:center}
 }
 @media (max-width:900px){
-  .menu-grid{grid-template-columns:1fr;gap:30px;padding-left:0;max-width:700px;align-content:center}
-  .menu-side{display:none}
+  .menu-grid{grid-template-columns:minmax(0,1fr);gap:32px;padding-left:0;max-width:700px;align-content:center}
+  .menu-side{align-items:center}
+  .menu-side .micro{text-align:center}
+  .control-strip{justify-content:center}
   .menu-main{margin:auto;width:100%}
   .logo{font-size:clamp(58px,16vw,110px)}
   .controls-grid{grid-template-columns:1fr}
@@ -367,7 +413,7 @@ body.playing .gamepad-status{bottom:10px}
   .subtitle{letter-spacing:.25em;margin-bottom:26px}
   .eyebrow{font-size:8px;letter-spacing:.2em}
   .howto-grid{grid-template-columns:1fr}
-  .settings-tabs{overflow:auto}
+  .settings-tabs{flex-wrap:wrap}
   .tab{font-size:8px;white-space:nowrap;padding:9px 5px}
   .setting-row{align-items:flex-start;flex-direction:column;gap:7px}
   .range-wrap{width:100%;min-width:0}
@@ -383,6 +429,36 @@ body.playing .gamepad-status{bottom:10px}
 @media (prefers-reduced-motion:reduce){
   .logo::after,.grain,.holo-ring,.pulse-dot{animation:none!important}
   .screen.active{animation:none}
+}
+
+@media (max-width:700px){
+  .ship-body{grid-template-columns:1fr;gap:24px}
+  .settings-body .setting-label{flex-basis:auto}
+  .settings-panel .panel-head h2,.ship-panel .panel-head h2{font-size:24px;line-height:32px}
+}
+@media (max-width:480px){
+  .panel.settings-panel,.panel.ship-panel{padding:16px}
+  .pause-groups{grid-template-columns:1fr;gap:16px}
+  .pause-footer{grid-template-columns:1fr;gap:24px}
+  .pause-panel .panel-head{flex-wrap:wrap;gap:8px}
+  .menu-actions .neon-btn{padding:8px 12px;letter-spacing:.12em}
+  .settings-panel>.panel-footer .neon-btn,.ship-panel>.panel-footer .neon-btn{padding:8px;letter-spacing:.08em;font-size:10px}
+}
+@media (max-height:600px){
+  .panel.settings-panel,.panel.ship-panel{padding:16px}
+  .settings-panel>.panel-head,.ship-panel>.panel-head{margin-bottom:8px;padding-bottom:8px}
+  .settings-panel .panel-head h2,.ship-panel .panel-head h2{font-size:24px;line-height:32px}
+  .settings-panel .settings-tabs{margin-bottom:8px}
+  .settings-panel>.panel-footer,.ship-panel>.panel-footer{margin-top:8px;padding-top:8px}
+}
+@media (min-width:481px) and (max-height:700px){
+  .pause-panel{padding:16px}
+  .pause-panel .panel-head{margin-bottom:12px;padding-bottom:8px}
+  .pause-panel .panel-head h2{font-size:30px;line-height:36px}
+  .pause-panel .pause-stats{margin-bottom:12px}
+  .pause-panel .pause-stats div{padding:8px 12px}
+  .pause-actions{gap:12px}
+  .pause-footer{margin:4px 0 8px}
 }
 
 /* Pending rewards stay available without interrupting combat. */
@@ -406,12 +482,19 @@ body.controller-nav #ui .screen :is(a[href],button,input,select,[tabindex]):focu
 
 /* Match/lifetime tables use the existing panel colors and menu focus path. */
 .tally-container{max-width:100%;max-height:320px;overflow:auto;margin-top:16px;scrollbar-width:thin}
+#gameover-tally{max-height:none;overflow:visible}
+.death-tally-title{margin:0 0 8px;font-size:11px;letter-spacing:.16em;color:var(--muted)}
+.death-tally-columns{display:grid;width:max-content;margin-inline:auto;grid-template-columns:max-content max-content;gap:4px 28px;text-align:left}
+.death-tally-table{width:100%;border-collapse:collapse}
+.death-tally-table caption{height:0;padding:0;margin:0;font-size:0;line-height:0;overflow:hidden;color:transparent}
+.death-tally-table th,.death-tally-table td{padding:3px 0;border-bottom:1px solid rgba(255,51,92,.2);font-size:12px;line-height:16px;font-weight:400;white-space:nowrap}
+.death-tally-table th{color:var(--muted);letter-spacing:.06em;text-align:left;padding-right:10px}
+.death-tally-table td{color:#fff;font-size:13px;text-align:right}
+.death-tally-table td:focus{outline:2px solid var(--cyan);outline-offset:-2px}
 .tally-table{width:100%;border-collapse:collapse;text-align:left}
 .tally-table caption{text-align:left;font-weight:600;padding:8px}
 .tally-table th,.tally-table td{padding:8px;border:1px solid var(--line);font-size:14px;line-height:20px}
 .tally-table td:focus{outline:2px solid var(--cyan);outline-offset:-2px}
-
-.gameover-wrap:has(.tally-container:not([hidden])){max-height:calc(100vh - 32px);overflow:auto}
 
 .about-content{position:relative;z-index:1;color:var(--muted);font-size:14px;line-height:20px;text-wrap:pretty}
 .about-content p{margin:0 0 16px}

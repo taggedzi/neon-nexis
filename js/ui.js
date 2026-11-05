@@ -16,23 +16,105 @@ let shipSelection=null;
 let coopSelection=null;
 let oldSaveRaw=null;
 const focusTimers=[];
+const navigationTrail = [];
+let activatedControl = null;
 let navDirection='',navRepeatAt=0;
+const fittedScreens = new Set(['menu', 'ship', 'settings', 'pause', 'gameover']);
+let fitFrame = 0;
 
 function screenEl(name){return document.getElementById('screen-'+name);}
 function esc(s){return N.safeName(String(s==null?'':s));}
 function clearFocusTimers(){while(focusTimers.length)clearTimeout(focusTimers.pop());}
 function showScreen(name,noFocus){
+  let returnFocus = null;
+  if (name !== currentScreen) {
+    const returning = navigationTrail.findIndex(entry => entry.screen === name);
+    if (returning >= 0) {
+      returnFocus = navigationTrail[returning].controlId;
+      navigationTrail.splice(returning);
+    } else if (currentScreen) {
+      const control = activatedControl || document.activeElement;
+      navigationTrail.push({
+        screen: currentScreen,
+        controlId: currentScreen === 'pause' && name === 'rewards' ? 'btn-pause-rewards'
+          : currentScreen === 'pause' && name === 'inventory' ? 'btn-inventory'
+            : screenEl(currentScreen)?.contains(control) ? control.id : null
+      });
+    }
+  } else if (screenEl(name)?.contains(document.activeElement)) {
+    returnFocus = document.activeElement.id;
+  }
   N.Input.resetFire();
   for(const n of screens){const el=screenEl(n);if(el)el.classList.toggle('active',n===name);}
   currentScreen=name;
   navDirection='';navRepeatAt=0;
   clearFocusTimers();
-  if(name!=='boot'&&!noFocus)focusTimers.push(setTimeout(()=>focusFirst(),30));
+  if(name!=='boot'&&!noFocus)focusTimers.push(setTimeout(()=>{
+    const control = returnFocus ? $(returnFocus) : null;
+    if (focusables().includes(control)) {
+      focusControl(control);
+    } else {
+      focusFirst();
+    }
+  },30));
+  scheduleScreenFit();
 }
 UI.showScreen=showScreen;
+
+// Zoom changes the layout size. A transform would leave the old box in place
+// and the screen would keep its scrollbar.
+function scheduleScreenFit() {
+  if (fitFrame) return;
+  fitFrame = requestAnimationFrame(() => {
+    fitFrame = 0;
+    fitActiveScreen();
+  });
+}
+function fitActiveScreen() {
+  const screen = screenEl(currentScreen);
+  if (!screen || !fittedScreens.has(currentScreen)) return;
+  const content = screen.firstElementChild;
+  if (!content) return;
+  content.style.zoom = '';
+  const screenStyle = getComputedStyle(screen);
+  const availableHeight = screen.clientHeight - parseFloat(screenStyle.paddingTop) - parseFloat(screenStyle.paddingBottom);
+  const availableWidth = screen.clientWidth - parseFloat(screenStyle.paddingLeft) - parseFloat(screenStyle.paddingRight);
+  if (availableHeight < 1 || availableWidth < 1) return;
+  // The death title's skew paints outside its own box. Keep that ink inside the window.
+  const slack = currentScreen === 'gameover' ? 28 : 1;
+  let scale = 1;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const bounds = fitBounds(content);
+    if (bounds.height < 1 || bounds.width < 1) return;
+    const next = scale * Math.min(1, (availableHeight - 1) / bounds.height, (availableWidth - slack) / bounds.width);
+    if (next > 0.999) {
+      if (scale === 1) content.style.zoom = '';
+      return;
+    }
+    scale = Math.max(0.01, Math.floor(next * 1000) / 1000);
+    content.style.zoom = String(scale);
+    const fitted = fitBounds(content);
+    if (fitted.height <= availableHeight && fitted.width <= availableWidth) return;
+  }
+}
+function fitBounds(content) {
+  const bounds = content.getBoundingClientRect();
+  if (currentScreen !== 'gameover') return bounds;
+  let left = bounds.left, right = bounds.right, top = bounds.top, bottom = bounds.bottom;
+  for (const el of content.querySelectorAll('*')) {
+    if (!el.getClientRects().length) continue;
+    const rect = el.getBoundingClientRect();
+    left = Math.min(left, rect.left);
+    right = Math.max(right, rect.right);
+    top = Math.min(top, rect.top);
+    bottom = Math.max(bottom, rect.bottom);
+  }
+  return {width: right - left, height: bottom - top};
+}
 UI.hideAll=function(){
   for(const n of screens){const el=screenEl(n);if(el)el.classList.remove('active');}
   currentScreen=null;
+  navigationTrail.length = 0;
   N.Input.cancelCapture();
   clearFocusTimers();
 };
@@ -41,7 +123,7 @@ UI.currentScreen=()=>currentScreen;
 
 function focusables(){
   const s=screenEl(currentScreen);if(!s)return [];
-  return Array.from(s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+  return Array.from(s.querySelectorAll('a[href],summary,button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'))
     .filter(el=>el.offsetParent!==null);
 }
 function focusControl(el){
@@ -80,6 +162,23 @@ UI.toast=function(text,type='info',duration){
 };
 
 UI.init=function(){
+  // Firefox does not focus every mouse-clicked button. Capture the actual origin
+  // before its handler changes screens, without changing native click behavior.
+  $('ui').addEventListener('click', event => {
+    activatedControl = event.target.closest('button,a,summary');
+    queueMicrotask(() => { activatedControl = null; });
+  }, true);
+  const screenFitObserver = new MutationObserver(scheduleScreenFit);
+  for (const name of fittedScreens) {
+    const screen = screenEl(name);
+    if (screen) screenFitObserver.observe(screen, { childList: true, subtree: true, characterData: true });
+  }
+  $('ui').addEventListener('toggle', event => {
+    if (event.target instanceof Element && fittedScreens.has(currentScreen) && screenEl(currentScreen).contains(event.target)) {
+      scheduleScreenFit();
+    }
+  }, true);
+  window.addEventListener('resize', scheduleScreenFit);
   $('about-version').textContent = N.RELEASE_VERSION;
   $('menu-version').textContent = 'BUILD ' + N.RELEASE_VERSION + ' // CLIENT-SIDE ASSET SYNTHESIS';
   for (const [id, shouldExport] of [['btn-old-save-export', true], ['btn-old-save-remove', false]]) {
@@ -699,22 +798,23 @@ function assignBinding(type,action,value){
   map[action]=value;
 }
 function renderSettings(){
+  const openHelp = Array.from(document.querySelectorAll('#settings-body details[open]'))
+    .map(detail => detail.dataset.help);
+  const previousTab = $('settings-body')?.dataset.settingsTab;
   const active=document.activeElement;
   const focusKey=active?.closest('#settings-body')?['setting','toggle','quality','movementMode','firingMode','bindKey','bindPad','action'].find(k=>active.dataset[k]!=null):null;
   const focusValue=focusKey?active.dataset[focusKey]:null;
   const s=G.settings;
   document.querySelectorAll('#screen-settings .tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===settingsTab));
   const body=$('settings-body');if(!body)return;
+  body.dataset.settingsTab = settingsTab;
   if(settingsTab==='controls'){
     const driving=s.movementMode==='driving';
     const drivingLabels={moveUp:'FORWARD THRUST',moveDown:'BRAKE / REVERSE',moveLeft:'STEER LEFT',moveRight:'STEER RIGHT'};
     body.innerHTML=`
-      <div class="settings-section"><h3>CONTROLLER QUICK GUIDE</h3>
-        <div class="data-block"><p>Menus: D-pad or left stick selects; left/right adjusts sliders. A / Cross (bottom face button) confirms; B / Circle (right face button) goes back. START / Options also goes back. Hold a direction to repeat. Menu buttons stay fixed when gameplay bindings change.</p>
-        <p>Gameplay: left stick ${driving?'steers and thrusts / brakes / reverses':'moves'}; right stick aims. ${N.PAD_ACTIONS.map(([action,label])=>esc(label)+': '+esc(N.padLabel(s.gamepad[action]))).join(' · ')}. Weapon cycling requires more than one equipped weapon. Pickups attach automatically while weapon bays are available; with full bays, open Rewards to install or replace weapons.</p>
-        <p>Labels use Xbox / standard browser button order (A = Cross, B = Circle, X = Square, Y = Triangle; LB/RB = L1/R1; LT/RT = L2/R2). Other controllers may report different layouts; use the input monitor and remap gameplay buttons below.</p>
-        <p id="controller-monitor"></p></div>
-      </div>
+      <section class="control-group" aria-labelledby="controls-shared-title">
+        <h3 id="controls-shared-title">SHARED BEHAVIOR</h3>
+        <p class="micro">APPLIES TO KEYBOARD / MOUSE AND CONTROLLER. SAVED BETWEEN SESSIONS.</p>
       <div class="settings-section"><h3>MOVEMENT MODE</h3>
         <div class="setting-row"><div class="setting-label"><b>SHIP CONTROLS</b><small>SAVED BETWEEN SESSIONS</small></div>
           <div class="segmented">
@@ -722,11 +822,7 @@ function renderSettings(){
             <button data-movement-mode="driving" aria-pressed="${driving}" class="${driving?'active':''}" type="button">DRIVING</button>
           </div>
         </div>
-        <div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves and right stick aims; optional right-stick firing is controlled below. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div>
-      </div>
-      <div class="settings-section"><h3>POINTER</h3>
-        ${toggleHTML('capturePointer','CAPTURE POINTER WHILE PLAYING','CLICK THE PLAYFIELD DURING A RUN')}
-        <div class="data-block"><p>Capture starts on a playfield click and releases when the run pauses. Esc also releases it. A denied request still pauses the run when the window loses focus. Touch input does not request capture.</p></div>
+        <details class="menu-details" data-help="movement"><summary>Movement details</summary><div class="data-block"><p>${driving?'Forward follows the ship nose. Brake slows forward motion before reversing. Steering also turns at rest. Mouse/right stick aims weapons independently. Left stick: horizontal steering, up for thrust, down for brake/reverse. Fire and dash use the mapped buttons. A neutral stick is required after pauses, focus changes or disconnects.':'Movement follows screen directions. Left stick moves and right stick aims; optional right-stick firing is controlled below. Mouse aim/fire remains available.'} The movement keys below respect remapping.</p></div></details>
       </div>
       <div class="settings-section"><h3>FIRING MODE</h3>
         <div class="setting-row"><div class="setting-label"><b>WEAPON TRIGGER</b><small>SAVED BETWEEN SESSIONS</small></div>
@@ -735,17 +831,30 @@ function renderSettings(){
             <button data-firing-mode="toggle" aria-pressed="${s.firingMode==='toggle'}" class="${s.firingMode==='toggle'?'active':''}" type="button">TOGGLE FIRE</button>
           </div>
         </div>
-        ${toggleHTML('rightStickFire','RIGHT STICK FIRES')}
-        <div class="data-block"><p>Use LMB, the remapped Fire key, or the mapped controller Fire button. Hold mode fires while pressed. Toggle mode changes ON/OFF once per press. Optional right-stick firing uses each neutral-to-aim movement as a press in directional mode. Auto-fire stays ON until toggled OFF, including across menus, pause, focus loss and new runs. Weapons only fire during focused gameplay. Changing firing modes resets auto-fire OFF. Release held fire inputs before rearming after an interruption. Aiming and weapon cooldowns are unchanged.</p></div>
+        <details class="menu-details" data-help="firing"><summary>Firing details</summary><div class="data-block"><p>Use LMB, the remapped Fire key, or the mapped controller Fire button. Hold mode fires while pressed. Toggle mode changes ON/OFF once per press. Optional right-stick firing uses each neutral-to-aim movement as a press in directional mode. Auto-fire stays ON until toggled OFF, including across menus, pause, focus loss and new runs. Weapons only fire during focused gameplay. Changing firing modes resets auto-fire OFF. Release held fire inputs before rearming after an interruption. Aiming and weapon cooldowns are unchanged.</p></div></details>
       </div>
+      </section>
+      <section class="control-group" aria-labelledby="controls-keyboard-title">
+        <h3 id="controls-keyboard-title">KEYBOARD &amp; MOUSE</h3>
+        <p class="micro">SELECT A BINDING, THEN PRESS A KEY. ESCAPE CANCELS. DUPLICATES SWAP.</p>
       <div class="settings-section"><h3>KEYBOARD BINDINGS</h3>
         ${N.KEY_ACTIONS.map(([action,label])=>`
           <div class="setting-row"><div class="setting-label"><b>${driving?(drivingLabels[action]||label):label}</b><small>KEYBOARD / MOUSE SETUP</small></div>
           <button class="keybind" data-bind-key="${action}" type="button">${esc(N.keyLabel(s.keyboard[action]))}</button></div>`).join('')}
       </div>
+      <div class="settings-section"><h3>POINTER</h3>
+        ${toggleHTML('capturePointer','CAPTURE POINTER WHILE PLAYING','CLICK THE PLAYFIELD DURING A RUN')}
+        <details class="menu-details" data-help="pointer"><summary>Pointer capture details</summary><div class="data-block"><p>Capture starts on a playfield click and releases when the run pauses. Esc also releases it. A denied request still pauses the run when the window loses focus. Touch input does not request capture.</p></div></details>
+      </div>
+      </section>
+      <section class="control-group" aria-labelledby="controls-controller-title">
+        <h3 id="controls-controller-title">CONTROLLER</h3>
+        <p id="controller-monitor" class="micro"></p>
+        <p class="micro">MENUS: D-PAD / LEFT STICK SELECTS · A / CROSS CONFIRMS · B / CIRCLE GOES BACK.</p>
+        ${toggleHTML('rightStickFire','RIGHT STICK FIRES','DIRECTIONAL MODE: AIM TO TRIGGER FIRE')}
       <div class="settings-section"><h3>GAMEPAD BINDINGS</h3>
         ${N.PAD_ACTIONS.map(([action,label])=>`
-          <div class="setting-row"><div class="setting-label"><b>${label}</b><small>${N.Input.isPadConnected()?esc(N.Input.getPadName()).slice(0,48):'NO CONTROLLER DETECTED'}</small></div>
+          <div class="setting-row"><div class="setting-label"><b>${label}</b><small>GAMEPLAY BUTTON</small></div>
           <button class="keybind pad" data-bind-pad="${action}" type="button">${esc(N.padLabel(s.gamepad[action]))}</button></div>`).join('')}
         <div class="setting-row"><div class="setting-label"><b>STICK DEADZONE</b><small>GAMEPAD INPUT THRESHOLD</small></div>
           <div class="setting-control"><div class="range-wrap">
@@ -754,7 +863,13 @@ function renderSettings(){
           </div></div>
         </div>
       </div>
-      <div class="data-block"><p>Select a binding, then press the desired key or gamepad button. Duplicate assignments are swapped automatically. Escape cancels keyboard capture; B / Circle also cancels keyboard capture. Controller capture accepts any button, including menu buttons. Mouse aim/fire is always available in addition to gamepad controls.</p></div>`;
+        <details class="menu-details" data-help="controller"><summary>Controller guide and remapping details</summary><div class="data-block"><p>Menus: D-pad or left stick selects; left/right adjusts sliders. A / Cross (bottom face button) confirms; B / Circle (right face button) goes back. START / Options also goes back. Hold a direction to repeat. Menu buttons stay fixed when gameplay bindings change.</p>
+        <p>Gameplay: left stick ${driving?'steers and thrusts / brakes / reverses':'moves'}; right stick aims. ${N.PAD_ACTIONS.map(([action,label])=>esc(label)+': '+esc(N.padLabel(s.gamepad[action]))).join(' · ')}. Weapon cycling requires more than one equipped weapon. Pickups attach automatically while weapon bays are available; with full bays, open Rewards to install or replace weapons.</p>
+        <p>Labels use Xbox / standard browser button order (A = Cross, B = Circle, X = Square, Y = Triangle; LB/RB = L1/R1; LT/RT = L2/R2). Other controllers may report different layouts; use the input monitor and remap gameplay buttons in this section.</p>
+        </div>
+      <div class="data-block"><p>Select a binding, then press the desired key or gamepad button. Duplicate assignments are swapped automatically. Escape cancels keyboard capture; B / Circle also cancels keyboard capture. Controller capture accepts any button, including menu buttons. Mouse aim/fire is always available in addition to gamepad controls.</p></div>
+        </details>
+      </section>`;
   }else if(settingsTab==='audio'){
     body.innerHTML=`
       <div class="settings-section"><h3>OUTPUT LEVELS</h3>
@@ -810,6 +925,13 @@ function renderSettings(){
       </div>`;
   }
   bindRows(body);
+  if (previousTab === settingsTab) {
+    body.querySelectorAll('details').forEach(detail => {
+      detail.open = openHelp.includes(detail.dataset.help);
+    });
+  } else {
+    body.scrollTop = 0;
+  }
   if(focusKey)focusControl(Array.from(body.querySelectorAll('button,input')).find(el=>el.dataset[focusKey]===focusValue));
 }
 UI.switchSettingsTab=function(tab){settingsTab=tab;renderSettings();};
@@ -1016,6 +1138,7 @@ UI.updateRewards=function(){
   if(button.textContent!==label)button.textContent=label;
 };
 UI.showRewards=function(){
+  $('btn-rewards-close').textContent = G.rewardsFromPause ? 'RETURN TO PAUSE' : 'RETURN TO COMBAT';
   const pending=N.Rewards.state().pending,list=$('rewards-list');list.replaceChildren();
   const protocol=$('btn-rewards-protocol');
   protocol.textContent=`CHOOSE PROTOCOL (${G.pendingLevelUps})`;protocol.disabled=G.pendingLevelUps<=0;

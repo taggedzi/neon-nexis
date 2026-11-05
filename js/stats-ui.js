@@ -31,13 +31,50 @@
     });
     el.append(body);box.append(el);
   }
+  function deathTable(caption,entries){
+    const el=document.createElement('table');
+    el.className='death-tally-table';
+    const cap=document.createElement('caption');
+    cap.textContent=caption;
+    el.append(cap);
+    const body=document.createElement('tbody');
+    for(const [label,shown] of entries){
+      const row=document.createElement('tr');
+      const name=document.createElement('th');
+      name.scope='row';
+      name.textContent=label;
+      const value=document.createElement('td');
+      value.tabIndex=0;
+      value.textContent=shown;
+      row.append(name,value);
+      body.append(row);
+    }
+    el.append(body);
+    return el;
+  }
+  function compactTally(box,title,player){
+    box.replaceChildren();
+    const heading=document.createElement('p');
+    heading.className='death-tally-title';
+    heading.textContent=title;
+    const entries=P.statKeys.map((key,index)=>{
+      const shown=player.enabled===false?'Recording off':player.row?player.row[key].toLocaleString():'Unavailable';
+      return [S.labels[index],shown];
+    });
+    const mid=Math.ceil(entries.length/2);
+    const columns=document.createElement('div');
+    columns.className='death-tally-columns';
+    columns.append(deathTable(title,entries.slice(0,mid)),deathTable(title,entries.slice(mid)));
+    box.append(heading,columns);
+  }
   function board(id,coopOnly=false){
     const box=$(id);if(!box)return;
     const data=S.lastBoard;
     const visible=S.enabled()&&!!data&&(!coopOnly||data.coop);
     box.hidden=!visible;
     if(visible){
-      table(box,'MATCH TALLY',data.rows);
+      if(id==='gameover-tally'&&data.rows.length===1)compactTally(box,'MATCH TALLY',data.rows[0]);
+      else table(box,'MATCH TALLY',data.rows);
       if(coopOnly){
         const summary=document.createElement('p'),d=data.summary;
         summary.textContent='SECTOR '+d.sector+' // KILLS '+d.kills+' // PILOT LEVEL '+d.level;
@@ -52,7 +89,7 @@
     }
   };
   V.showEnd=function(where){
-    board(where==='coop'?'coop-last-stats':'menu-match-tally',where==='coop');
+    if(where==='coop')board('coop-last-stats',true);
   };
   function renderLifetime(){
     const profile=P.current();
@@ -74,7 +111,7 @@
       if(!$('coop-last-stats').hidden&&S.lastBoard?.coop)board('coop-last-stats',true);
     });
   };
-  for(const [name,id,coopOnly] of [['showMenu','menu-match-tally',false],['showCoop','coop-last-stats',true],['showGameOver','gameover-tally',false]]){
+  for(const [name,id,coopOnly] of [['showCoop','coop-last-stats',true],['showGameOver','gameover-tally',false]]){
     const original=UI[name];
     UI[name]=function(...args){const result=original(...args);board(id,coopOnly);return result;};
   }

@@ -1375,7 +1375,8 @@ test('025 disabled guest ignores credits without later backfill and leaving keep
   });
   await expect.poll(()=>guest.evaluate(()=>window.NEON.PlayerStats.remote.row.shotsFired)).toBe(1);
   await guest.evaluate(()=>window.NEON.Coop.leaveToMenu());
-  await expect(guest.locator('#menu-match-tally .tally-table')).toBeVisible();
+  await expect(guest.locator('#screen-menu.active')).toBeVisible();
+  await expect(guest.locator('#menu-match-tally')).toHaveCount(0);
   const rows=await guest.evaluate(()=>window.NEON.PlayerStats.lastBoard.rows.map(p=>p.row));
   expect(rows).toHaveLength(2);expect(rows[0].shotsFired).toBe(1);expect(rows[1].shipsDestroyed).toBe(0);
   expect(errors).toEqual([]);
