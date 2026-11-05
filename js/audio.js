@@ -5,6 +5,7 @@ const N = window.NEON;
 const A = N.Audio = {};
 let ctx=null, master=null, musicBus=null, sfxBus=null, comp=null, noiseBuf=null;
 let scoreBus = null, recordedMusic = null;
+let contextTransition = null, wantsSuspended = false;
 let settings=N.deepMerge(N.SETTINGS_DEFAULT,{});
 let unlocked=false, started=false;
 let intensity=.4, scene='menu';
@@ -384,25 +385,44 @@ A.checkpoint=function(){
 };
 A.noiseBurst=function(dur=.1,vol=.1,freq=1000){if(unlocked&&!settings.audio.muted)try{noise(sfxTime(),dur,vol,freq,'bandpass',sfxBus);}catch(e){}};
 // Navigation can reject pending state changes asynchronously; audio stays optional.
+function syncContextState() {
+  if (!ctx || contextTransition) {
+    return;
+  }
+  const requestedSuspension = wantsSuspended;
+  const method = requestedSuspension ? 'suspend' : 'resume';
+  const requiredState = requestedSuspension ? 'running' : 'suspended';
+  if (ctx.state !== requiredState) {
+    return;
+  }
+  try {
+    const pending = Promise.resolve(ctx[method]());
+    contextTransition = pending;
+    const settled = () => {
+      contextTransition = null;
+      // Reconcile only a newer intent; rejected requests must not retry forever.
+      if (wantsSuspended !== requestedSuspension) {
+        syncContextState();
+      }
+    };
+    pending.then(settled, settled);
+  } catch (error) {
+    // Audio is optional when navigation or browser policy rejects a transition.
+  }
+}
 A.suspend=function(){
+  wantsSuspended = true;
   if (recordedMusic) {
     recordedMusic.update({ suspended: true });
   }
-  if(ctx && ctx.state==='running'){
-    try{
-      ctx.suspend().catch(()=>{});
-    }catch(e){}
-  }
+  syncContextState();
 };
 A.resume=function(){
+  wantsSuspended = false;
   if (recordedMusic) {
     recordedMusic.update({ suspended: false }, true);
   }
-  if(ctx && ctx.state==='suspended'){
-    try{
-      ctx.resume().catch(()=>{});
-    }catch(e){}
-  }
+  syncContextState();
 };
 A.now=now;
 N.audio=A;

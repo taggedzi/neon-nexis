@@ -45,9 +45,12 @@ async function check() {
       failureMode = mode;
       audioContext.state = 'suspended';
       assert.equal(neon.Audio.unlock(), true);
+      await new Promise(resolve => setImmediate(resolve));
       neon.Audio.resume();
+      await new Promise(resolve => setImmediate(resolve));
       audioContext.state = 'running';
       neon.Audio.suspend();
+      await new Promise(resolve => setImmediate(resolve));
       // Already-running resume and already-suspended suspend must do nothing.
       neon.Audio.resume();
       audioContext.state = 'suspended';
@@ -57,10 +60,45 @@ async function check() {
     }
     assert.deepEqual(calls, Array(3).fill(['resume', 'resume', 'suspend']).flat());
     assert.deepEqual(failures, []);
+
+    const transitions = [];
+    const finish = {};
+    audioContext.transition = method => {
+      transitions.push(method);
+      return new Promise(resolve => {
+        finish[method] = () => {
+          audioContext.state = method === 'resume' ? 'running' : 'suspended';
+          resolve();
+        };
+      });
+    };
+    audioContext.state = 'running';
+    neon.Audio.suspend();
+    neon.Audio.resume();
+    assert.deepEqual(transitions, ['suspend']);
+    finish.suspend();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(transitions, ['suspend', 'resume'], 'resume waits for a pending suspend');
+    finish.resume();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(audioContext.state, 'running');
+
+    transitions.length = 0;
+    audioContext.state = 'suspended';
+    neon.Audio.resume();
+    neon.Audio.suspend();
+    assert.deepEqual(transitions, ['resume']);
+    finish.resume();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(transitions, ['resume', 'suspend'], 'latest suspend intent survives a pending resume');
+    finish.suspend();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(audioContext.state, 'suspended');
+    assert.deepEqual(failures, []);
   } finally {
     process.removeListener('unhandledRejection', onRejection);
   }
-  console.log('Audio lifecycle: rejected promises, synchronous errors, successful requests and state guards passed.');
+  console.log('Audio lifecycle: failures, state guards and rapid suspend/resume ordering passed.');
 }
 
 check().catch(error => {

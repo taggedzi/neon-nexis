@@ -215,3 +215,28 @@ apply.
 - State: implemented, listening accepted; natural tab-hide validation remains
   pending. Delivery branch: `codex/035-ambient-techno-music`. Local commit
   authorized; no push, publication or deployment authorized.
+
+### Delivery follow-up — 2026-11-05
+
+- Initial implementation and owner listening acceptance committed as `c91e4b6`.
+  The owner subsequently authorized pushing and merging through a PR.
+- Pre-push run with four workers: 158/162 browser checks passed; four Chromium
+  co-op setup/connection tests timed out. A CPU-limited two-worker attempt also
+  failed multiplayer checks and was stopped; repository files were unchanged.
+- Full-CPU two-worker run: 161/162 passed. All co-op checks passed, but Firefox
+  recorded playback stayed procedural after a rapid suspend/resume sequence.
+- Root cause reproduced deterministically in `tools/check-audio-lifecycle.cjs`:
+  a resume arriving while suspend is pending sees a still-running context and
+  gets dropped; the later completed suspension leaves audio suspended.
+- Fix in `js/audio.js`: serialize context transition promises and reconcile the
+  latest requested state after an opposing transition completes. Rejected
+  transitions remain optional and do not create an automatic retry loop.
+- Regression checks cover both pending-suspend/resume and pending-resume/suspend
+  orderings. The new check failed against the old implementation and passes
+  after the fix. Scheduler tests now await asynchronous context settlement.
+- Checks: audio lifecycle and scheduler units pass; Firefox 157.0 recorded
+  playlist/lifecycle check passed three consecutive runs (13.7 seconds).
+  Final pre-push validation is pending; no hook or assertion is bypassed.
+- Local test scheduling uses two workers with full CPU access via an ignored
+  Node preload helper. It affects parallelism only, not checks or assertions.
+  No tracked test configuration change or music publication is included.
