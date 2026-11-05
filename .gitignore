@@ -1,7 +1,8 @@
-# Local browser automation captures, logs, and reports
+# Local browser automation captures, logs, assets, and reports
 /.playwright-mcp/
 /playwright-report/
 /test-results/
+assets/
 
 # Local browser profiles and save exports: keep these in the named directories
 /browser-profiles/

@@ -7,10 +7,15 @@ const { execFileSync } = require('node:child_process');
 const { releaseVersion } = require('./release-version.cjs');
 
 const args = process.argv.slice(2);
-if (args.length > 1 || args.some(arg => !['--minify', '--no-minify'].includes(arg))) {
-  throw Error('Usage: node tools/ci/package.cjs [--minify|--no-minify]');
+if (new Set(args).size !== args.length || (args.includes('--minify') && args.includes('--no-minify')) ||
+    args.some(arg => !['--minify', '--no-minify', '--with-music'].includes(arg))) {
+  throw Error('Usage: node tools/ci/package.cjs [--minify|--no-minify] [--with-music]');
 }
 const shouldMinify = args.includes('--minify');
+const withMusic = args.includes('--with-music');
+if (withMusic && process.env.GITHUB_ACTIONS === 'true') {
+  throw Error('Private soundtrack staging is local only; GitHub packages remain music-free.');
+}
 const root = process.cwd();
 const output = path.resolve(root, 'dist');
 if (output !== path.join(root, 'dist')) {
@@ -40,6 +45,12 @@ async function stage() {
   fs.writeFileSync(path.join(output, 'index.html'), html);
   const util = path.join(output, 'js/util.js');
   fs.writeFileSync(util, fs.readFileSync(util, 'utf8').replace("N.RELEASE_VERSION = 'development';", `N.RELEASE_VERSION = '${version}';`));
+
+  // Always overwrite the registry, even if the input checkout was locally edited.
+  fs.writeFileSync(path.join(output, 'js/music-library.js'), 'window.NEON.MUSIC_TRACKS = [];\n');
+  if (withMusic) {
+    require('../music.cjs').stageMusic(root, output);
+  }
 
   if (shouldMinify) {
     // Keep classic script boundaries, identifiers, and shared NEON properties.

@@ -43,8 +43,8 @@ in [the decision log](../decisions.md).
 | 031 | [Add a README screenshot](031-readme-screenshot.md) | Done |
 | 032 | [Minify the production package](032-production-minification.md) | Done |
 | 033 | [Publish both release packages from one process](033-github-release-packages.md) | Done |
-| 034 | [Optional crash reports](034-crash-reports.md) | Planned |
-| 035 | [Improve the music](035-music.md) | Planned |
+| 034 | [Optional crash reports](034-crash-reports.md) | Planned (deferred) |
+| 035 | [Improve the music](035-music.md) | Implemented — needs validation |
 | 036 | [Optional extra visual detail](036-graphics-polish.md) | Planned |
 | 037 | [Investigate mobile play](037-mobile-play.md) | Planned |
 
@@ -69,7 +69,7 @@ Issue 029 implements the owner-approved hull stat table for new runs; colors rem
 cosmetic and old checkpoints keep their original stats. Automated Chromium/Firefox
 checks passed; the owner accepted hull handling/balance after playtesting on
 2026-11-02. Issue 029 is Done.
-Issues 030–033 are Done. The owner accepted About's copy, appearance, and keyboard/synthetic-controller checks; physical-controller testing remains untested because no controller is available. The approved README screenshot is verified and excluded from the game package. Both minification modes passed their staged suites. Issue 033's [first public release, 2026.11.03.0004](033-github-release-packages.md#first-successful-publication), passed both actual 150-test staged suites; both public ZIPs and all 37 hosted files match the tested artifacts. Live Chromium/Firefox boot, About, link, movement, and save/continue checks passed. Issues 034 through 037 remain plans only.
+Issues 030–033 are Done. The owner accepted About's copy, appearance, and keyboard/synthetic-controller checks; physical-controller testing remains untested because no controller is available. The approved README screenshot is verified and excluded from the game package. Both minification modes passed their staged suites. Issue 033's [first public release, 2026.11.03.0004](033-github-release-packages.md#first-successful-publication), passed both actual 150-test staged suites; both public ZIPs and all 37 hosted files match the tested artifacts. Live Chromium/Firefox boot, About, link, movement, and save/continue checks passed. Issue 034 is deferred by the owner as of 2026-11-04. Issue 035 now adds an optional recorded soundtrack for local website builds, with procedural fallback and music-free GitHub packages; all 10 focused staged-site checks pass; full suite passed 161/162 and its one co-op timeout passed in isolation. The owner accepted the soundtrack on 2026-11-05 and authorized local commits; natural tab-hide review remains pending. Issues 036 and 037 remain plans only.
 Issue 019 is done, including the crosshair reset follow-up. The fix passed
 the full automated suite, and the owner confirmed it works perfectly on
 2026-11-01. See the issue follow-up for evidence.

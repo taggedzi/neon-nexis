@@ -30,6 +30,10 @@ Open [localhost:8000](http://localhost:8000/), click **Engage**, and choose
 port and use it in the browser URL. No package installation or build step is
 required. Graphics and audio are generated locally; there is no game backend.
 
+Optional recorded music can be prepared for a local website build; see the
+[soundtrack guide](docs/music.md). The repository and GitHub release packages
+retain procedural music and exclude the optional soundtrack.
+
 Use a current desktop browser with Canvas and Web Audio support. Gamepad support
 depends on the browser and device; physical-controller validation is still pending.
 

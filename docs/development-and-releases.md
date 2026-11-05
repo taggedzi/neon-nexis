@@ -113,6 +113,11 @@ artifact, so no image optimizer is installed.
 
 For local staging and verification:
 
+Optional local website soundtrack builds are documented in the
+[music guide](music.md). Use `npm run build:website` to include recordings from
+ignored `assets/wav/`; normal staging and the GitHub Publish workflow remain
+music-free. The website build never publishes or uploads anything.
+
 ```sh
 node tools/ci/package.cjs --minify
 SERVE_DIR=dist npm run test:browser

@@ -52,6 +52,10 @@ function unzip(bytes) {
     for (const name of ['index.html', 'LICENSE', 'js', 'css']) {
       fs.cpSync(path.join(root, name), path.join(scratch, name), { recursive: true });
     }
+    fs.mkdirSync(path.join(scratch, 'assets', 'wav'), { recursive: true });
+    fs.writeFileSync(path.join(scratch, 'assets', 'wav', 'private.wav'), 'must not ship');
+    fs.mkdirSync(path.join(scratch, 'assets', 'music'), { recursive: true });
+    fs.writeFileSync(path.join(scratch, 'assets', 'music', 'private.mp3'), 'must not ship');
     const options = { root: scratch, env, date, ensureUnusedTag: async version => {
       assert.equal(version, '2026.11.01.0042'); tagChecks++;
     } };
@@ -70,6 +74,8 @@ function unzip(bytes) {
         assert.deepEqual(files, site);
         assert.ok(files.has('index.html') && files.has('LICENSE') && files.has('.nojekyll'));
         assert.equal(files.has('js/dev.js'), false);
+        assert.equal([...files.keys()].some(name => name.startsWith('assets/')), false);
+        assert.match(files.get('js/music-library.js').toString(), /MUSIC_TRACKS\s*=\s*\[\]/);
         assert.equal([...files.keys()].some(name => /^(docs|tools|node_modules)\//.test(name) || name.endsWith('.map')), false);
         assert.deepEqual(JSON.parse(files.get('release.json')), { version: manifest.version, commit: env.GITHUB_SHA });
         assert.ok(files.get('js/util.js').toString().includes(manifest.version));
