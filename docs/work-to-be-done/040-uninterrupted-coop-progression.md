@@ -13,6 +13,14 @@ This is the parent specification, not an implementation claim. Child issues
 this feature. All numeric tuning below is proposed unless explicitly identified
 as existing approved hull stats.
 
+Design follow-up: [041](041-progression-contracts.md) records the owner's
+2026-11-06 answers D1–D12. Its approved rules and the
+[integration contract](../progression-contracts.md) supersede corresponding
+proposals below, including legacy-build incompatibility and fixed Aegis windows.
+These are implementation starting values, not gameplay/playtest acceptance.
+The planning handoff was merged through PR #67 at `f5f4591`; the historical
+uncommitted planning notes below describe the original handoff only.
+
 ## Decisions and approval — 2026-11-06
 
 - Owner approved retaining Kite, Dart, Delta, and Talon with distinct primary
@@ -264,7 +272,7 @@ discovery starting points, not verified current symbol locations.
 
 ## Acceptance criteria
 
-- [ ] Owner approves remaining material decisions in 041.
+- [x] Owner approves remaining material decisions in 041.
 - [ ] All four hulls start with the correct primary and retain approved hull stats.
 - [ ] Three offensive slots and one separate defensive slot work in solo/co-op.
 - [ ] Missiles, lightning, bombs, mortar, repulsor and barriers behave as specified.
@@ -293,10 +301,11 @@ Branch: codex/coop-progression-spec; all documentation remains uncommitted.
 ## GitHub implementation checklist
 
 Parent: [GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57).
-The full spec is included in the parent issue. The local planning branch is not
-pushed or merged yet; complete that handoff before implementation begins.
+The full original spec is included in the parent issue. The planning handoff is
+merged through [PR #67](https://github.com/taggedzi/neon-nexis/pull/67);
+041's current approved decisions and contracts control dependent implementation.
 
-- [ ] [041 — Approve progression rules and define integration contracts](041-progression-contracts.md) — [GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58)
+- [x] [041 — Approve progression rules and define integration contracts](041-progression-contracts.md) — [GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58) (design reviewed; branch delivery pending)
 - [ ] [042 — Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) — [GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)
 - [ ] [043 — Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) — [GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)
 - [ ] [044 — Implement the separate defensive quick-use slot](044-defensive-quick-use.md) — [GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)

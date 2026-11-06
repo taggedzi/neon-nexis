@@ -1,5 +1,35 @@
 # Project decisions
 
+## 2026-11-06 — Progression rules and integration contracts
+
+- Decision: Adopt the owner answers D1–D12 in
+  [issue 041 / GitHub #58](work-to-be-done/041-progression-contracts.md) and its
+  [integration contract](progression-contracts.md). New runs have a hull primary,
+  two additional offensive slots, an initially empty separate defense, and
+  slotless passives. Installed equipment remains for the run; progression is
+  immediate, with shared XP gains and individual earned levels.
+- Decision: Use only the approved new catalog. At final cutover, old checkpoints
+  and named ships are incompatible, with export-before-removal or explicit
+  removal choices. Preserve original data until that choice; do not convert,
+  silently trim, overwrite or maintain a released legacy gameplay mode. Preserve
+  compatible settings, stats and logbook data. New-format saved ships retain
+  their earned progression under existing host permission/difficulty rules.
+- Approval source: Explicit owner answers in the issue #58 design chat on
+  2026-11-06, including numeric starting tables, reward pacing/fallback, targeting,
+  defense uptime, consumables, timing and performance/playtest gates.
+- Rationale: Remove reward-choice interruptions and loot competition with
+  predictable progression, bounded mechanics and explicit compatibility handling.
+- Consequences: 042–048 implement serially against the contract behind an
+  inactive boundary; 049 owns final activation and integrated validation.
+  Numeric approval is not owner playtest acceptance. Technical API, identity,
+  authority and serialization choices are separately labeled agent decisions in
+  041. No gameplay, storage changes, release or deployment occurs in this task.
+- Supersedes: Corresponding open questions/proposed defaults in 040 and the
+  planning entry below, notably its unresolved migration policy and proposed
+  Aegis duration refresh. Issue 010's historical evidence stays unchanged; its
+  current gameplay remains until validated cutover. This does not authorize
+  pushing, creating a PR, merging or starting another issue.
+
 ## 2026-11-06 — Uninterrupted cooperative progression planning
 
 - Decision: Plan immediate shared progression with individual random additional
