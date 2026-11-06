@@ -1,13 +1,13 @@
 # 039 — Faster push checks
 
-Status: In progress
+Status: Done
 
 ## Scope and acceptance
 
 Owner request (2026-11-06): reduce the more-than-15-minute push checks without
 removing tests, and skip tests when only documentation changes.
 
-- [ ] Measure the existing suite and validate a meaningful speed improvement.
+- [x] Measure the existing suite and validate a meaningful speed improvement.
 - [x] Preserve all regression tests and both browser projects.
 - [x] Skip the suite for documentation-only pushes; retain branch-sync guards.
 - [x] Cover classification failures, new branches, multiple refs and code changes.
@@ -44,7 +44,8 @@ removing tests, and skip tests when only documentation changes.
   error messages. The baseline emitted tens of thousands of routine lines.
 - README, CONTRIBUTING and AGENTS describe the documentation-only exception.
 - Owner explicitly authorized commit, push, PR creation and merge on 2026-11-06.
-  Delivery is in progress. Gameplay code is untouched; publication is separate.
+  Delivery is tracked by [PR #56](https://github.com/taggedzi/neon-nexis/pull/56).
+  Gameplay code is untouched; publication is separate.
 
 ### Measurement conditions
 
@@ -55,8 +56,9 @@ removing tests, and skip tests when only documentation changes.
   Sequential before/after runs, without competing suite runs. These are
   headless test-runner timings, not real-player game performance measurements.
 - Baseline: four workers, retained-on-failure tracing, full PHP access logs.
-  Optimized: eight workers, tracing off, failure screenshots, filtered routine
-  PHP logs. Combined timing comparison cannot attribute each change's share.
+  Initial experiment: eight workers, tracing off, failure screenshots, filtered
+  routine PHP logs. Final configuration keeps the same diagnostic reductions
+  with the original four workers. Combined timings cannot isolate each change.
 - Logs are ignored local artifacts under `.playwright-mcp/push-checks/`.
   Optimized elapsed time recorded by a stopwatch.
 
@@ -111,4 +113,31 @@ removing tests, and skip tests when only documentation changes.
   before assigning entry focus. Existing arrow-key and focus assertions remain;
   no fixed sleep, timeout increase, retry, input simulation change or production
   code change. Twelve repetitions per browser passed (24/24, 45.1s), as did
-  ESLint and `git diff --check`. Full-hook validation is pending.
+  ESLint and `git diff --check`. Full-hook validation passed as recorded below.
+
+### Final four-worker delivery validation — 2026-11-06
+
+| Check | Baseline | Final configuration |
+| --- | --- | --- |
+| Browser stage | 10.0m, 198 passed | 6.7m, 198 passed |
+| Full delivery push, including fetch/hook/transfer | Not measured | 492.03s (8m 12s), exit 0 |
+
+- The final browser stage is about 33% faster, retaining the original worker
+  limit. The earlier 51% full-check improvement describes the withdrawn
+  eight-worker experiment and is not the final claim. Baseline full checks took
+  approximately 11m 17s; the final push also includes Git/network overhead, so
+  those two totals are not identical measurement boundaries.
+- Implementation commits: `75954bb`, `ccebf86`, `d8e38af`. The actual required
+  hook passed syntax, ESLint, all 22 Node check scripts, and 198/198 browser
+  cases; the branch was then successfully pushed. No hook bypass was used.
+- Original test cases and assertions remain, plus the logbook initial-focus
+  readiness assertion. Retries remain zero; timeouts and game quality remain
+  unchanged. Failure screenshot capture was also observed in the blocked runs.
+- Documentation-only detection retains branch-sync guards. A documentation
+  follow-up records these results; its delivery tests the actual fast path.
+- [PR #56](https://github.com/taggedzi/neon-nexis/pull/56) is the delivery record
+  for review, GitHub checks and merge. The GitHub integration could not create
+  a PR (403); creation used the owner's authenticated GitHub CLI instead.
+- All implementation acceptance criteria are verified. No publication or
+  deployment is included. Linux, lower-core machines and standalone Chrome
+  timing remain unmeasured; this does not claim an identical duration everywhere.
