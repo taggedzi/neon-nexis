@@ -620,9 +620,9 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
 - Decision: Browser tracing becomes opt-in with `NEON_TEST_TRACE=1`; failed
   tests capture screenshots by default. No test, assertion, browser project,
   timeout or retry policy is removed or relaxed.
-- Decision: Scale browser workers above four only on larger machines, up to
-  eight and at most half their logical CPUs. Preserve the old count on machines
-  with eight or fewer logical CPUs. Suppress routine PHP connection/success
+- Decision: Keep the original maximum of four browser workers. An eight-worker
+  trial passed once but exposed a fourth-player join timeout in the delivery
+  hook, so that increase was withdrawn. Suppress routine PHP connection/success
   messages; preserve startup, warnings and HTTP errors. Diagnostic mode restores
   the full server log.
 - Rationale: Avoid running gameplay tests for documentation and avoid recording

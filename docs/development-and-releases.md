@@ -24,9 +24,9 @@ so run the install command once per clone. `npm install` without
 `--ignore-scripts` runs it through the `prepare` script.
 
 `check` runs syntax validation, ESLint correctness rules, Node regression checks,
-and browser regression/smoke tests. Browser tests run side by side, up to 8 at
-once on larger machines; machines with eight or fewer logical CPUs retain the
-previous limit of up to 4. Co-op cases open several game pages each. Linux browser
+and browser regression/smoke tests. Browser tests run side by side, up to 4 at
+once. Co-op cases open several game pages each; increasing this limit exposed
+an intermittent fourth-player join timeout during delivery. Linux browser
 installation may also require `npx playwright install --with-deps chromium firefox`.
 
 Existing compact source is not reformatted. The initial lint rules catch undefined
