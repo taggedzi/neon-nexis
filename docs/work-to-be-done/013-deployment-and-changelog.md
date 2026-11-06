@@ -237,3 +237,25 @@ requires separate approval and keeps this issue open; none was introduced here.
 - Status: Implemented — needs validation. Remaining: review/merge, dispatch
   Publish game on the updated main, and follow both staged suites, deployment
   and release to completion. Separately deferred changelog work is unchanged.
+
+### Linux publication delivery and hosted evidence — 2026-11-06
+
+- Implementation commit: `15a8a5c`. The required pre-push check passed syntax,
+  lint, all unit checks and 198/198 Windows Chromium/Firefox browser tests
+  (10.3 minutes for the browser suite). CodeQL's Actions and JavaScript checks
+  also passed on [PR #53](https://github.com/taggedzi/neon-nexis/pull/53).
+- Approval source: the owner explicitly answered "Merge and run publication"
+  to the request to merge PR #53 and run Publish game on main. The normal merge
+  was blocked by the ruleset reserving main updates for administrators. The
+  approved rebase merge used the administrator update exception; repository
+  protections were not changed. PR #53 merged as `d8c4e99`, and local main was
+  fast-forwarded to that revision.
+- Hosted validation evidence: [Publish game run 42191142894](https://github.com/taggedzi/neon-nexis/actions/runs/42191142894)
+  on `d8c4e99`, dispatched with minification enabled. This run is the source of
+  truth for virtual audio startup, both full staged browser suites, artifact
+  verification, Pages deployment and release publication. Its logs and job
+  conclusions distinguish hosted evidence from the local Linux checks above.
+- This delivery record supersedes the earlier remaining review/merge/dispatch
+  steps. Issue 013 remains Implemented — needs validation because changelog work
+  still requires separate approval; publication results are linked above. No
+  changelog or gameplay changes are included in this follow-up.
