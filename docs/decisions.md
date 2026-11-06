@@ -1,5 +1,28 @@
 # Project decisions
 
+## 2026-11-06 — Uninterrupted cooperative progression planning
+
+- Decision: Plan immediate shared progression with individual random additional
+  weapons, stackable passives and predictable duplicates, retaining the four hulls
+  with role-specific primaries. Three offensive slots include the primary; one
+  separate defensive quick-use slot does not require switching offensive weapons.
+- Approval: Owner requested the spec and GitHub implementation tickets, explicitly
+  choosing "Three weapon slots plus a separate defensive slot" on 2026-11-06.
+- Rationale: Remove co-op reward-menu waiting and loot competition while preserving
+  ship identity and tactical choices during combat.
+- Consequences: [Issue 040](work-to-be-done/040-uninterrupted-coop-progression.md)
+  is the parent specification; 041–049 partition sequential implementation.
+  Numeric tuning and identified gameplay/compatibility questions remain proposals
+  until resolved in 041. Planning does not authorize silently discarding old ships.
+- Supersedes: The discussion draft's defense-within-three-slots proposal. Issue
+  010's accepted deferred-choice behavior remains the implemented behavior until
+  the complete replacement is validated; its historical evidence is unchanged.
+- Agent implementation choice: One parent GitHub issue and nine dependent tickets,
+  mirrored in the local tracker. Different agents work successively under the
+  existing one-task/one-PR workflow, not simultaneous conflicting branches.
+- Delivery scope: Documentation and issue creation only; no gameplay changes,
+  commit, push, PR, merge, publication or agent implementation dispatch.
+
 Record accepted project-wide decisions here. Task-specific design decisions belong
 in their issue documents under `work-to-be-done/`. Proposals remain explicitly
 unresolved until approved. Add a new entry when superseding a decision so the
