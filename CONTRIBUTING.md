@@ -75,7 +75,8 @@ Use checks appropriate to the change and describe what actually ran:
   separate and preserve default visual quality.
 - Add meaningful regression coverage for risky logic where practical. Existing
   checks live in `tools/`. `npm run check` is the automated suite, and the
-  pre-push hook runs it before a push. See
+  pre-push hook runs it before a push, except for qualifying documentation-only
+  branch updates. Branch-sync checks still run. See
   [the development guide](docs/development-and-releases.md) for setup and how to
   register future regression tests. Performance tooling is separate.
 - Run `git diff --check` before submitting. Documentation-only changes need link

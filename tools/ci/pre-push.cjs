@@ -3,6 +3,7 @@
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const { branchUpdates, isCommitSha, syncFailure } = require('./branch-sync.cjs');
+const { documentationOnlyPush } = require('./push-scope.cjs');
 
 const root = path.resolve(__dirname, '..', '..');
 
@@ -28,6 +29,11 @@ process.stdin.on('end', () => {
       console.error(failure);
       process.exit(1);
     }
+  }
+
+  if (documentationOnlyPush(lines, git)) {
+    console.error('pre-push: documentation-only changes; skipping npm run check. Branch sync checks passed.');
+    process.exit(0);
   }
 
   console.error('pre-push: running npm run check. A failure blocks this push.');

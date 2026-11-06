@@ -159,7 +159,9 @@ Serve the repository root using an available static HTTP server, for example
 availability and avoid interfering with an existing server. Automated checks use
 `npm run check`. A pre-push hook fetches `origin/main`, rejects a branch that is
 behind it or that adds a merge commit, then runs that suite and blocks the push
-when it fails. GitHub Actions does not run it on pull requests or pushes to
+when it fails. Documentation-only branch pushes skip the suite under the
+conservative rules in the development guide; sync guards still run.
+GitHub Actions does not run it on pull requests or pushes to
 main; the manual publish workflow still runs it against the staged site. See
 [the development guide](docs/development-and-releases.md)
 for setup and future regression registration. Playing from source needs no build.
