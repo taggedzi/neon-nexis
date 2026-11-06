@@ -4,17 +4,15 @@ const { defineConfig } = require('@playwright/test');
 const cores = typeof os.availableParallelism === 'function'
   ? os.availableParallelism()
   : os.cpus().length;
-// Keep the existing allowance on small machines. On larger machines use up to
-// half the logical CPUs, capped at eight multi-page tests to bound memory use.
-const workers = Math.max(1, Math.min(4, cores), Math.min(8, Math.floor(cores / 2)));
 
 module.exports = defineConfig({
   testDir: './tools/ci',
   testMatch: '*.spec.cjs',
   timeout: 60000,
   // Keep co-op concurrency bounded: each test can open several game pages.
+  // Eight workers exposed an intermittent fourth-player join timeout.
   fullyParallel: true,
-  workers,
+  workers: Math.max(1, Math.min(4, cores)),
   retries: 0,
   reporter: 'list',
   use: {

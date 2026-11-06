@@ -1,13 +1,13 @@
 # 039 — Faster push checks
 
-Status: Done
+Status: In progress
 
 ## Scope and acceptance
 
 Owner request (2026-11-06): reduce the more-than-15-minute push checks without
 removing tests, and skip tests when only documentation changes.
 
-- [x] Measure the existing suite and validate a meaningful speed improvement.
+- [ ] Measure the existing suite and validate a meaningful speed improvement.
 - [x] Preserve all regression tests and both browser projects.
 - [x] Skip the suite for documentation-only pushes; retain branch-sync guards.
 - [x] Cover classification failures, new branches, multiple refs and code changes.
@@ -32,10 +32,9 @@ removing tests, and skip tests when only documentation changes.
   these cases. Initial focused run passed outside the sandbox; sandbox Git
   initialization was denied. Expanded cases passed in the full check. A final
   focused run also passed after adding explicit `git push ... HEAD` coverage.
-- `playwright.config.cjs` makes full tracing opt-in, keeps failure screenshots,
-  and allows up to eight workers on machines with spare logical CPUs. Machines
-  with eight or fewer logical CPUs retain the previous worker count. This
-  machine has 20 logical CPUs, so the comparison is four versus eight workers.
+- `playwright.config.cjs` makes full tracing opt-in and keeps failure screenshots.
+  The initial eight-worker trial was withdrawn after delivery exposed a flaky
+  fourth-player join. The original maximum of four workers is retained.
   All 198 browser cases, both projects, assertions, timeouts and retries remain.
 - `docs/development-and-releases.md` and `docs/decisions.md` document the skip
   policy and the diagnostic tradeoff.
@@ -61,7 +60,7 @@ removing tests, and skip tests when only documentation changes.
 - Logs are ignored local artifacts under `.playwright-mcp/push-checks/`.
   Optimized elapsed time recorded by a stopwatch.
 
-### Results — 2026-11-06
+### Initial eight-worker experiment — 2026-11-06 (withdrawn)
 
 | Check | Baseline | Optimized |
 | --- | --- | --- |
@@ -87,5 +86,11 @@ removing tests, and skip tests when only documentation changes.
   passed. Linux/low-core timings and standalone Google Chrome were not measured.
   Full staged publication suites were not rerun; publication continues to run
   them and cannot take the pre-push documentation shortcut.
-- No remaining implementation acceptance work. Owner-delegated delivery checks
-  and merge are in progress.
+- Delivery pre-push on implementation commit `75954bb` failed: 197 passed,
+  Chromium's four-player lifecycle case timed out at `coop-four.spec.cjs:38`
+  waiting for the fourth player's peer (expected 3, received 2). Browser time
+  4.2m. The hook correctly blocked the push. The earlier clean eight-worker
+  run was insufficient evidence of reliability; the concurrency increase is
+  withdrawn, without changing assertions, timeouts, retries or game code.
+- Original four-worker cap restored. Tracing/logging reductions and the
+  documentation shortcut remain. Final timing and delivery validation pending.
