@@ -193,3 +193,47 @@ requires separate approval and keeps this issue open; none was introduced here.
   browser data was removed.
 - Status remains Implemented — needs validation. This repair does not introduce
   the separately deferred changelog work.
+
+### Remaining Linux publication failure — 2026-11-06
+
+- Owner requested getting Publish game to pass after PR #52 merged. Both
+  post-merge runs, [42147612646](https://github.com/taggedzi/neon-nexis/actions/runs/42147612646)
+  and [42185519346](https://github.com/taggedzi/neon-nexis/actions/runs/42185519346),
+  failed the same three Firefox audio tests; 195/198 passed. Layout failures
+  are resolved. Preparation stopped before deployment and release.
+- The earlier pending-resume fix did not resolve this hosted failure. Linux
+  Firefox needs a running audio server, not just Playwright's installed client
+  libraries. The publish workflow did not start one. Tests and browser policy
+  remain enabled.
+- Clean primary checkout on current main `b099721`; no open PRs found. Branch:
+  `codex/fix-linux-publish-audio`. Linux Node/Firefox reproduction files and
+  downloaded hosted diagnostics are ignored local artifacts. Owner browser
+  data is untouched.
+- Controlled Linux reproduction: Ubuntu 22.04.5 on WSL2, Node 24.14.1,
+  Playwright Firefox 157.0, one worker. Pointing `PULSE_SERVER` to a nonexistent
+  socket reproduced all three exact assertions: suspended context, zero notes,
+  and procedural fallback. The same three unchanged tests passed in 32.3 seconds
+  with an isolated PulseAudio 15.99.1 null sink. No game or test code changed.
+  This establishes the environment dependency and explains the hosted pattern;
+  the actual hosted rerun is still required.
+- Agent implementation choice, under the owner's request to get publication
+  passing: `.github/workflows/release.yml` installs PulseAudio and its utilities,
+  starts the server, creates/selects a virtual output, and logs server/output
+  information before checks. The real browser playback clock runs without a
+  physical sound device. No tests are skipped, retried, mocked, or relaxed.
+  Publishing permissions, main-only guard, approval and packaging stay intact.
+- Linux staged verification: all seven audio tests passed against the minified
+  package (40.5 seconds) and the unminified package (42.4 seconds). This covers
+  Boot unlock, scene/mute/suspend lifecycle, recorded-track endings/shuffle,
+  fallback and blocked audio. Static Python HTTP served these isolated audio
+  checks; this is not a Linux co-op/PHP or full-suite result. The Ubuntu-hosted
+  full suites remain pending. Local audio packages/browsers were unpacked into
+  ignored files; the existing WSL audio service and owner storage were untouched.
+- Workflow validation: actionlint 1.7.12 and `git diff --check` passed. The
+  official actionlint archive was checksum-verified. Required pre-push checks
+  will run during delivery. Changed tracked files: release workflow, this issue
+  and backlog index only. Existing owner authorization covers commit/push/PR;
+  merge still requires owner approval under AGENTS.md.
+- Status: Implemented — needs validation. Remaining: review/merge, dispatch
+  Publish game on the updated main, and follow both staged suites, deployment
+  and release to completion. Separately deferred changelog work is unchanged.
