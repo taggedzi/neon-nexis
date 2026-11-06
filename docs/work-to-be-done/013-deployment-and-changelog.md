@@ -250,12 +250,25 @@ requires separate approval and keeps this issue open; none was introduced here.
   approved rebase merge used the administrator update exception; repository
   protections were not changed. PR #53 merged as `d8c4e99`, and local main was
   fast-forwarded to that revision.
-- Hosted validation evidence: [Publish game run 42191142894](https://github.com/taggedzi/neon-nexis/actions/runs/42191142894)
-  on `d8c4e99`, dispatched with minification enabled. This run is the source of
-  truth for virtual audio startup, both full staged browser suites, artifact
-  verification, Pages deployment and release publication. Its logs and job
-  conclusions distinguish hosted evidence from the local Linux checks above.
+- Hosted attempts: [Publish game run 42191142894](https://github.com/taggedzi/neon-nexis/actions/runs/42191142894)
+  on `d8c4e99`, dispatched with minification enabled. Attempts 1 and 2 were
+  cancelled during Playwright's operating-system dependency installation after
+  very slow package downloads from `azure.archive.ubuntu.com`. Neither reached
+  virtual audio startup, project tests, deployment, or release. The first spent
+  over 16 minutes on installation; the fresh-runner retry showed the same slow
+  transfers and was cancelled after about eight minutes. Apt index retrieval
+  was fast; individual package downloads took minutes for a few megabytes.
+- Agent implementation choice: replace the Azure mirror URL in the ephemeral
+  runner's `/etc/apt/apt-mirrors.txt` with Ubuntu's main HTTPS archive before
+  Playwright installs dependencies. Preserve the mirror-list format, other
+  entries, package signature verification and all tests. Log the resulting
+  list. A missing mirror-list file is left alone. The main archive's signed
+  Noble index returned HTTP 200 during verification. This affects only CI.
+- Mirror-step checks: actionlint 1.7.12, Bash syntax and a Linux fixture check
+  passed. The exact shell block replaces both HTTP and HTTPS Azure entries,
+  preserves priorities and an unrelated security-mirror entry, and makes no
+  local operating-system changes. Required pre-push checks run on delivery.
 - This delivery record supersedes the earlier remaining review/merge/dispatch
   steps. Issue 013 remains Implemented — needs validation because changelog work
-  still requires separate approval; publication results are linked above. No
-  changelog or gameplay changes are included in this follow-up.
+  still requires separate approval; hosted publication remains pending the
+  mirror fix. No changelog or gameplay changes are included in this follow-up.

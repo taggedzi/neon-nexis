@@ -31,6 +31,12 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Use Ubuntu main package mirror
+        run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|https\?://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+            cat /etc/apt/apt-mirrors.txt
+          fi
       - run: npx playwright install --with-deps chromium firefox
       # Firefox needs an audio server as well as the installed client libraries.
       # A null sink provides a real playback clock without physical hardware.
