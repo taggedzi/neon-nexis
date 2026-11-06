@@ -32,6 +32,16 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium firefox
+      # Firefox needs an audio server as well as the installed client libraries.
+      # A null sink provides a real playback clock without physical hardware.
+      - name: Start virtual audio output
+        run: |
+          sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=neon_ci
+          pactl set-default-sink neon_ci
+          pactl info
+          pactl list short sinks
       - run: npm run check:syntax && npm run lint && npm run test:unit
       - name: Build both packages and reject existing tags
         run: node tools/ci/release-packages.cjs ${{ inputs.minify && '--minify' || '--no-minify' }}

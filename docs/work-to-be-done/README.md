@@ -49,8 +49,9 @@ in [the decision log](../decisions.md).
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
 | 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
 
-Publishing follow-up: issue 013 records the repair and validation of the failed
-2026-11-05 publishing run; hosted rerun remains pending.
+Publishing follow-up: issue 013 adds the missing Linux audio server/output to
+the workflow after PR #52. Both staged audio suites pass in Linux Firefox;
+review/merge and the full hosted publication rerun remain pending.
 
 ## Plans from the 2026-11-01 todo list
 
