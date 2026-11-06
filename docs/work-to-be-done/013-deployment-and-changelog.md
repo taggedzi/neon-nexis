@@ -126,3 +126,70 @@ requires separate approval and keeps this issue open; none was introduced here.
   without running the suite.
 - Issue status stays Implemented — needs validation. Hosted Pages publication
   is still unvalidated.
+
+### Publishing browser failures — 2026-11-05
+
+- Owner requested investigation and repair of [publish run 42139800444](https://github.com/taggedzi/neon-nexis/actions/runs/42139800444/job/127636997433).
+  The minified staged suite stopped preparation: 187 passed, seven failed.
+  Deployment and release jobs did not run. No open pull requests were found;
+  origin was fetched and local main was current. Task branch:
+  `codex/fix-publish-browser-checks`.
+- Changed files: `js/ui.js`, `js/audio.js`,
+  `tools/check-audio-lifecycle.cjs`, `tools/ci/audio-score.spec.cjs`,
+  `tools/ci/player-stats.spec.cjs`, `tools/ci/menu-layout.spec.cjs`, this issue
+  and the backlog index.
+- Layout root cause: the fallback display font can make SIGNAL LOST wider
+  than its centered parent. The old measurement used total descendant width,
+  which missed the unequal overflow on either side. Reproduced in both local
+  browsers using generic fallback fonts: screen scroll width 1384/1385 at a
+  1280-pixel viewport. Agent implementation choice: measure both edges from
+  the centered parent; retain the existing fonts, effects and layout. Related
+  UI scope and prior validation remain in [038](038-menu-ui-cleanup.md).
+- Audio gap: a resume requested before a user gesture can remain pending under
+  autoplay policy. The serialization added during [035](035-music.md) then
+  suppresses the unlock call inside the gesture. Hosted Firefox traces show
+  autoplay warnings and no initial music startup; this exact event ordering
+  is an inferred cause, verified separately with a deterministic regression.
+  Agent implementation choice: explicit unlock may retry a pending resume;
+  opposing suspend/resume operations remain serialized. Older promises cannot
+  clear the newer transition. No autoplay policy is disabled in tests.
+- Regression coverage: fallback-font death screen, an unresolved pre-gesture
+  resume followed by the Boot click, and stale-promise/transition ordering.
+  Audio lifecycle and scheduler Node checks passed after the fix.
+- Focused minified suite: 44/44 audio, recorded music, player-stat/death-screen
+  and menu checks passed in 1.9 minutes. Windows, Node 24.14.1, PHP 8.4.13,
+  Playwright Chromium 156.0.8078.4 and Firefox 157.0, two workers. This run
+  preceded the additional browser pre-gesture regression; the full suite below
+  includes it. The deterministic Node pre-gesture regression failed against
+  the original audio implementation and passed against the corrected version.
+- Agent visual check: the same fallback-font screen at 1280×720 now measures
+  scroll width 1280 in both browsers (previously 1384/1385). The title, buttons
+  and both tally tables remain visible. Existing installed-font viewports also
+  pass the focused suite. Captures and logs are ignored local artifacts.
+- Full `SERVE_DIR=dist npm run check` passed on the minified package: syntax,
+  lint, all unit checks, and 198/198 browser tests (9.0 minutes for the browser
+  suite, four workers). Same Windows/Node/PHP/browser versions as above.
+  This includes the new Boot-click regression in both browsers, existing
+  fallback/rejected-audio paths, all death-screen sizes, co-op, and save tests.
+  Package-unit checks also verified both modes, ZIP integrity and Pages parity.
+- Unminified focused run initially passed 45/46; Firefox's synthetic-controller
+  phase failed focus navigation. Two of three isolated repeats failed too.
+  A focus-event trace reproduced three failures and showed the test assigning
+  Resume, then the previous screen's pending 30 ms restoration assigning
+  Settings 3 ms later, before the simulated Down press. Agent implementation
+  choice: wait 50 ms on the browser event loop before assigning the controller
+  phase's initial focus. Every existing assertion remains; game focus behavior
+  is unchanged. This is test setup synchronization, not an added test retry.
+- Final checks: the synchronized controller test passed three consecutive
+  isolated Firefox runs (34.2 seconds). The complete affected unminified suite
+  then passed 46/46 in 2.0 minutes with both browsers and two workers. Lint and
+  `git diff --check` passed after the test-only setup change. The full 198-test
+  run predates that setup change; production files were unchanged afterward.
+- Remaining: actual Linux-hosted publish rerun, owner review,
+  separate Google Chrome and physical audio-device checks remain pending.
+  The owner authorized committing, pushing and creating a pull request on
+  2026-11-05. Delivery proceeds on `codex/fix-publish-browser-checks` with the
+  required pre-push check. Merge and publication remain owner-managed; no
+  browser data was removed.
+- Status remains Implemented — needs validation. This repair does not introduce
+  the separately deferred changelog work.

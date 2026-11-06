@@ -1,5 +1,30 @@
 const { test, expect } = require('@playwright/test');
 
+test('boot gesture unlocks audio after a pre-gesture resume remains pending', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeContext = window.AudioContext;
+    window.audioStartup = { calls: 0, context: null };
+    window.AudioContext = class extends NativeContext {
+      constructor(options) {
+        super(options);
+        window.audioStartup.context = this;
+      }
+      resume() {
+        window.audioStartup.calls++;
+        // Model Firefox retaining a policy-blocked request before the click.
+        if (window.audioStartup.calls === 1) return new Promise(() => {});
+        return super.resume();
+      }
+    };
+  });
+  await page.goto('/');
+  await page.evaluate(() => window.NEON.Audio.resume());
+  await expect.poll(() => page.evaluate(() => window.audioStartup.calls)).toBe(1);
+  await page.locator('#btn-boot').click();
+  await expect.poll(() => page.evaluate(() => window.audioStartup.context.state)).toBe('running');
+  await expect(page.locator('#screen-menu.active')).toBeVisible();
+});
+
 test('procedural score survives scene, mute and suspension transitions', async ({ page, browser }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
