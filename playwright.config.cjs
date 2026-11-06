@@ -4,22 +4,26 @@ const { defineConfig } = require('@playwright/test');
 const cores = typeof os.availableParallelism === 'function'
   ? os.availableParallelism()
   : os.cpus().length;
+// Keep the existing allowance on small machines. On larger machines use up to
+// half the logical CPUs, capped at eight multi-page tests to bound memory use.
+const workers = Math.max(1, Math.min(4, cores), Math.min(8, Math.floor(cores / 2)));
 
 module.exports = defineConfig({
   testDir: './tools/ci',
   testMatch: '*.spec.cjs',
   timeout: 60000,
-  // The co-op file is almost the whole suite, and its tests use separate rooms
-  // on one PHP server. Run them side by side, but stop at 4 so that server
-  // and the machine are not flooded.
+  // Keep co-op concurrency bounded: each test can open several game pages.
   fullyParallel: true,
-  workers: Math.max(1, Math.min(4, cores)),
+  workers,
   retries: 0,
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
     viewport: { width: 1280, height: 720 },
-    trace: 'retain-on-failure'
+    // Tracing records every successful test too, even when the result is later
+    // discarded. Enable it when diagnosing a failure rather than on every push.
+    trace: process.env.NEON_TEST_TRACE === '1' ? 'retain-on-failure' : 'off',
+    screenshot: 'only-on-failure'
   },
   projects: [
     // Full Chromium headless preserves native locked-pointer input on Linux.

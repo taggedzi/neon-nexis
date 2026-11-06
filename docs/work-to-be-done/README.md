@@ -48,6 +48,7 @@ in [the decision log](../decisions.md).
 | 036 | [Optional extra visual detail declined](036-graphics-polish.md) | Done |
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
 | 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
+| 039 | [Faster push checks](039-faster-push-checks.md) | Done |
 
 Publishing follow-up: PRs #53 and #54 add Linux audio output and select Ubuntu's
 main archive after slow Azure-mirror downloads. The hosted minified suite passed;

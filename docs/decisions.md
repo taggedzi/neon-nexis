@@ -609,3 +609,29 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   forever. A roster write that times out does not end the match; an explicit
   roster rejection still does.
 - Supersedes: Nothing.
+
+## 2026-11-06 — Documentation-only pushes and opt-in test tracing
+
+- Decision: After the existing branch-sync guards, documentation-only branch
+  pushes skip the full local suite. The allowlist is root Markdown, Markdown
+  under `docs/`, and `LICENSE`. Existing refs compare against their remote tip;
+  new branches compare against the merge base with fetched main. Unknown paths,
+  failed Git queries, tags and dirty/untracked code retain the full suite.
+- Decision: Browser tracing becomes opt-in with `NEON_TEST_TRACE=1`; failed
+  tests capture screenshots by default. No test, assertion, browser project,
+  timeout or retry policy is removed or relaxed.
+- Decision: Scale browser workers above four only on larger machines, up to
+  eight and at most half their logical CPUs. Preserve the old count on machines
+  with eight or fewer logical CPUs. Suppress routine PHP connection/success
+  messages; preserve startup, warnings and HTTP errors. Diagnostic mode restores
+  the full server log.
+- Rationale: Avoid running gameplay tests for documentation and avoid recording
+  full diagnostic traces throughout every successful push check.
+- Approval: Owner requested faster tests without removing tests and skipping
+  documentation-only pushes on 2026-11-06. The conservative allowlist and
+  diagnostic setting are agent implementation choices. Timing validation is
+  recorded in [issue 039](work-to-be-done/039-faster-push-checks.md).
+- Consequences: Reproducing a failure with full traces requires opting in.
+  Manual publication still runs the entire suite against both staged packages.
+- Supersedes: The unconditional pre-push suite and default retained-on-failure
+  tracing settings only. Branch-sync and test coverage requirements remain.

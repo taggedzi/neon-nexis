@@ -90,7 +90,9 @@ Run `npm ci --ignore-scripts`, then `node tools/ci/install-hooks.cjs`, install
 the Playwright browsers, and use `npm run check` for syntax, lint, regression
 and browser smoke tests. These are development tools; playing locally still
 requires no package installation. A later push runs that same suite on this
-machine and is rejected if it fails.
+machine and is rejected if it fails. Documentation-only branch pushes can skip
+the suite after the branch-sync checks; see the
+[development guide](docs/development-and-releases.md#local-checks) for the rules.
 
 GitHub Actions does not run those checks on pull requests or on main. The
 **Publish game** workflow publishes to GitHub Pages only when manually run on

@@ -24,8 +24,9 @@ so run the install command once per clone. `npm install` without
 `--ignore-scripts` runs it through the `prepare` script.
 
 `check` runs syntax validation, ESLint correctness rules, Node regression checks,
-and browser regression/smoke tests. Browser tests run side by side, up to 4 at
-once, because the co-op file is almost the whole suite. Linux browser
+and browser regression/smoke tests. Browser tests run side by side, up to 8 at
+once on larger machines; machines with eight or fewer logical CPUs retain the
+previous limit of up to 4. Co-op cases open several game pages each. Linux browser
 installation may also require `npx playwright install --with-deps chromium firefox`.
 
 Existing compact source is not reformatted. The initial lint rules catch undefined
@@ -38,6 +39,15 @@ Browser tests use new disposable contexts and a loopback-only server on port
 An occupied port causes failure rather than reusing an unknown server. Run tests
 from the repository root. Reports/traces are local ignored artifacts.
 
+Failure screenshots are captured automatically. Full tracing is opt-in because
+recording every page snapshot also slows successful tests. To capture traces for
+a diagnostic run in PowerShell, set `$env:NEON_TEST_TRACE = '1'`, run
+`npm run test:browser`, then `Remove-Item Env:NEON_TEST_TRACE`. Failed tests retain
+their traces under `test-results/`. Test discovery, assertions, timeouts, retries
+and the two browser projects are the same in either mode.
+Routine PHP connection/success logs are suppressed; startup, warnings and HTTP
+errors remain visible. The diagnostic setting also restores the full server log.
+
 Add Node regression scripts as `tools/check-*.cjs`; the runner discovers them.
 Add browser regression scripts as `tools/check-*.js` and register their query and
 result object in `tools/ci/regression.spec.cjs`. An unregistered script fails the check suite.
@@ -47,6 +57,14 @@ Tests must fail when an assertion fails and use isolated browser storage.
 The `pre-push` hook fetches `origin/main` when a branch is pushed. It rejects
 the push when that branch does not contain `origin/main` or when it adds a
 merge commit. It then runs `npm run check`. A failing check rejects the push.
+Documentation-only branch pushes skip that suite after passing the sync guards.
+Only root-level `.md` files, `.md` files under `docs/`, and `LICENSE` qualify.
+Existing branches compare the old remote tip with the pushed tip; first pushes
+compare against the merge base with freshly fetched `origin/main`. All updated
+branches must qualify. Tags, unknown paths, failed comparisons, or uncommitted
+code (including untracked code) keep the full suite enabled. Renames check both
+the old and new paths. A documentation follow-up to an already pushed feature
+branch can skip; a first push containing code changes cannot.
 A push that only deletes a remote ref skips the hook. Tag pushes skip the
 branch check and still run the suite. `git push --no-verify` skips the hook.
 
