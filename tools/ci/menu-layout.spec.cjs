@@ -51,6 +51,9 @@ test('pause destinations restore focus for mouse, keyboard and synthetic control
     await page.keyboard.press('Escape');
     await expect(page.locator('#' + origin)).toBeFocused();
   }
+  // The previous screen restores focus after 30 ms. Let that browser timer
+  // settle before assigning the synthetic controller phase's starting focus.
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 50)));
   await page.locator('#btn-resume').focus();
   for (const [origin, screen] of routes) {
     await padPress(page, 13);

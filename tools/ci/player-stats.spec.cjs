@@ -125,11 +125,14 @@ test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing
   expect(await page.evaluate(()=>window.NEON.Profile.current().stats.itemsLost)).toBe(3);
 });
 
-for (const size of [{width:1280,height:720},{width:900,height:700},{width:1100,height:640},{width:360,height:640}]) {
-  test.describe('death screen '+size.width+'x'+size.height,()=>{
-    test.use({viewport:size});
+for (const size of [{width:1280,height:720},{width:900,height:700},{width:1100,height:640},{width:360,height:640},{width:1280,height:720,fallback:true}]) {
+  test.describe('death screen '+size.width+'x'+size.height+(size.fallback?' fallback fonts':''),()=>{
+    test.use({viewport:{width:size.width,height:size.height}});
     test('solo tally is two tables and the screen fits',async({page})=>{
       await page.goto('/');await page.locator('#btn-boot').click();
+      if (size.fallback) {
+        await page.addStyleTag({content:':root{--display:sans-serif;--mono:monospace}'});
+      }
       await page.evaluate(()=>{
         const G=window.NEON.Game;
         G.settings.skill='hardcore';G.newRun();G.pauseGame();

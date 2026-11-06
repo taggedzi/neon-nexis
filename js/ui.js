@@ -109,7 +109,14 @@ function fitBounds(content) {
     top = Math.min(top, rect.top);
     bottom = Math.max(bottom, rect.bottom);
   }
-  return {width: right - left, height: bottom - top};
+  // Flex centers the content box, not overflowing descendants. Measure each
+  // edge from that center so a wider fallback-font title fits on both sides.
+  const centerX = (bounds.left + bounds.right) / 2;
+  const centerY = (bounds.top + bounds.bottom) / 2;
+  return {
+    width: 2 * Math.max(centerX - left, right - centerX),
+    height: 2 * Math.max(centerY - top, bottom - centerY)
+  };
 }
 UI.hideAll=function(){
   for(const n of screens){const el=screenEl(n);if(el)el.classList.remove('active');}

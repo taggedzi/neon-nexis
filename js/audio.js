@@ -6,6 +6,7 @@ const A = N.Audio = {};
 let ctx=null, master=null, musicBus=null, sfxBus=null, comp=null, noiseBuf=null;
 let scoreBus = null, recordedMusic = null;
 let contextTransition = null, wantsSuspended = false;
+let transitionSuspends = false;
 let settings=N.deepMerge(N.SETTINGS_DEFAULT,{});
 let unlocked=false, started=false;
 let intensity=.4, scene='menu';
@@ -117,7 +118,7 @@ A.unlock=function(){
   const ok=ensure();
   if(!ok) return false;
   unlocked=true;
-  A.resume();
+  A.resume(true);
   if (recordedMusic) {
     recordedMusic.update({ unlocked: true }, true);
   }
@@ -385,8 +386,10 @@ A.checkpoint=function(){
 };
 A.noiseBurst=function(dur=.1,vol=.1,freq=1000){if(unlocked&&!settings.audio.muted)try{noise(sfxTime(),dur,vol,freq,'bandpass',sfxBus);}catch(e){}};
 // Navigation can reject pending state changes asynchronously; audio stays optional.
-function syncContextState() {
-  if (!ctx || contextTransition) {
+function syncContextState(retryResume = false) {
+  // A policy-blocked resume can remain pending until a fresh user gesture.
+  // Retry in that gesture, while still serializing opposing transitions.
+  if (!ctx || (contextTransition && !(retryResume && !transitionSuspends && !wantsSuspended))) {
     return;
   }
   const requestedSuspension = wantsSuspended;
@@ -398,7 +401,9 @@ function syncContextState() {
   try {
     const pending = Promise.resolve(ctx[method]());
     contextTransition = pending;
+    transitionSuspends = requestedSuspension;
     const settled = () => {
+      if (contextTransition !== pending) return;
       contextTransition = null;
       // Reconcile only a newer intent; rejected requests must not retry forever.
       if (wantsSuspended !== requestedSuspension) {
@@ -417,12 +422,12 @@ A.suspend=function(){
   }
   syncContextState();
 };
-A.resume=function(){
+A.resume=function(retryResume = false){
   wantsSuspended = false;
   if (recordedMusic) {
     recordedMusic.update({ suspended: false }, true);
   }
-  syncContextState();
+  syncContextState(retryResume);
 };
 A.now=now;
 N.audio=A;

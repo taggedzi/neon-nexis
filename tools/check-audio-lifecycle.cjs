@@ -95,6 +95,22 @@ async function check() {
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(audioContext.state, 'suspended');
     assert.deepEqual(failures, []);
+
+    transitions.length = 0;
+    neon.Audio.resume();
+    const blockedResume = finish.resume;
+    neon.Audio.unlock();
+    assert.deepEqual(transitions, ['resume', 'resume'], 'a user gesture retries a pending policy-blocked resume');
+    const unlockedResume = finish.resume;
+    blockedResume();
+    await new Promise(resolve => setImmediate(resolve));
+    neon.Audio.suspend();
+    assert.deepEqual(transitions, ['resume', 'resume'], 'an older promise cannot clear the current transition');
+    unlockedResume();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(transitions, ['resume', 'resume', 'suspend']);
+    finish.suspend();
+    await new Promise(resolve => setImmediate(resolve));
   } finally {
     process.removeListener('unhandledRejection', onRejection);
   }
