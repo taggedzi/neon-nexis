@@ -1414,3 +1414,52 @@ test('026 host confirms per-style guest kills and discoveries with stats disable
   await expect(guest.locator('[data-enemy-style="ghost"]')).toContainText('DESTROYED: '+(before+1));
   expect(errors).toEqual([]);
 });
+
+test('a stalled introduction poll lets the next session poll without waiting out the timeout', async ({ browser }) => {
+  test.setTimeout(60000);
+  const context = trackContext(await browser.newContext());
+  const page = await context.newPage();
+  const errors = [];
+  watchPage(page, 'stall', errors);
+  let polls = 0;
+  let releaseStall = () => {};
+  const stalled = new Promise(resolve => { releaseStall = resolve; });
+  await page.route('**/php/coop.php*', async route => {
+    const request = route.request();
+    const body = request.postData() || '';
+    if (request.method() === 'POST' && body.includes('"action":"poll"')) {
+      polls += 1;
+      if (polls === 1) {
+        await stalled;
+        try { await route.abort(); } catch (error) { /* Leave already cancelled this request. */ }
+        return;
+      }
+    }
+    await route.continue();
+  });
+  try {
+    await page.goto('/');
+    await page.locator('#btn-boot').click();
+    await page.locator('#btn-coop').click();
+    await page.locator('#btn-coop-host').click();
+    await expect.poll(() => polls, { timeout: 15000 }).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.NEON.Net.code || '')).not.toBe('');
+    const hosted = await page.evaluate(() => {
+      window.NEON.Net.leave(true);
+      return window.NEON.Net.host({ name: 'RETRY', shipType: 'dart', shipColor: '#00f0ff' });
+    });
+    expect(hosted).toBe(true);
+    await expect.poll(() => polls, { timeout: 3000 }).toBeGreaterThanOrEqual(2);
+    const session = await page.evaluate(() => ({
+      role: window.NEON.Net.role,
+      code: window.NEON.Net.code,
+      state: window.NEON.Net.state
+    }));
+    expect(session.role).toBe('host');
+    expect(session.code).not.toBe('');
+    expect(session.state).not.toBe('error');
+    expect(errors).toEqual([]);
+  } finally {
+    releaseStall();
+  }
+});

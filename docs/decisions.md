@@ -591,3 +591,21 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   incompatible-save prompt applies. Saved ships already require an in-range
   integer index, so their rule is unchanged.
 - Supersedes: Nothing.
+
+## 2026-11-05 — Co-op introduction requests are bounded per session
+
+- Decision: Each co-op introduction request, including its response body, ends
+  within 8 seconds or when its session ends. Polling is owned by that
+  session's generation. An older request's completion cannot clear the newer
+  session's poll or change its room. A stalled status, host, or join ends in
+  an error the player can retry. A stalled poll does not close a live room or
+  its peer links.
+- Rationale: One module-wide polling flag stayed true until a request settled.
+  Leaving and hosting again kept the new room from polling while the old
+  request was pending.
+- Approval: Agent implementation choice for GitHub issue 48 on 2026-11-05.
+  The owner delegated the fix through the open-issue queue. No new gameplay.
+- Consequences: A slow introduction service is retried instead of waited on
+  forever. A roster write that times out does not end the match; an explicit
+  roster rejection still does.
+- Supersedes: Nothing.
