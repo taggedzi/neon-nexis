@@ -49,10 +49,9 @@ in [the decision log](../decisions.md).
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
 | 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
 
-Publishing follow-up: PR #53 adds the missing Linux audio server/output. Both
-staged audio suites pass in Linux Firefox. Hosted attempts then hit very slow
-Ubuntu Azure-mirror downloads; issue 013 records the main-mirror fix and pending
-hosted publication validation.
+Publishing follow-up: PRs #53 and #54 add Linux audio output and select Ubuntu's
+main archive after slow Azure-mirror downloads. The hosted minified suite passed;
+issue 013 links [the complete publication verification](https://github.com/taggedzi/neon-nexis/actions/runs/42196533903).
 
 ## Plans from the 2026-11-01 todo list
 

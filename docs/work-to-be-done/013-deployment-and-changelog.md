@@ -272,3 +272,29 @@ requires separate approval and keeps this issue open; none was introduced here.
   steps. Issue 013 remains Implemented — needs validation because changelog work
   still requires separate approval; hosted publication remains pending the
   mirror fix. No changelog or gameplay changes are included in this follow-up.
+
+### Hosted publication verification — 2026-11-06
+
+- The owner explicitly approved "Merge and restart publication" for
+  [PR #54](https://github.com/taggedzi/neon-nexis/pull/54). Its source pre-push
+  suite passed syntax, lint, unit checks and 198/198 browser tests (10.1 minutes
+  for the browser suite), and all CodeQL checks passed. It was rebase-merged as
+  `bd7193f` using the repository's administrator update exception.
+- Additional mirror verification: isolated apt successfully read the rewritten
+  tab-separated mirror list and verified Ubuntu's signed Noble index. The same
+  5.6 MB `fonts-freefont-ttf` package that was slow on the hosted Azure mirror
+  downloaded from the main archive in about one second locally. This is local
+  verification, not a cross-environment performance benchmark. Apt state/cache
+  remained in ignored workspace files; no OS packages were installed.
+- Hosted validation results: [Publish game run 42196533903](https://github.com/taggedzi/neon-nexis/actions/runs/42196533903),
+  on `bd7193f`, with minification enabled. Ubuntu mirror selection, browser
+  dependency installation, virtual audio startup, syntax/lint/unit checks,
+  both package builds and the minified full browser step succeeded. This is
+  the first hosted minified suite to pass after the Linux audio failures.
+- The linked run records the unminified full suite, artifact verification,
+  Pages deployment and release results as well. Its job conclusions and logs
+  are the authoritative hosted evidence, distinct from the local checks above.
+  The site metadata before this dispatch was `2026.11.03.0004` / `92c41ab`.
+- This record supersedes the earlier pending mirror-merge/dispatch steps.
+  Issue 013 retains Implemented — needs validation for the separately deferred
+  changelog criterion; this follow-up introduces no changelog or gameplay work.
