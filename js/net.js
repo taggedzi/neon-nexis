@@ -11,9 +11,11 @@
   const clientId = Net.clientId = makeClientId();
   let intent = null;
   let authority = null;
+  const INTRO_TIMEOUT_MS = 8000;
   let pollTimer = null;
   let generation = 0;
-  let polling = false;
+  let pollGeneration = null;
+  let sessionController = null;
   let rosterPromise = Promise.resolve();
   let rosterKey = '';
 
@@ -52,24 +54,47 @@
     Net.onStatus?.({ state, role: Net.role, code: Net.code, peer: Net.peer, transport: Net.transport, detail });
   }
 
+  function introSignal() {
+    const timeout = AbortSignal.timeout(INTRO_TIMEOUT_MS);
+    if (!sessionController || sessionController.signal.aborted) {return timeout;}
+    return AbortSignal.any([sessionController.signal, timeout]);
+  }
+
+  function settle(promise, signal) {
+    return new Promise((resolve, reject) => {
+      const fail = error => reject(error);
+      if (signal.aborted) {fail(signal.reason);}
+      else {signal.addEventListener('abort', () => fail(signal.reason), { once: true });}
+      promise.then(value => {
+        if (signal.aborted) {fail(signal.reason);}
+        else {resolve(value);}
+      }, fail);
+    });
+  }
+
   function post(body) {
-    return fetch(Net.introUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, protocol: PROTOCOL, ...body }), cache: 'no-store' })
-      .then(response => response.json());
+    const signal = introSignal();
+    return settle(fetch(Net.introUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, protocol: PROTOCOL, ...body }), cache: 'no-store', signal })
+      .then(response => response.json()), signal);
   }
 
   Net.refreshStatus = async function () {
+    const currentGeneration = generation;
+    const signal = introSignal();
     try {
       const url = Net.introUrl();
-      const response = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=status&clientId=' + encodeURIComponent(clientId), { cache: 'no-store' });
-      const body = await response.json();
+      const response = await settle(fetch(url + (url.includes('?') ? '&' : '?') + 'action=status&clientId=' + encodeURIComponent(clientId), { cache: 'no-store', signal }), signal);
+      const body = await settle(response.json(), signal);
+      if (generation !== currentGeneration) {return Net.available;}
       Net.available = response.ok && body.enabled === true && body.protocol === PROTOCOL && Array.isArray(body.iceServers) && body.iceServers.length > 0;
       Net.iceServers = Net.available ? body.iceServers : [];
     } catch (error) {
+      if (generation !== currentGeneration) {return Net.available;}
       Net.available = false;
       Net.iceServers = [];
     }
-    Net.statusKnown = true;
+    if (generation === currentGeneration) {Net.statusKnown = true;}
     Net.onAvailability?.({ available: Net.available });
     return Net.available;
   };
@@ -277,7 +302,12 @@
     rosterPromise = rosterPromise.then(() => post({ action: 'roster', code, roster })).then(body => {
       if (!body.ok) {throw new Error('Roster lock failed');}
     });
-    rosterPromise.catch(() => { if (intent && Net.code === code) {fail('LOBBY ROSTER UPDATE FAILED');} });
+    rosterPromise.catch(error => {
+      if (!intent || Net.code !== code) {return;}
+      // A timed-out or cancelled introduction must not close a live room.
+      if (error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {return;}
+      fail('LOBBY ROSTER UPDATE FAILED');
+    });
   }
 
   function deliverRoom(member, message) {
@@ -298,9 +328,9 @@
   }
 
   async function poll() {
-    if (!intent || polling) {return;}
-    polling = true;
+    if (!intent || pollGeneration === generation) {return;}
     const currentGeneration = generation;
+    pollGeneration = currentGeneration;
     try {
       const sinceRev = Object.fromEntries(Array.from(links, ([id, link]) => [id, link.revision]));
       const body = await post({ action: 'poll', code: Net.code, sinceRev });
@@ -329,7 +359,7 @@
         }
       }
     } catch (error) { /* Introduction polls retry without discarding the live room. */ }
-    finally { polling = false; }
+    finally { if (pollGeneration === currentGeneration) {pollGeneration = null;} }
   }
 
   function housekeeping() {
@@ -340,6 +370,8 @@
 
   function begin(role, code, profile) {
     if (intent) {return false;}
+    sessionController?.abort();
+    sessionController = new AbortController();
     const currentGeneration = ++generation;
     intent = { role, profile: normalizeProfile(profile) };
     Net.role = role;
@@ -421,9 +453,13 @@
         catch (error) { /* Guests also observe the removed introduction row. */ }
       }
     }
-    if (Net.code) {post({ action: 'leave', code: Net.code }).catch(() => {});}
+    const leavingCode = Net.code;
+    sessionController?.abort();
+    sessionController = null;
     generation++;
+    pollGeneration = null;
     intent = null;
+    if (leavingCode) {post({ action: 'leave', code: leavingCode }).catch(() => {});}
     if (pollTimer) {clearTimeout(pollTimer);}
     pollTimer = null;
     authority?.close();

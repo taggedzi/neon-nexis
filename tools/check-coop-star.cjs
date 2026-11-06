@@ -24,6 +24,7 @@ class Peer {
 }
 const memory = new Map();
 const box = { URL, URLSearchParams, setTimeout, clearTimeout, performance, crypto: webcrypto,
+  AbortSignal, AbortController,
   localStorage: { getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) },
   RTCPeerConnection: Peer,
   location: { search: '', href: 'http://localhost/' },
@@ -65,3 +66,176 @@ Net.onMessage = (message, id) => received.push({ message, id });
     console.log('Star transport: independent negotiation, channel identity, targeted sends, broadcasts, and per-link duplicate rejection passed.');
   } finally { Net.leave(true); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Drives the shipped introduction session. Hung fetches and response bodies
+// ignore abort on purpose: a late settlement must not reach the new session.
+function createIntroSession() {
+  const counts = { status: 0, host: 0, join: 0, poll: 0, leave: 0, roster: 0, card: 0 };
+  const errors = [];
+  const connections = [];
+  const hung = [];
+  const peers = [];
+  const control = { mode: 'open' };
+  class Peer {
+    constructor() { connections.push(this); }
+    createDataChannel() { return { readyState: 'connecting', send() {}, close() {} }; }
+    async createOffer() { return { type: 'offer', sdp: 'offer' }; }
+    async createAnswer() { return { type: 'answer', sdp: 'answer' }; }
+    async setLocalDescription(description) { this.localDescription = description; }
+    async setRemoteDescription(description) { this.remoteDescription = description; }
+    async addIceCandidate() {}
+    close() {}
+  }
+  function requestOf(url, options) {
+    if (options && options.body) {return JSON.parse(options.body);}
+    return { action: new URL(url, 'http://localhost/').searchParams.get('action') || 'status' };
+  }
+  function payloadFor(request) {
+    if (request.action === 'status') {return { enabled: true, protocol: 2, iceServers: [{ urls: 'stun:localhost' }] };}
+    if (request.action === 'host') {return { ok: true, code: 'ABCDE' };}
+    if (request.action === 'join') {return { ok: true, code: request.code, seat: 1, hostId: 'host-1' };}
+    if (request.action === 'poll') {return { ok: true, protocol: 2, peers: peers.slice() };}
+    return { ok: true };
+  }
+  function hold(action, kind, resolve) {
+    hung.push({ action, kind, release: resolve });
+  }
+  const memory = new Map();
+  const box = { URL, URLSearchParams, setTimeout, clearTimeout, performance, crypto: webcrypto,
+    AbortSignal, AbortController,
+    localStorage: { getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) },
+    RTCPeerConnection: Peer,
+    location: { search: '', href: 'http://localhost/' },
+    NEON: { Game: { settings: { skill: 'medium' } } },
+    fetch(url, options) {
+      const request = requestOf(url, options);
+      const action = request.action || 'status';
+      counts[action] = (counts[action] || 0) + 1;
+      const payload = payloadFor(request);
+      if (control.mode === 'status-body' && action === 'status') {
+        return Promise.resolve({ ok: true, json: () => new Promise(resolve => hold(action, 'body', resolve)) });
+      }
+      if ((control.mode === 'host-fetch' && action === 'host') || (control.mode === 'join-fetch' && action === 'join') || (control.mode === 'poll-fetch' && action === 'poll')) {
+        return new Promise(resolve => hold(action, 'fetch', body => resolve({ ok: true, json: async () => body })));
+      }
+      if (control.mode === 'poll-body' && action === 'poll') {
+        return Promise.resolve({ ok: true, json: () => new Promise(resolve => hold(action, 'body', resolve)) });
+      }
+      return Promise.resolve({ ok: true, json: async () => payload });
+    }
+  };
+  box.window = box;
+  vm.createContext(box);
+  for (const name of ['coop-host', 'net']) {vm.runInContext(fs.readFileSync('js/' + name + '.js', 'utf8'), box);}
+  const Net = box.NEON.Net;
+  Net.onError = message => errors.push(message);
+  return { Net, counts, errors, connections, hung, peers, control };
+}
+
+async function waitUntil(predicate, timeout, label) {
+  const started = Date.now();
+  while (!predicate()) {
+    if (Date.now() - started > timeout) {throw new Error(label || 'timed out');}
+    await delay(20);
+  }
+}
+
+function openGuestChannel(session) {
+  const channel = { readyState: 'open', send() {}, close() {} };
+  session.connections[0].ondatachannel({ channel });
+  channel.onopen();
+}
+
+async function stalledPoll(kind) {
+  const session = createIntroSession();
+  const withPeer = kind === 'body';
+  if (withPeer) {
+    session.peers.push({ clientId: 'guest1', seat: 1, card: { protocol: 2, rev: 1, session: 'offer1', clientId: 'guest1',
+      sdp: { type: 'offer', sdp: 'guest SDP' }, candidates: [], profile: {} } });
+  } else {session.control.mode = 'poll-fetch';}
+  const pollsBeforeHost = session.counts.poll;
+  assert.equal(session.Net.host({}), true, kind + ' host starts');
+  await waitUntil(() => session.Net.code === 'ABCDE', 3000, kind + ' host code');
+  if (withPeer) {
+    await waitUntil(() => session.connections.length >= 1, 3000, kind + ' connection');
+    openGuestChannel(session);
+    assert.equal(session.Net.peers.size, 1, kind + ' peer online before the stall');
+    session.control.mode = 'poll-body';
+  }
+  const seen = withPeer ? session.counts.poll : pollsBeforeHost;
+  await waitUntil(() => session.counts.poll > seen, 3000, kind + ' stalled poll');
+  const started = Date.now();
+  const inflight = session.counts.poll;
+  await waitUntil(() => session.counts.poll > inflight, 12000, kind + ' poll was not retried');
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed >= 7000 && elapsed <= 12000, kind + ' poll retry at ' + elapsed + 'ms');
+  assert.equal(session.counts.poll, inflight + 1, kind + ' retry is a single poll');
+  assert.equal(session.Net.role, 'host');
+  assert.equal(session.Net.code, 'ABCDE');
+  assert.equal(session.Net.state, withPeer ? 'connected' : 'waiting');
+  assert.deepEqual(session.errors, []);
+  if (withPeer) {assert.equal(session.Net.peers.size, 1, 'a timed-out poll keeps the live peer');}
+  await delay(700);
+  assert.equal(session.counts.poll, inflight + 1, kind + ' housekeeping overlapped the in-flight retry');
+  const stale = session.hung.splice(0, session.hung.length);
+  assert.ok(stale.length >= 1, kind + ' stalled request is still unsettled');
+  session.Net.leave(true);
+  assert.equal(session.Net.role, 'solo');
+  const polls = session.counts.poll;
+  const rehost = Date.now();
+  assert.equal(session.Net.host({}), true, kind + ' rehost');
+  await waitUntil(() => session.counts.poll > polls, 3000, kind + ' leave did not allow a new poll');
+  assert.ok(Date.now() - rehost < 3000, kind + ' new poll waited for the old timeout');
+  const next = session.counts.poll;
+  for (const entry of stale) {entry.release({ ok: false, protocol: 1, peers: [{ clientId: 'intruder', seat: 9 }] });}
+  await delay(700);
+  assert.equal(session.counts.poll, next, kind + ' obsolete poll started another request');
+  assert.equal(session.Net.role, 'host');
+  assert.equal(session.Net.code, 'ABCDE');
+  assert.equal(session.Net.state, 'waiting');
+  assert.deepEqual(session.errors, []);
+  session.Net.leave(true);
+}
+
+async function stalledIntroduction(action) {
+  const session = createIntroSession();
+  session.control.mode = action === 'status' ? 'status-body' : action + '-fetch';
+  const started = Date.now();
+  const began = action === 'join' ? session.Net.join('ABCD', {}) : session.Net.host({});
+  assert.equal(began, true, action + ' attempt starts');
+  const expected = action === 'status' ? 'CO-OP IS UNAVAILABLE OR NEEDS AN UPDATE' : 'INTRODUCTION UNAVAILABLE';
+  await waitUntil(() => session.errors.length === 1, 12000, action + ' stall did not finish');
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed >= 7000 && elapsed <= 12000, action + ' finished at ' + elapsed + 'ms');
+  assert.deepEqual(session.errors, [expected]);
+  assert.equal(session.Net.role, 'solo');
+  assert.equal(session.Net.state, 'error');
+  assert.equal(session.Net.code, '');
+  session.control.mode = 'open';
+  const retry = Date.now();
+  const again = action === 'join' ? session.Net.join('ABCD', {}) : session.Net.host({});
+  assert.equal(again, true, action + ' retry starts');
+  const role = action === 'join' ? 'guest' : 'host';
+  await waitUntil(() => session.Net.role === role && session.counts.poll >= 1, 3000, action + ' retry did not poll');
+  assert.ok(Date.now() - retry < 3000, action + ' retry was still bounded by the old stall');
+  assert.equal(session.Net.code, action === 'join' ? 'ABCD' : 'ABCDE');
+  if (action === 'join') {assert.equal(session.Net.seat, 1);}
+  assert.deepEqual(session.errors, [expected]);
+  session.Net.leave(true);
+}
+
+(async () => {
+  try {
+    await Promise.all([
+      stalledPoll('body'),
+      stalledPoll('fetch'),
+      stalledIntroduction('status'),
+      stalledIntroduction('host'),
+      stalledIntroduction('join')
+    ]);
+    console.log('Introduction stalls: poll retry, live peer, leave/rehost, late completion, and bounded status/host/join passed.');
+  } catch (error) {
+    console.error(error);
+    process.exitCode = 1;
+  }
+})();
