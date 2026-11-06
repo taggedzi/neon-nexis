@@ -33,6 +33,9 @@ test('026 encounters, kills and menu copy work independently of stats and surviv
   const expected=await page.evaluate(()=>({name:window.NEON.ENEMY_BY_ID.fractal.name,copy:window.NEON.ENEMY_DESCRIPTIONS.fractal}));
   await expect(entry).toContainText(expected.name);
   await expect(entry).toContainText(expected.copy);
+  // Screen entry assigns focus asynchronously. Wait for that assignment before
+  // moving it ourselves, so it cannot overwrite the keyboard-navigation check.
+  await expect(page.locator('#logbook-entries summary').first()).toBeFocused();
   await entry.focus();await expect(entry).toBeFocused();
   await page.keyboard.press('ArrowUp');
   await expect(page.locator('[data-enemy-style="crawler"]')).toBeFocused();

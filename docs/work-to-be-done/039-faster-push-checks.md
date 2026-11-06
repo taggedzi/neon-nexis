@@ -94,3 +94,21 @@ removing tests, and skip tests when only documentation changes.
   withdrawn, without changing assertions, timeouts, retries or game code.
 - Original four-worker cap restored. Tracing/logging reductions and the
   documentation shortcut remain. Final timing and delivery validation pending.
+
+### Four-worker delivery follow-up
+
+- Correction commit `ccebf86` restored the original worker cap. Its pre-push
+  run passed 197 cases but failed Firefox's logbook focus check at
+  `logbook.spec.cjs:38`; browser time 6.8m. Both four-player lifecycle cases
+  passed. The push was blocked again; no failure was bypassed.
+- The logbook test manually focused an entry without waiting for `UI.showScreen`
+  to finish its delayed initial focus assignment (`js/ui.js`, 30 ms). That
+  assignment can overwrite focus during the arrow-key assertions. This is a
+  plausible timing race exposed by the faster run, rather than proof of a new
+  gameplay defect. Twelve focused repetitions of the original Firefox case
+  passed (28.5s), so the full-suite failure was not reproduced in isolation.
+- `tools/ci/logbook.spec.cjs` now asserts the screen's initial summary focus
+  before assigning entry focus. Existing arrow-key and focus assertions remain;
+  no fixed sleep, timeout increase, retry, input simulation change or production
+  code change. Twelve repetitions per browser passed (24/24, 45.1s), as did
+  ESLint and `git diff --check`. Full-hook validation is pending.
