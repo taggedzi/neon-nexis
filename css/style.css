@@ -171,6 +171,55 @@ kbd{display:inline-block;padding:1px 5px;border:1px solid rgba(0,240,255,.4);bor
 .settings-body .setting-control{max-width:100%}
 .settings-body .segmented{flex-wrap:wrap;max-width:100%}
 .settings-panel{width:min(900px,95vw)}
+#screen-settings{
+  align-items:flex-start;
+  justify-content:flex-start;
+  overflow:auto;
+}
+#screen-settings>.settings-panel{
+  margin:auto;
+  max-height:100%;
+  min-height:0;
+}
+.settings-panel .settings-body{
+  min-height:6rem;
+  overflow:auto;
+  scrollbar-gutter:stable;
+}
+.settings-panel .settings-body:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:-2px;
+}
+.settings-panel .tab,.settings-panel .keybind,
+.settings-panel .segmented button,.settings-panel .range-val,
+.settings-panel .toggle,.settings-panel>.panel-footer .neon-btn{
+  font-size:.875rem;
+  letter-spacing:.04em;
+}
+.settings-panel .setting-label b,.settings-panel .control-group>h3{
+  font-size:1rem;
+  letter-spacing:.06em;
+}
+.settings-panel .setting-label small,.settings-panel .settings-section h3,
+.settings-panel .micro,.settings-panel .menu-details,.settings-panel .data-block p{
+  font-size:.875rem;
+  line-height:1.5;
+  letter-spacing:.04em;
+}
+.settings-panel .keybind,.settings-panel .toggle{
+  min-height:2.5rem;
+  height:auto;
+}
+.settings-panel .keybind{max-width:100%;overflow-wrap:anywhere}
+.settings-panel .segmented{flex-wrap:wrap}
+.settings-panel .range-wrap{min-width:0;max-width:100%}
+.settings-panel .range-wrap input{min-width:0;max-width:100%}
+.settings-panel>.panel-footer{flex-wrap:wrap}
+.settings-panel .neon-btn{overflow-wrap:anywhere;white-space:normal}
+@media (max-height:360px){
+  #screen-settings>.settings-panel{max-height:none}
+  .settings-panel .settings-body{overflow:visible}
+}
 .settings-tabs{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--line)}
 .tab{flex:1;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:10px;letter-spacing:.2em;padding:11px 6px;transition:.14s;text-transform:uppercase}
 .tab:hover,.tab:focus-visible{color:var(--cyan);outline:none;background:rgba(0,240,255,.04)}

@@ -149,8 +149,7 @@ function tryFire(context,intent){
   if(!slot)return {ok:false,reason:'empty-slot'};
   if(state.switchDelaySeconds>0)return {ok:false,reason:'switch-delay'};
   if(slot.cooldownSeconds>0)return {ok:false,reason:'cooldown'};
-  if(slotIndex!==0)return {ok:false,reason:'weapon-not-implemented'};
-  const definition=C.primary(slot.id);
+  const definition=slotIndex===0?C.primary(slot.id):C.additional(slot.id);
   const aimAngle=Number.isFinite(intent.aimAngle)?intent.aimAngle:
     Number.isFinite(context.aimAngle)?context.aimAngle:game?.aim?.angle;
   if(!Number.isFinite(aimAngle))return {ok:false,reason:'invalid-aim'};
@@ -159,12 +158,20 @@ function tryFire(context,intent){
   if(typeof spawn!=='function')return {ok:false,reason:'no-spawner'};
 
   const damage=damageFor(player,slot,definition);
-  const angles=projectileAngles(definition,aimAngle);
   const credit=cooldownCredit.get(state);
   cooldownCredit.delete(state);
   // A step longer than the interval cannot bank a second shot.
   const overshoot=credit?.slot===slot&&credit.seconds<definition.cooldownSeconds?credit.seconds:0;
   slot.cooldownSeconds=definition.cooldownSeconds-overshoot;
+  if(slotIndex!==0){
+    const projectiles=N.ProgressionOffense.fire(game,spawn,definition,{
+      x:player.x,y:player.y,angle:aimAngle,damage,coopPlayer:player,
+      ownerParticipantId:context.participantId||null,
+      activationId:context.activationId||null
+    });
+    return {ok:true,slotIndex,weaponId:definition.id,damage,projectiles,cooldownSeconds:slot.cooldownSeconds};
+  }
+  const angles=projectileAngles(definition,aimAngle);
   for(const angle of angles){
     spawn.call(game,{
       x:player.x,

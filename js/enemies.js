@@ -212,6 +212,7 @@ G.updateEnemies=function(dt){
   for(const e of G.enemies){
     if(e.dead)continue;
     const p=(N.Coop&&N.Coop.isHost())?N.Coop.nearestPlayer(e.x,e.y):localPlayer;
+    const movementSeconds=N.ProgressionOffense.movementSeconds(e,dt);
     e.worldX=e.x;e.worldY=e.y;
     e.pathChecked=false;
     e.spawnT=Math.max(0,e.spawnT-dt);
@@ -223,7 +224,7 @@ G.updateEnemies=function(dt){
     const ang=Math.atan2(dy,dx);
     e.angle=N.lerpAngle(e.angle,ang,1-Math.exp(-dt*5));
     const role=e.role;
-    if(e.spawnT>.12){e.vx*=.86;e.vy*=.86;e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);continue;}
+    if(e.spawnT>.12){e.vx*=.86;e.vy*=.86;e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);continue;}
     // charge attacks first
     if(e.chargeTimer>0){
       e.chargeTimer-=dt;e.vx*=.88;e.vy*=.88;
@@ -234,21 +235,21 @@ G.updateEnemies=function(dt){
         N.Audio.noiseBurst(.05,.05,1600);
         e.atkTimer=2.2/(1+G.run.level*.025);
       }
-      e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
+      e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);
       continue;
     }
     // ram states
     if(e.ramState==='telegraph'){
       e.ramTimer-=dt;e.vx*=.9;e.vy*=.9;e.angle=e.ramAngle;
       if(e.ramTimer<=0){e.ramState='charge';e.ramTimer=.42;N.Audio.glitch();G.triggerGlitch(.16,e.color);}
-      e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
+      e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);
       continue;
     }
     if(e.ramState==='charge'){
       e.ramTimer-=dt;e.angle=e.ramAngle;
       e.vx=Math.cos(e.ramAngle)*Math.min(820,e.speed*4.4);
       e.vy=Math.sin(e.ramAngle)*Math.min(820,e.speed*4.4);
-      e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
+      e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);
       if(e.ramTimer<=0){e.ramState='chase';e.atkTimer=2.3;e.vx*=.2;e.vy*=.2;}
       continue;
     }
@@ -260,7 +261,7 @@ G.updateEnemies=function(dt){
         G.killEnemy(e,{exploded:true});
         continue;
       }
-      e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
+      e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);
       continue;
     }
     // role movement
@@ -368,7 +369,7 @@ G.updateEnemies=function(dt){
       moveToward(e,p.x+(-dy)*wob,p.y+(dx)*wob,e.speed,dt,role==='tank'?1.6:3.4);
     }
     if(!e.pathChecked){const detour=N.World.waypoint(e,p);if(detour)moveToward(e,detour.x,detour.y,e.speed,dt);}
-    e.x+=e.vx*dt;e.y+=e.vy*dt;keepIn(e);
+    e.x+=e.vx*movementSeconds;e.y+=e.vy*movementSeconds;keepIn(e);
     // attack cycles
     if(role==='shooter'){
       e.atkTimer-=dt;
