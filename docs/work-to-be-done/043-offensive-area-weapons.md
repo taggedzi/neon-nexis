@@ -125,6 +125,11 @@ loopback port. Playwright and its PHP fixtures now share optional
 `NEON_TEST_ENABLED_PORT` and `NEON_TEST_SAMPLE_PORT` overrides. Defaults and
 test coverage are unchanged. With ports 41216 and 41217, the standard
 Playwright equipment tests passed in both Chromium and Firefox.
+The full run exposed an obsolete settings assertion that prohibited vertical
+scrolling. The layout fixture now checks that only the settings options pane
+scrolls at its tested sizes and that the final binding is readable and reachable.
+All layout cases passed across the focused run and an isolated retry of a
+Firefox timeout. `NEON_TEST_WORKERS` can lower parallel load for the push hook.
 
 ## GitHub coordination
 

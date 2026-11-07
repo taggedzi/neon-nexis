@@ -96,7 +96,12 @@ async function checkLayout(page, screen, scrollBody, fixedControls) {
       clipped: root.scrollHeight > root.clientHeight + 2 || root.scrollWidth > root.clientWidth + 2
     };
   });
-  expect(scrollers.vertical).toEqual([]);
+  if (screen === 'settings') {
+    expect(scrollers.vertical.filter(id => id !== 'settings-body')).toEqual([]);
+    await expect(page.locator('.settings-panel')).toHaveCSS('zoom', '1');
+  } else {
+    expect(scrollers.vertical).toEqual([]);
+  }
   expect(scrollers.clipped).toBe(false);
   if (!scrollBody) return;
   for (const control of fixedControls) await expect(page.locator(control)).toBeInViewport({ ratio: 1 });
@@ -135,6 +140,10 @@ for (const size of [{ width: 1280, height: 720 }, { width: 1024, height: 600 },
         await checkLayout(page, 'settings', '#settings-body', ['.settings-tabs', '#btn-settings-done', '#btn-settings-reset']);
       }
       await page.locator('[data-tab="controls"]').click();
+      const lastBinding = page.locator('[data-bind-pad]').last();
+      await lastBinding.focus();
+      await expect(lastBinding).toBeInViewport({ ratio: 1 });
+      await expect(lastBinding).toHaveCSS('font-size', '14px');
       await page.locator('[data-help="controller"] summary').click();
       await checkLayout(page, 'settings', '#settings-body', ['.settings-tabs', '#btn-settings-done']);
       await page.screenshot({ path: info.outputPath('settings-' + size.width + '.png') });
