@@ -117,6 +117,15 @@ PR #69. Before this change, its equipment dispatch rejected additional weapons.
 The owner approved merging issue #60 on 2026-11-07. Public activation and
 regular-play validation remain with issue 049.
 
+### Pre-push browser server — 2026-11-07
+
+The owner reproduced the pre-push timeout. A direct probe timed out on port
+4173 even while PHP was listening, but returned HTTP 200 on an alternate
+loopback port. Playwright and its PHP fixtures now share optional
+`NEON_TEST_ENABLED_PORT` and `NEON_TEST_SAMPLE_PORT` overrides. Defaults and
+test coverage are unchanged. With ports 41216 and 41217, the standard
+Playwright equipment tests passed in both Chromium and Firefox.
+
 ## GitHub coordination
 
 Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/60

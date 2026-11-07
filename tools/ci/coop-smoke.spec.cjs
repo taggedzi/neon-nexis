@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { expectRevival } = require('./coop-revival.cjs');
+const { sampleUrl } = require('./browser-ports.cjs');
 
 const ROOM_SETUP_TIMEOUT = 30000;
 const openContexts = [];
@@ -1138,7 +1139,7 @@ test('sample config keeps CO-OP UPLINK visible and disabled while solo play work
   page.on('console', message => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.goto('http://127.0.0.1:4174/');
+  await page.goto(sampleUrl + '/');
   await page.locator('#btn-boot').click();
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await expect(page.locator('#btn-coop')).toBeVisible();

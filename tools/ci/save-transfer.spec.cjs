@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const { test, expect } = require('@playwright/test');
+const { enabledUrl } = require('./browser-ports.cjs');
 
 const checkpoint = {
   version: 1,
@@ -18,7 +19,7 @@ const settings = JSON.stringify({
 });
 
 async function bootToData(page) {
-  await page.goto('http://127.0.0.1:4173/');
+  await page.goto(enabledUrl + '/');
   await page.locator('#btn-boot').click();
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await page.locator('#btn-settings').click();
@@ -137,7 +138,7 @@ test('pause can export the stored checkpoint and cannot import', async ({ page, 
   console.log('Browser: ' + browser.browserType().name() + ' ' + browser.version());
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('http://127.0.0.1:4173/');
+  await page.goto(enabledUrl + '/');
   await page.locator('#btn-boot').click();
   await page.locator('#btn-new-run').click();
   await page.locator('#btn-ship-launch').click();
@@ -165,7 +166,7 @@ test('quota exhaustion restores the four stored values', async ({ browser }) => 
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
-    await page.goto('http://127.0.0.1:4173/');
+    await page.goto(enabledUrl + '/');
     await page.locator('#btn-boot').click();
     await expect(page.locator('#screen-menu')).toHaveClass(/active/);
     const outcome = await page.evaluate(() => {

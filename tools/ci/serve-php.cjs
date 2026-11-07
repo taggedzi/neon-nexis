@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createInterface } = require('node:readline');
+const { enabledPort, samplePort } = require('./browser-ports.cjs');
 
 const root = path.resolve(__dirname, '..', '..');
 const publicRoot = path.resolve(root, process.env.SERVE_DIR || '.');
@@ -15,7 +16,7 @@ if (!fs.existsSync(path.join(publicRoot, 'index.html'))) {
   throw Error('SERVE_DIR must contain the staged index.html');
 }
 const mode = process.argv[2] === 'sample' ? 'sample' : 'enabled';
-const port = mode === 'sample' ? 4174 : 4173;
+const port = mode === 'sample' ? samplePort : enabledPort;
 const config = mode === 'sample'
   ? path.join(root, 'php', 'coop-config.sample.php')
   : path.join(root, 'tools', 'fixtures', 'coop-config.enabled.php');
