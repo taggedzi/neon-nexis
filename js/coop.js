@@ -87,8 +87,8 @@
     return { x, y };
   }
 
-  function makeRemotePlayer(profile, level, index) {
-    const p = G.makePlayer(profile);
+  function makeRemotePlayer(profile, level, index, progressionMode = 'legacy') {
+    const p = G.makePlayer(profile, progressionMode);
     const selection = profileOf(profile || {});
     Object.assign(p, N.Ships.selection(selection));
     p.name = selection.name;

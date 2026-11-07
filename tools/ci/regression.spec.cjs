@@ -8,6 +8,7 @@ const suites = [
   ['discarded-items', 'discarded-items', 'discardedItemsResult'],
   ['discarded-items', 'rewards', 'rewardsResult'],
   ['driving', 'driving', 'drivingResult'],
+  ['equipment', 'equipment', 'equipmentResult'],
   ['firing', 'firing', 'firingResult'],
   ['map-combat', 'maps', 'mapCombatResult'],
   ['ships', 'ships', 'shipsResult'],
