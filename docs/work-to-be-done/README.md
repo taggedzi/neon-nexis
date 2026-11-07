@@ -51,7 +51,7 @@ in [the decision log](../decisions.md).
 | 039 | [Faster push checks](039-faster-push-checks.md) | Done |
 | 040 | [Uninterrupted cooperative progression](040-uninterrupted-coop-progression.md) ([GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57)) | Planned |
 | 041 | [Approve progression rules and define integration contracts](041-progression-contracts.md) ([GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58)) | Done |
-| 042 | [Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) ([GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)) | Planned |
+| 042 | [Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) ([GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)) | Implemented — needs validation |
 | 043 | [Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) ([GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)) | Planned |
 | 044 | [Implement the separate defensive quick-use slot](044-defensive-quick-use.md) ([GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)) | Planned |
 | 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Planned |

@@ -228,19 +228,32 @@ function makeWeapon(id,tier=1,level=1){
   const def=N.WEAPON_BY_ID[id]||N.WEAPON_BY_ID[N.STARTING_WEAPON];
   return {id:def.id,name:def.name,color:def.color,base:def.base,level:clamp(level|0,1,5),tier:clamp(tier|0,1,3),cooldown:0};
 }
-function makePlayer(selection){
+function makePlayer(selection,progressionMode='legacy'){
+  if(progressionMode!=='legacy'&&progressionMode!=='shared_v1')throw Error('Unknown progression mode');
   const p={
     x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:-Math.PI/2,
     ...N.Ships.selection(selection),hullStatsVersion:1,
     hp:null,shield:null,level:1,xp:0,xpNext:G.xpForLevel(1),
-    weapons:[makeWeapon(N.STARTING_WEAPON,1,1)],
-    passives:[{id:'vector',stacks:1}],
-    core:[],activeWeapon:0,weaponSlots:N.START_SLOTS.weapons,passiveSlots:N.START_SLOTS.passives,
     invuln:0,hitFlash:0,shieldDelay:0,dashCharges:1,maxDashCharges:1,dashTimer:0,dashTime:0,dashDir:0,
     buffs:{overclock:0,speed:0,magnet:0},stats:null,
     trail:[],trailTimer:0,spiralDir:1,novaOffset:0,starfallOffset:0,
     totalDamage:0,healAccum:0,dead:false,shieldRegenFx:0
   };
+  if(progressionMode==='shared_v1'){
+    p.progressionMode='shared_v1';
+    p.progression=N.Equipment.create(p.shipType);
+    if(!p.progression)throw Error('Unknown hull for progression construction');
+    p.level=p.progression.level;
+    p.xp=p.progression.xp;
+    p.xpNext=G.xpForLevel(p.level);
+  }else{
+    p.weapons=[makeWeapon(N.STARTING_WEAPON,1,1)];
+    p.passives=[{id:'vector',stacks:1}];
+    p.core=[];
+    p.activeWeapon=0;
+    p.weaponSlots=N.START_SLOTS.weapons;
+    p.passiveSlots=N.START_SLOTS.passives;
+  }
   G.rebuildStats(p,true);
   return p;
 }
@@ -389,7 +402,7 @@ G.newRun=function(selection,options){
     return false;
   }
   G.coopRun=!!options.coop;
-  G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
+  G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0,progressionMode:'legacy'};
   G.player=makePlayer(selection);
   if(loadout) N.Loadouts.apply(G.player,loadout);
   G.player.name=options.name||'PLAYER 1';
