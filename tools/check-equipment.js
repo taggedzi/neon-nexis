@@ -14,7 +14,7 @@ check(C.primaryOrder.length===4&&C.primaryOrder.every(id=>!!C.primary(id)),'four
 G.settings=N.deepMerge(N.SETTINGS_DEFAULT,{trackStats:false});
 G.applySettings(false);
 G.newRun({shipType:'kite'});
-check(G.run.progressionMode==='legacy','public new run remains on the legacy path');
+check(G.run.progressionMode===undefined,'public new run uses the existing run state');
 check(G.player.progression===undefined,'legacy player construction has no shared progression state');
 check(G.player.weapons.length===1&&G.player.weapons[0].id===N.STARTING_WEAPON,'legacy starting weapon is unchanged');
 check(G.player.weaponSlots===N.START_SLOTS.weapons&&G.player.activeWeapon===0,'legacy weapon capacity and selection are unchanged');
@@ -54,10 +54,9 @@ for(const hull of hulls){
   check(rejected,'unknown progression mode is rejected');
 }
 function fire(state,hull,aimAngle=0,spawn){
-  const player={x:500,y:500,dead:false,shipType:hull};
+  const player={x:500,y:500,dead:false,shipType:hull,progression:state};
   const spawned=[];
   const result=E.tryFire({
-    state,
     player,
     participantId:'solo-test',
     activationId:'activation-1',
@@ -69,19 +68,16 @@ function fire(state,hull,aimAngle=0,spawn){
   return {result,spawned,player};
 }
 function fireIntoGame(state,hull,aimAngle=0){
-  const player=G.player;
-  player.shipType=hull;
-  player.dead=false;
+  const player=G.makePlayer({shipType:hull},'shared_v1');
+  player.progression=state;
   player.x=500;
   player.y=500;
   player.aim=aimAngle;
   player.heading=aimAngle;
-  G.rebuildStats(player);
   G.playerBullets.length=0;
   G.enemies.length=0;
   G.level.layout=null;
   return E.tryFire({
-    state,
     player,
     participantId:'solo-test',
     activationId:'activation-1',
@@ -107,7 +103,7 @@ check(shot.result.ok&&shot.result.projectiles===1&&shot.spawned.length===1&&appr
 check(shot.spawned[0].pierce===2&&C.primary('rail_lance').maxDistinctTargets===3,'rail lance carries a three-distinct-target limit');
 check(shot.spawned[0].critChance===C.critChance&&shot.spawned[0].critMul===C.critMul,'primary hits carry the approved critical parameters');
 check(approx(states.talon.offensive[0].cooldownSeconds,.7),'rail lance starts its .70 s cooldown');
-const immediate=E.tryFire({state:states.talon,player:{x:0,y:0,dead:false,shipType:'talon'},spawnBullet(){}},{aimAngle:0});
+const immediate=fire(states.talon,'talon').result;
 check(!immediate.ok&&immediate.reason==='cooldown'&&approx(states.talon.offensive[0].cooldownSeconds,.7),'cooldown rejects a second firing event without mutation');
 states.talon.offensive[0].cooldownSeconds=0;
 G.playerBullets.length=0;
@@ -121,27 +117,67 @@ try{
   G.mines.length=0;
   G.orbitals.length=0;
   G.strikes.length=0;
-  G.enemies=[0,1,2,3].map(index=>({
-    id:'rail-target-'+index,x:700+index*100,y:500,r:20,hp:1000,maxHp:1000,
+  const enemy=(id,x,y=500)=>({
+    id,x,y,r:4,hp:1000,maxHp:1000,
     dead:false,color:'#ff335c',role:'rusher',shield:0,hitFlash:0
-  }));
-  for(let index=0;index<30;index++)G.updatePlayerBullets(1/60);
+  });
+  G.enemies=[521,539,560,575].map((x,index)=>enemy('rail-target-'+index,x));
+  G.enemies.reverse();
+  const railOwner=G.playerBullets[0].coopPlayer;
+  railOwner.progression.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
+  E.select(railOwner.progression,1);
+  G.updatePlayerBullets(.05);
+  G.enemies.reverse();
   check(approx(1000-G.enemies[0].hp,35)&&approx(1000-G.enemies[1].hp,35)&&approx(1000-G.enemies[2].hp,35),'rail lance damages three distinct enemies once each');
   check(G.enemies[3].hp===1000,'rail lance stops before a fourth distinct enemy');
+  check(railOwner.totalDamage===105,'in-flight rail retains damage and owner after switching');
+
+  fireIntoGame(E.create('talon'),'talon');
+  const near=enemy('near',585,550);
+  const behind=enemy('behind',620,550);
+  G.enemies=[behind,near];
+  const floor=new Array(100).fill(true);
+  floor[56]=false;
+  G.level.layout={cols:10,rows:10,floor};
+  const railBullet=G.playerBullets[0];
+  railBullet.y=550;
+  G.updatePlayerBullets(.08);
+  check(near.hp===965&&behind.hp===1000&&railBullet.dead,'rail hits before a wall and stops at it');
+
+  fireIntoGame(E.create('dart'),'dart');
+  const needle=G.playerBullets[0];
+  needle.life=.01;
+  const outOfRange=enemy('out-of-range',540);
+  G.enemies=[outOfRange];
+  G.updatePlayerBullets(.05);
+  check(outOfRange.hp===1000&&needle.x===512&&needle.dead,'fast projectile stops at its lifetime within a step');
+
+  fireIntoGame(E.create('kite'),'kite');
+  const anchor={id:'objective',x:520,y:500,r:4,hp:1000,alive:true};
+  G.level.anchors=[anchor];
+  G.updatePlayerBullets(.05);
+  check(anchor.hp===990&&G.playerBullets[0].dead,'primary shots still damage destructible objectives');
+  G.level.anchors=[];
+  fireIntoGame(E.create('kite'),'kite');
+  const mine={id:'hostile-mine',x:520,y:500,radius:10,owner:'enemy',dead:false};
+  G.mines=[mine];
+  G.updatePlayerBullets(.05);
+  check(mine.dead&&G.playerBullets[0].dead,'primary shots destroy hostile mines');
+  G.mines=[];
 }finally{
   Math.random=oldRandom;
 }
 const switchState=E.create('kite');
-switchState.offensive[1]={id:'needle_blaster',level:1,cooldownSeconds:0};
+switchState.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
 switchState.offensive[0].cooldownSeconds=.5;
 let switched=E.select(switchState,1);
 check(switched.ok&&switched.changed&&approx(switchState.switchDelaySeconds,.15),'selection starts the approved .15 s switch delay');
-let blocked=E.tryFire({state:switchState,player:{x:0,y:0,dead:false,shipType:'kite'},spawnBullet(){}},{aimAngle:0});
+let blocked=fire(switchState,'kite').result;
 check(!blocked.ok&&blocked.reason==='switch-delay','switch delay blocks offensive firing');
 check(approx(switchState.offensive[0].cooldownSeconds,.5),'switch delay does not reset a holstered cooldown');
 E.tick(switchState,.15);
 check(approx(switchState.switchDelaySeconds,0),'switch delay advances on simulation time');
-const additional=E.tryFire({state:switchState,player:{x:0,y:0,dead:false,shipType:'kite'},spawnBullet(){}},{aimAngle:0});
+const additional=fire(switchState,'kite').result;
 check(!additional.ok&&additional.reason==='weapon-not-implemented','additional-weapon firing remains deferred to issue 043');
 check(approx(switchState.offensive[0].cooldownSeconds,.35),'holstered cooldown advances while switched');
 const back=E.select(switchState,0);
@@ -154,7 +190,7 @@ check(sameSlot.ok&&!sameSlot.changed&&approx(same.switchDelaySeconds,.1),'same-s
 check(!E.select(same,3).ok,'invalid slot index is rejected');
 check(!E.select(same,1).ok,'empty slot selection is rejected');
 const cycleState=E.create('kite');
-cycleState.offensive[1]={id:'needle_blaster',level:1,cooldownSeconds:0};
+cycleState.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
 let cycled=E.cycle(cycleState,1);
 check(cycled.ok&&cycled.slotIndex===1,'cycle forward selects the additional slot');
 cycled=E.cycle(cycleState,1);
@@ -167,7 +203,7 @@ sole.switchDelaySeconds=.1;
 const soleCycle=E.cycle(sole,1);
 check(soleCycle.ok&&!soleCycle.changed&&sole.selectedOffensiveSlot===0&&approx(sole.switchDelaySeconds,.1),'sole primary cycle keeps selection and delay');
 const inventory=E.create('kite');
-inventory.offensive[1]={id:'needle_blaster',level:1,cooldownSeconds:0};
+inventory.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
 E.select(inventory,1);
 E.tick(inventory,.15);
 inventory.offensive[1]=null;
@@ -186,20 +222,44 @@ const credit=E.create('kite');
 credit.offensive[0].cooldownSeconds=.1;
 E.tick(credit,.2);
 check(approx(credit.offensive[0].cooldownSeconds,0),'tick clamps a completed cooldown to zero');
-const credited=E.tryFire({state:credit,player:{x:0,y:0,dead:false,shipType:'kite'},spawnBullet(){}},{aimAngle:0});
+const credited=fire(credit,'kite').result;
 check(credited.ok&&approx(credit.offensive[0].cooldownSeconds,.1),'overshoot credit shortens the next cooldown');
+const waited=E.create('kite');
+waited.offensive[0].cooldownSeconds=.01;
+E.tick(waited,.05);
+E.tick(waited,.05);
+check(approx(fire(waited,'kite').result.cooldownSeconds,.2),'ready weapons cannot bank timing credit');
+const holstered=E.create('kite');
+holstered.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
+holstered.offensive[0].cooldownSeconds=.02;
+E.select(holstered,1);
+E.tick(holstered,.05);
+E.select(holstered,0);
+E.tick(holstered,.15);
+check(approx(fire(holstered,'kite').result.cooldownSeconds,.2),'holstered weapons cannot bank timing credit');
+function shotCount(steps){
+  const state=E.create('dart');
+  let count=Number(fire(state,'dart').result.ok);
+  for(let index=0;index<steps;index++){
+    E.tick(state,12/steps);
+    count+=Number(fire(state,'dart').result.ok);
+  }
+  return count;
+}
+check(shotCount(720)===101&&shotCount(360)===101&&shotCount(537)===101,'held needle fire maintains cadence across step sizes');
+check(!fire(E.create('talon'),'kite').result.ok,'another hull cannot fire the permanent primary');
 const timing=E.create('kite');
 timing.offensive[0].cooldownSeconds=.2;
 const badTick=E.tick(timing,-.1);
 check(!badTick.ok&&approx(timing.offensive[0].cooldownSeconds,.2),'negative elapsed time is rejected without mutation');
-const dead=E.tryFire({state:E.create('kite'),player:{dead:true,x:0,y:0,shipType:'kite'},spawnBullet(){}},{aimAngle:0});
+const dead=E.tryFire({player:{dead:true,x:0,y:0,shipType:'kite',progression:E.create('kite')},spawnBullet(){}},{aimAngle:0});
 check(!dead.ok&&dead.reason==='player-unavailable','dead players cannot fire');
-const noSpawn=E.tryFire({state:E.create('kite'),player:{dead:false,x:0,y:0,shipType:'kite'},game:{}},{aimAngle:0});
+const noSpawn=E.tryFire({player:{dead:false,x:0,y:0,shipType:'kite',progression:E.create('kite')},game:{}},{aimAngle:0});
 check(!noSpawn.ok&&noSpawn.reason==='no-spawner','a firing event requires an explicit projectile sink');
 const unknown=E.create('kite');
 unknown.offensive[0].id='unknown_primary';
-check(E.isValidState(unknown),'unknown primary IDs remain structurally valid for content lookup');
-check(!E.tryFire({state:unknown,player:{x:0,y:0,dead:false,shipType:'kite'},spawnBullet(){}},{aimAngle:0}).ok,'unknown primary content is rejected');
+check(!E.isValidState(unknown),'unknown primary IDs are rejected');
+check(!fire(unknown,'kite').result.ok,'unknown primary content is rejected');
 check(!E.isValidState(null),'null state is invalid');
 const malformed=E.create('kite');
 malformed.offensive=malformed.offensive.slice(0,2);

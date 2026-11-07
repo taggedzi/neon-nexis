@@ -233,7 +233,7 @@ function makePlayer(selection,progressionMode='legacy'){
   const p={
     x:0,y:0,vx:0,vy:0,radius:13,aim:-Math.PI/2,heading:-Math.PI/2,
     ...N.Ships.selection(selection),hullStatsVersion:1,
-    hp:null,shield:null,level:1,xp:0,xpNext:G.xpForLevel(1),
+    hp:null,shield:null,
     invuln:0,hitFlash:0,shieldDelay:0,dashCharges:1,maxDashCharges:1,dashTimer:0,dashTime:0,dashDir:0,
     buffs:{overclock:0,speed:0,magnet:0},stats:null,
     trail:[],trailTimer:0,spiralDir:1,novaOffset:0,starfallOffset:0,
@@ -243,10 +243,15 @@ function makePlayer(selection,progressionMode='legacy'){
     p.progressionMode='shared_v1';
     p.progression=N.Equipment.create(p.shipType);
     if(!p.progression)throw Error('Unknown hull for progression construction');
-    p.level=p.progression.level;
-    p.xp=p.progression.xp;
-    p.xpNext=G.xpForLevel(p.level);
+    Object.defineProperties(p,{
+      level:{enumerable:true,get:()=>p.progression.level},
+      xp:{enumerable:true,get:()=>p.progression.xp},
+      xpNext:{enumerable:true,get:()=>G.xpForLevel(p.progression.level)}
+    });
   }else{
+    p.level=1;
+    p.xp=0;
+    p.xpNext=G.xpForLevel(1);
     p.weapons=[makeWeapon(N.STARTING_WEAPON,1,1)];
     p.passives=[{id:'vector',stacks:1}];
     p.core=[];
@@ -402,7 +407,7 @@ G.newRun=function(selection,options){
     return false;
   }
   G.coopRun=!!options.coop;
-  G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0,progressionMode:'legacy'};
+  G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer(selection);
   if(loadout) N.Loadouts.apply(G.player,loadout);
   G.player.name=options.name||'PLAYER 1';

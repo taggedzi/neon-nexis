@@ -33,7 +33,7 @@ G.spawnBullet=function(o){
   if(G.playerBullets.length>=MAX_PLAYER_BULLETS) G.playerBullets.shift();
   G.playerBullets.push(b);
   N.PlayerStats?.emit(b);
-  if(N.Coop) N.Coop.onPlayerBullet(b);
+  if(N.Coop&&!b.progressionPrimary) N.Coop.onPlayerBullet(b);
   return b;
 };
 G.spawnEnemyBullet=function(o){
@@ -406,11 +406,91 @@ G.damagePlayer=function(amount,x,y,contact=false){
 };
 
 // ——— bullets ———
+function primaryHitTime(b, dx, dy, target, radius){
+  const x=b.x-target.x;
+  const y=b.y-target.y;
+  const distanceSquared=x*x+y*y-radius*radius;
+  if(distanceSquared<=0)return 0;
+  const lengthSquared=dx*dx+dy*dy;
+  const approach=x*dx+y*dy;
+  const discriminant=approach*approach-lengthSquared*distanceSquared;
+  if(lengthSquared===0||approach>=0||discriminant<0)return Infinity;
+  return (-approach-Math.sqrt(discriminant))/lengthSquared;
+}
+
+function updatePrimaryBullet(b, dt){
+  const elapsed=Math.min(dt,b.life);
+  const dx=b.vx*elapsed;
+  const dy=b.vy*elapsed;
+  const endX=b.x+dx;
+  const endY=b.y+dy;
+  const wall=N.World.segment(G.level.layout,b.x,b.y,endX,endY,b.size);
+  const wallTime=wall?.t??Infinity;
+  const hits=[];
+  function collect(targets, isAlive, damage, radiusScale){
+    for(const target of targets){
+      if(!isAlive(target)||b.hitSet.has(target.id))continue;
+      const t=primaryHitTime(b,dx,dy,target,b.size+target.r*radiusScale);
+      if(t<=1&&t<wallTime)hits.push({target,t,isAlive,damage});
+    }
+  }
+  collect(G.enemies, enemy=>!enemy.dead,G.damageEnemy,.9);
+  collect(G.level.anchors, anchor=>anchor.alive,G.damageAnchor,1);
+  collect(G.level.caches, cache=>cache.alive,G.damageCache,1);
+  for(const mine of G.mines){
+    if(mine.dead||mine.owner!=='enemy'||b.hitSet.has(mine.id))continue;
+    const t=primaryHitTime(b,dx,dy,mine,b.size+mine.radius*.35);
+    if(t<=1&&t<wallTime)hits.push({target:mine,t,isAlive:target=>!target.dead,damage:null});
+  }
+  hits.sort((a,b)=>a.t-b.t||(a.target.id<b.target.id?-1:Number(a.target.id>b.target.id)));
+  for(const {target,t,isAlive,damage} of hits){
+    if(!isAlive(target)||b.hitSet.has(target.id))continue;
+    b.hitSet.add(target.id);
+    const x=b.prevX+dx*t;
+    const y=b.prevY+dy*t;
+    if(damage){
+      damage(target,b.damage,{
+        x,y,critChance:b.critChance,critMul:b.critMul,source:'bullet',
+        allowPayload:false,player:b.coopPlayer,shot:b.tallyShot
+      });
+    }else{
+      target.dead=true;
+      G.addRing(target.x,target.y,target.radius,'#ffb31f',.25,1.4);
+      G.addParticles(target.x,target.y,'#ffb31f',8,{speed:120,life:.35,size:1.5});
+      N.Audio.kill(false);
+    }
+    // Destructible objectives stop the shot. Only enemies use Rail's pierce.
+    if(damage===G.damageEnemy&&b.pierce>0){
+      b.pierce--;
+      continue;
+    }
+    b.x=x;
+    b.y=y;
+    b.dead=true;
+    return;
+  }
+  b.life-=elapsed;
+  if(wall){
+    b.x+=dx*wallTime;
+    b.y+=dy*wallTime;
+    G.addParticles(b.x,b.y,b.color,4,{speed:70,life:.25,size:1.2});
+    b.dead=true;
+    return;
+  }
+  b.x=endX;
+  b.y=endY;
+  b.dead=b.life<=0||b.x<0||b.y<0||b.x>G.level.width||b.y>G.level.height;
+}
+
 G.updatePlayerBullets=function(dt){
   for(let i=G.playerBullets.length-1;i>=0;i--){
     const b=G.playerBullets[i];
     if(b.dead){G.playerBullets.splice(i,1);continue;}
     b.prevX=b.x;b.prevY=b.y;
+    if(b.progressionPrimary){
+      updatePrimaryBullet(b,dt);
+      continue;
+    }
     if(b.curve){const c=b.curve*dt;const cs=Math.cos(c),sn=Math.sin(c);const vx=b.vx*cs-b.vy*sn;b.vy=b.vx*sn+b.vy*cs;b.vx=vx;b.angle=Math.atan2(b.vy,b.vx);}
     if(b.homing){
       const t=nearestTarget(b.x,b.y,700,null);

@@ -4,20 +4,10 @@
 const N=window.NEON;
 const C=N.ProgressionContent;
 
-// Cooldown overshoot is transient timing credit. It is deliberately kept out of
-// the canonical state so saves/network payloads keep the contract's nonnegative
-// cooldown fields. Losing it on a state clone costs at most one frame interval.
+// Only the selected weapon can carry fractional time into a shot, and only
+// in the step where it became ready. Waiting or switching forfeits that time.
 const cooldownCredit=new WeakMap();
 const COOLDOWN_EPSILON=1e-9;
-
-function creditFor(state){
-  let credits=cooldownCredit.get(state);
-  if(!credits){
-    credits=new Map();
-    cooldownCredit.set(state,credits);
-  }
-  return credits;
-}
 
 function isFiniteNonNegative(value){
   return Number.isFinite(value)&&value>=0;
@@ -35,7 +25,12 @@ function validState(state){
   if(!state||typeof state!=='object')return false;
   if(state.schemaVersion!==C.schemaVersion||state.catalogVersion!==C.catalogVersion)return false;
   if(!Array.isArray(state.offensive)||state.offensive.length!==C.offensiveSlotCount)return false;
-  if(!state.offensive.every(validSlot))return false;
+  const [primary, first, second]=state.offensive;
+  if(!primary||!validSlot(primary)||!C.primary(primary.id))return false;
+  for(const slot of [first, second]){
+    if(!validSlot(slot)||(slot&&!C.additional(slot.id)))return false;
+  }
+  if(first&&second&&first.id===second.id)return false;
   if(!Number.isInteger(state.selectedOffensiveSlot)||state.selectedOffensiveSlot<0||state.selectedOffensiveSlot>=C.offensiveSlotCount)return false;
   if(!isFiniteNonNegative(state.switchDelaySeconds))return false;
   return true;
@@ -50,9 +45,7 @@ function offensiveSlot(state,slotIndex){
 function ensureValidSelection(state){
   if(!validState(state))return false;
   if(state.offensive[state.selectedOffensiveSlot])return true;
-  const fallback=state.offensive.findIndex(slot=>slot!==null);
-  if(fallback<0)return false;
-  state.selectedOffensiveSlot=fallback;
+  select(state,0);
   return true;
 }
 
@@ -87,44 +80,38 @@ function select(state,slotIndex){
   if(state.selectedOffensiveSlot===slotIndex)return {ok:true,changed:false,slotIndex};
   state.selectedOffensiveSlot=slotIndex;
   state.switchDelaySeconds=C.switchDelaySeconds;
+  cooldownCredit.delete(state);
   return {ok:true,changed:true,slotIndex};
 }
 
 function cycle(state,direction){
   if(!validState(state))return {ok:false,reason:'invalid-state'};
   if(direction!==-1&&direction!==1)return {ok:false,reason:'invalid-direction'};
-  if(!ensureValidSelection(state))return {ok:false,reason:'no-offensive-weapon'};
-  const filled=[];
-  for(let i=0;i<C.offensiveSlotCount;i++){
-    if(state.offensive[i])filled.push(i);
+  if(!state.offensive[state.selectedOffensiveSlot])return select(state,0);
+  for(let offset=1;offset<=C.offensiveSlotCount;offset++){
+    const next=(state.selectedOffensiveSlot+offset*direction+C.offensiveSlotCount)%C.offensiveSlotCount;
+    if(state.offensive[next])return select(state,next);
   }
-  if(filled.length<=1)return {ok:true,changed:false,slotIndex:state.selectedOffensiveSlot};
-  const current=filled.indexOf(state.selectedOffensiveSlot);
-  const next=filled[(current+direction+filled.length)%filled.length];
-  if(next===state.selectedOffensiveSlot)return {ok:true,changed:false,slotIndex:next};
-  state.selectedOffensiveSlot=next;
-  state.switchDelaySeconds=C.switchDelaySeconds;
-  return {ok:true,changed:true,slotIndex:next};
 }
 
+// Call once per advancing combat step for a live, connected participant.
 function tick(state,elapsedSeconds){
   if(!validState(state))return {ok:false,reason:'invalid-state'};
   if(!isFiniteNonNegative(elapsedSeconds))return {ok:false,reason:'invalid-elapsed'};
   ensureValidSelection(state);
-  const credits=creditFor(state);
-  for(let i=0;i<state.offensive.length;i++){
-    const slot=state.offensive[i];
+  cooldownCredit.delete(state);
+  const selected=state.offensive[state.selectedOffensiveSlot];
+  const readyAfter=Math.max(selected.cooldownSeconds,state.switchDelaySeconds);
+  if(readyAfter>0&&readyAfter<=elapsedSeconds){
+    cooldownCredit.set(state,{slot:selected,seconds:elapsedSeconds-readyAfter});
+  }
+  for(const slot of state.offensive){
     if(!slot||slot.cooldownSeconds<=0)continue;
     const remaining=slot.cooldownSeconds-elapsedSeconds;
-    if(remaining>COOLDOWN_EPSILON){
-      slot.cooldownSeconds=remaining;
-      continue;
-    }
-    const overshoot=Math.max(0,Math.min(1,-remaining));
-    credits.set(i,Math.min(1,(credits.get(i)||0)+overshoot));
-    slot.cooldownSeconds=0;
+    slot.cooldownSeconds=remaining>COOLDOWN_EPSILON?remaining:0;
   }
-  state.switchDelaySeconds=Math.max(0,state.switchDelaySeconds-elapsedSeconds);
+  const remaining=state.switchDelaySeconds-elapsedSeconds;
+  state.switchDelaySeconds=remaining>COOLDOWN_EPSILON?remaining:0;
   return {ok:true};
 }
 
@@ -152,62 +139,53 @@ function tryFire(context,intent){
   intent=intent||{};
   const game=context.game||N.Game;
   const player=context.player||game?.player;
-  const state=context.state||player?.progression;
-  if(!player||player.dead)return {ok:false,reason:'player-unavailable'};
+  const state=player?.progression;
+  if(!player||player.dead||context.paused||context.connected===false)return {ok:false,reason:'player-unavailable'};
+  if(N.Coop?.isGuest())return {ok:false,reason:'not-authoritative'};
   if(!validState(state))return {ok:false,reason:'invalid-state'};
-  if(!ensureValidSelection(state))return {ok:false,reason:'no-offensive-weapon'};
+  if(state.offensive[0].id!==C.primaryForHull(player.shipType))return {ok:false,reason:'wrong-hull-primary'};
   const slotIndex=state.selectedOffensiveSlot;
   const slot=state.offensive[slotIndex];
   if(!slot)return {ok:false,reason:'empty-slot'};
   if(state.switchDelaySeconds>0)return {ok:false,reason:'switch-delay'};
-  if(slot.cooldownSeconds>COOLDOWN_EPSILON)return {ok:false,reason:'cooldown'};
+  if(slot.cooldownSeconds>0)return {ok:false,reason:'cooldown'};
   if(slotIndex!==0)return {ok:false,reason:'weapon-not-implemented'};
   const definition=C.primary(slot.id);
-  if(!definition)return {ok:false,reason:'unknown-weapon'};
   const aimAngle=Number.isFinite(intent.aimAngle)?intent.aimAngle:
     Number.isFinite(context.aimAngle)?context.aimAngle:game?.aim?.angle;
   if(!Number.isFinite(aimAngle))return {ok:false,reason:'invalid-aim'};
+  if(!Number.isFinite(player.x)||!Number.isFinite(player.y))return {ok:false,reason:'invalid-position'};
   const spawn=typeof context.spawnBullet==='function'?context.spawnBullet:game?.spawnBullet;
   if(typeof spawn!=='function')return {ok:false,reason:'no-spawner'};
 
   const damage=damageFor(player,slot,definition);
   const angles=projectileAngles(definition,aimAngle);
-  const pierce=Math.max(0,definition.maxDistinctTargets-1);
-  try{
-    for(const angle of angles){
-      spawn.call(game,{
-        x:player.x+Math.cos(angle)*definition.offset,
-        y:player.y+Math.sin(angle)*definition.offset,
-        angle,
-        speed:definition.speed,
-        damage,
-        size:definition.size,
-        life:definition.lifeSeconds,
-        color:definition.color,
-        kind:definition.kind,
-        weaponId:definition.id,
-        pierce,
-        bounce:0,
-        chain:0,
-        aoe:0,
-        critChance:C.critChance,
-        critMul:C.critMul,
-        hitSet:new Set(),
-        coopPlayer:player,
-        player,
-        ownerParticipantId:context.participantId||null,
-        activationId:context.activationId||null
-      });
-    }
-  }catch(error){
-    console.error('progression primary fire error',definition.id,error);
-    return {ok:false,reason:'spawn-failed'};
+  const credit=cooldownCredit.get(state);
+  cooldownCredit.delete(state);
+  // A step longer than the interval cannot bank a second shot.
+  const overshoot=credit?.slot===slot&&credit.seconds<definition.cooldownSeconds?credit.seconds:0;
+  slot.cooldownSeconds=definition.cooldownSeconds-overshoot;
+  for(const angle of angles){
+    spawn.call(game,{
+      x:player.x,
+      y:player.y,
+      angle,
+      speed:definition.speed,
+      damage,
+      size:definition.size,
+      life:definition.lifeSeconds,
+      color:definition.color,
+      kind:definition.kind,
+      weaponId:definition.id,
+      progressionPrimary:true,
+      pierce:definition.maxDistinctTargets-1,
+      critChance:C.critChance,
+      critMul:C.critMul,
+      coopPlayer:player,
+      ownerParticipantId:context.participantId||null,
+      activationId:context.activationId||null
+    });
   }
-
-  const credits=creditFor(state);
-  const credit=credits.get(slotIndex)||0;
-  credits.delete(slotIndex);
-  slot.cooldownSeconds=Math.max(0,definition.cooldownSeconds-credit);
   if(game?.muzzle){
     game.muzzle(player.x+Math.cos(aimAngle)*definition.offset,player.y+Math.sin(aimAngle)*definition.offset,definition.color,aimAngle,definition.kind==='rail'?8:4);
   }
