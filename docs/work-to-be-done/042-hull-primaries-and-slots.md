@@ -1,6 +1,6 @@
 # 042 — Implement hull primaries and three offensive weapon slots
 
-Status: Implemented — needs validation
+Status: Done
 
 ## Problem or player need
 
@@ -38,92 +38,54 @@ Distinct primaries may amplify Talon's existing damage advantage; do not rebalan
 
 ## Implementation and validation
 
-Implemented 2026-11-06 on branch `feat/042-hull-primaries-and-slots`, based on
-`2c5bde05c7ff600d3946fcc62654cf1081071bc0` (`origin/main`, after 041 merged).
-No commit, push, PR, merge or deployment was performed. The owner selected the
-concurrent `progression-equipment` implementation after an overlapping second
-OpenCode session briefly wrote a duplicate design; the duplicate module was
-removed with owner authorization.
+Revised 2026-11-07 on `feat/042-hull-primaries-and-slots` at the owner's
+request. The earlier attempt remains in branch history at `912e40d`.
+The branch is based on `2c5bde0`, where prerequisite 041 merged.
 
-### Changed files
+- `js/progression-content.js` defines the approved hull primaries and reserves
+  the stable additional-weapon IDs. `js/progression-equipment.js` creates the
+  fixed inventory, validates offensive slot categories, handles selection and
+  simulation timers, and emits primary firing events.
+- `js/game.js` and `js/coop.js` provide explicit shared-mode construction for
+  local and remote players. Level and XP are read-only views of canonical state.
+  Public launch, saves, and co-op continue using the existing mode.
+- `js/sim.js` resolves new primary hits along the full traveled segment using
+  existing wall geometry, hitboxes, and damage handlers. Hits resolve in travel
+  order, then by stable target ID on a tie. The projectile keeps its original
+  damage and owner after switching. Existing projectile collision is unchanged.
+- `index.html` loads the modules. `tools/check-equipment.js` exercises them in
+  the browser and is registered in `tools/ci/regression.spec.cjs`.
 
-- `js/progression-content.js` (new): versioned catalog, stable primary order,
-  hull-to-primary mapping, approved primary values, and reserved additional
-  offense IDs for 043.
-- `js/progression-equipment.js` (new): canonical equipment state, creation,
-  selection/cycling, cooldown ticking, state validation and hull-primary firing.
-- `js/game.js`: internal `makePlayer(selection, progressionMode)` boundary.
-  `shared_v1` attaches `player.progression`; default construction and
-  `G.newRun` remain `legacy`.
-- `js/coop.js`: optional progression mode forwarded by `makeRemotePlayer` for
-  host/guest construction fixtures; existing callers still default to legacy.
-- `index.html`: load the catalog and equipment modules before gameplay code.
-- `tools/check-equipment.js` (new): browser regression coverage.
-- `tools/ci/regression.spec.cjs`: register the equipment suite.
-- This issue and the backlog index.
+### Implementation choices
 
-### Implementation notes and agent decisions
-
-- Approved values come from D4/D7: Pulse Repeater 10 / .20 s / 900 / .8 s;
-  Needle Blaster 6 / .12 s / 1200 / .6 s; Scatter Cannon 5 pellets of 5 / .55 s
-  / .62-radian cone; Rail Lance 28 / .70 s / 1800 / .6 s / three distinct
-  targets. Talon's existing 1.25 hull multiplier makes its level-one rail hit
-  35. Approved hull stats and geometry are unchanged.
-- Primary colors, labels, sounds and the `needle` visual kind are agent choices;
-  no owner balance or feel approval is claimed.
-- `pierce` is `maxDistinctTargets - 1` because the existing bullet collision
-  counts extra hits after the first. Rail therefore stops after its third
-  distinct enemy and its `hitSet` prevents repeat damage.
-- Additional offensive slots exist in state and selection/cycling, but firing
-  an additional slot returns `weapon-not-implemented`; 043 owns those effects.
-  Defense remains a separate field and is excluded from offensive cycling.
-- Switching uses the approved .15 s delay, skips empty slots, never resets
-  individual cooldowns, and preserves already-created projectiles. Selection
-  normalizes back to a valid slot if inventory changes.
-- Cooldowns advance only through `tick(elapsedSeconds)`; no wall clock or frame
-  count is used. Overshoot time is retained in a bounded per-state credit so
-  ready weapons do not lose fractional simulation time. Validation found and
-  fixed a floating-point case where 12 ticks at 1/60 s left a tiny positive
-  cooldown instead of zero.
-- `shared_v1` is an internal construction fixture. Public `G.newRun` records
-  `progressionMode: 'legacy'`, and legacy weapons/passives/slots remain the live
-  path until 049. No save, wire, HUD, input-binding or reward path was changed;
-  those remain with 046–049.
-- Primary projectiles carry `ownerParticipantId` and `activationId` when supplied,
-  plus the existing `coopPlayer` attribution field. Critical parameters remain
-  the approved 5% / 1.75 values for later combat integration.
+- D4/D7 supply the approved damage, intervals, speeds, lifetimes, cone, and
+  three-enemy Rail limit. Talon's level-one rail hit is 35 before criticals.
+  The earlier branch's projectile colors, sounds and sizes were retained.
+- Primary shots start at the ship center so the first collision sweep includes
+  nearby enemies and walls. Muzzle effects retain their offset. Anchors and
+  caches take damage and stop the shot without spending Rail's enemy pierce.
+- Fractional timing credit applies only to the selected weapon in the step it
+  became ready. Holstering or waiting another step discards that credit, and a
+  long step cannot bank multiple shots. The integration caller owns ticking only
+  during advancing combat for live, connected participants.
+- The new path stays inactive until 049. Additional weapon effects, defense,
+  derived passives, input and HUD, save/network compatibility, and final
+  playtesting remain with their assigned issues.
 
 ### Checks and results
 
-- `npm run check` passed on 2026-11-06: syntax, lint, all unit checks and 200
-  browser tests in Chromium 156.0.8078.4 and Firefox 157.0. The equipment suite
-  ran 126 assertions in each browser.
-- Coverage includes fresh state and capacity for all four hulls, solo and
-  host/guest construction, approved hull stats, primary damage/pellet totals,
-  real rail collision against four enemies, cooldown persistence, switch delay,
-  empty-slot cycling, inventory fallback, attribution metadata, invalid state
-  rejection and 30/60 Hz timing equivalence.
-- `git diff --check` passed. Agent manual checks compared the implementation with
-  D4/D7 and the integration contract, verified that `G.newRun` remains legacy,
-  and reviewed the actual collision test rather than only descriptor values.
-- An earlier overlapping `npm run check` from the second OpenCode session failed
-  on co-op timeouts and the temporary duplicate-module mismatch. After that
-  session exited and the selected implementation was wired in, the clean rerun
-  above passed.
-- Not run: owner playtesting, physical-controller checks, real co-op/WAN play,
-  balance/feel review, performance measurement, save/checkpoint migration or
-  wire compatibility. Those are 049/integration work or unavailable devices,
-  not claimed by this issue.
-
-### Remaining work and limitations
-
-- Owner review of the branch/PR remains. No primary feel, pacing or balance
-  acceptance is claimed.
-- 043 must add additional-weapon effects and firing; 044 defense; 045 derived
-  stats/passives; 046 shared rewards/XP; 047 input/HUD; 048 persistence/wire;
-  049 activation and end-to-end validation.
-- The new path is intentionally inactive in public play. `shared_v1` fixtures
-  must not be treated as a released mode.
+- On Windows, `npm run check` passed syntax, lint, unit checks, and all 200
+  browser tests in headless Chromium 156.0.8078.4 and Firefox 157.0. The
+  equipment fixture passed 134 assertions in each browser, covering construction,
+  hull damage, pellet spread, ordered rail impacts, walls, projectile expiry,
+  objective damage, and firing cadence across simulation step sizes.
+- The existing solo, co-op, and save regressions passed. The shared equipment
+  checks use explicit fixtures. Public activation and owner playtesting are
+  tracked in 049.
+- Review on 2026-11-07 added hostile-mine collisions. The focused equipment
+  suite passed 135 assertions in each browser. A subsequent full run was stopped
+  after several co-op browser tests timed out under parallel load.
+- `git diff --check` passed before commit.
 
 ## GitHub coordination
 
