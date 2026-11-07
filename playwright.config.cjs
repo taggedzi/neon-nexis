@@ -1,5 +1,6 @@
 const os = require('node:os');
 const { defineConfig } = require('@playwright/test');
+const { enabledUrl, sampleUrl } = require('./tools/ci/browser-ports.cjs');
 
 const cores = typeof os.availableParallelism === 'function'
   ? os.availableParallelism()
@@ -16,7 +17,7 @@ module.exports = defineConfig({
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: enabledUrl,
     viewport: { width: 1280, height: 720 },
     // Tracing records every successful test too, even when the result is later
     // discarded. Enable it when diagnosing a failure rather than on every push.
@@ -31,12 +32,12 @@ module.exports = defineConfig({
   webServer: [
     {
       command: 'node tools/ci/serve-php.cjs enabled',
-      url: 'http://127.0.0.1:4173',
+      url: enabledUrl,
       reuseExistingServer: false
     },
     {
       command: 'node tools/ci/serve-php.cjs sample',
-      url: 'http://127.0.0.1:4174',
+      url: sampleUrl,
       reuseExistingServer: false
     }
   ]
