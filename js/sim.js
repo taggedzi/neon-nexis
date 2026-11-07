@@ -33,7 +33,7 @@ G.spawnBullet=function(o){
   if(G.playerBullets.length>=MAX_PLAYER_BULLETS) G.playerBullets.shift();
   G.playerBullets.push(b);
   N.PlayerStats?.emit(b);
-  if(N.Coop&&!b.progressionPrimary) N.Coop.onPlayerBullet(b);
+  if(N.Coop&&!b.progressionPrimary&&!b.progressionOffense) N.Coop.onPlayerBullet(b);
   return b;
 };
 G.spawnEnemyBullet=function(o){
@@ -320,21 +320,26 @@ G.damageEnemy=function(e,dmg,opts={}){
   if(e.shield>0){
     const absorb=Math.min(e.shield,amount);
     e.shield-=absorb;amount-=absorb;e.shieldDelay=4.2;
-    G.addParticles(e.x,e.y,'#6ad7ff',4,{speed:60,life:.3,size:1.2});
-    if(amount<=0){G.addText(e.x,e.y-e.r-6,'SHIELD','#6ad7ff',10);return 0;}
+    if(!opts.continuous)G.addParticles(e.x,e.y,'#6ad7ff',4,{speed:60,life:.3,size:1.2});
+    if(amount<=0){
+      if(!opts.continuous)G.addText(e.x,e.y-e.r-6,'SHIELD','#6ad7ff',10);
+      return 0;
+    }
   }
   e.hp-=amount;e.hitFlash=.2;
   const p=opts.player||G.player;
   p.totalDamage+=amount;G.run.damage=(G.run.damage||0)+amount;G.level.damage=(G.level.damage||0)+amount;
-  if(p.stats.lifesteal>0){
+  if(!opts.progressionOffense&&p.stats.lifesteal>0){
     const heal=amount*p.stats.lifesteal;
     p.hp=Math.min(p.stats.maxHp,p.hp+heal);
     if(N.Coop&&N.Coop.isHost()&&p!==G.player){N.Coop.sendHeal(heal,p);}
   }
-  G.addText(e.x+(Math.random()-.5)*e.r*.6,e.y-e.r*.7,(crit?'✦':'')+Math.round(amount),crit?'#fff':'#d8f4ff',crit?13:10);
-  G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.32,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
-  N.Audio.hit(panOf(e.x));
-  if(opts.explosion!==true&&p.stats.explodeChance>0&&Math.random()<p.stats.explodeChance){
+  if(!opts.continuous){
+    G.addText(e.x+(Math.random()-.5)*e.r*.6,e.y-e.r*.7,(crit?'✦':'')+Math.round(amount),crit?'#fff':'#d8f4ff',crit?13:10);
+    G.addParticles(e.x,e.y,e.color,3,{speed:100,life:.32,size:1.3,angle:opts.x!=null?Math.atan2(e.y-opts.y,e.x-opts.x):undefined});
+    N.Audio.hit(panOf(e.x));
+  }
+  if(!opts.progressionOffense&&opts.explosion!==true&&p.stats.explodeChance>0&&Math.random()<p.stats.explodeChance){
     G.explode(e.x,e.y,55*p.stats.explodeRadius,amount*.45,p.stats.maxShield>0?'#ffb31f':'#ffb31f','player',{particles:8,shake:1.2,glitch:.08,big:false,player:p});
   }
   if(e.hp<=0)G.killEnemy(e,Object.assign({},opts,{player:p}));
@@ -451,7 +456,8 @@ function updatePrimaryBullet(b, dt){
     if(damage){
       damage(target,b.damage,{
         x,y,critChance:b.critChance,critMul:b.critMul,source:'bullet',
-        allowPayload:false,player:b.coopPlayer,shot:b.tallyShot
+        allowPayload:false,player:b.coopPlayer,shot:b.tallyShot,
+        progressionOffense:b.progressionOffense,ownerParticipantId:b.ownerParticipantId,activationId:b.activationId
       });
     }else{
       target.dead=true;
@@ -482,11 +488,20 @@ function updatePrimaryBullet(b, dt){
   b.dead=b.life<=0||b.x<0||b.y<0||b.x>G.level.width||b.y>G.level.height;
 }
 
-G.updatePlayerBullets=function(dt){
+G.updatePlayerBullets=function(dt,previousPositions){
+  const bombs=[];
   for(let i=G.playerBullets.length-1;i>=0;i--){
     const b=G.playerBullets[i];
     if(b.dead){G.playerBullets.splice(i,1);continue;}
     b.prevX=b.x;b.prevY=b.y;
+    if(b.progressionOffense){
+      if(b.progressionPrimary){
+        N.ProgressionOffense.steer(G,b,dt);
+      }else{
+        N.ProgressionOffense.advanceCharge(G,b,dt,bombs);
+        continue;
+      }
+    }
     if(b.progressionPrimary){
       updatePrimaryBullet(b,dt);
       continue;
@@ -615,6 +630,8 @@ G.updatePlayerBullets=function(dt){
       b.dead=true;
     }
   }
+  N.ProgressionOffense.resolveBombs(G,bombs,dt,previousPositions);
+  N.ProgressionOffense.updateFields(G,dt,previousPositions);
 };
 G.updateEnemyBullets=function(dt){
   const p=G.player;
@@ -881,12 +898,13 @@ G.update=function(dt){
   G.updatePlayer(dt);
   if(G.player.dead)G.updateCamera(dt);
   if(G.mode!=='playing')return;
+  const previousPositions=N.ProgressionOffense.capturePositions(G);
   G.updateEnemies(dt);
   if(G.mode!=='playing')return;
   G.updateAnchors(dt);
   if(G.mode!=='playing')return;
   G.updateCaches(dt);
-  G.updatePlayerBullets(dt);
+  G.updatePlayerBullets(dt,previousPositions);
   if(G.mode!=='playing')return;
   G.updateEnemyBullets(dt);
   if(G.mode!=='playing')return;

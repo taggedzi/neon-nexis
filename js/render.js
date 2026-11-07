@@ -473,8 +473,34 @@ function drawRemotePlayers(c,theme){
   }
 }
 function drawBullets(c){
+  const view=N.Coop?.isGuest()?N.ProgressionOffense.guestVisuals(G.level):null;
+  c.save();
+  for(const field of view?.fields??N.ProgressionOffense.activeFields(G.level)){
+    if(!cull(field.x,field.y,field.radius))continue;
+    c.globalAlpha=.5*Math.min(1,field.life*4);
+    c.strokeStyle=field.color;
+    c.lineWidth=1.5;
+    c.beginPath();
+    c.arc(field.x,field.y,field.radius,0,TAU);
+    c.stroke();
+  }
+  for(const effect of view?.flashes??[]){
+    c.globalAlpha=.6*Math.min(1,effect.life*8);
+    c.strokeStyle=effect.color;
+    c.lineWidth=2;
+    c.beginPath();
+    if(effect.points){
+      c.moveTo(...effect.points[0]);
+      for(const point of effect.points.slice(1))c.lineTo(...point);
+    }else{
+      c.arc(effect.x,effect.y,effect.radius,0,TAU);
+    }
+    c.stroke();
+  }
+  c.restore();
   c.save();c.globalCompositeOperation='lighter';c.lineCap='round';
-  for(const b of G.playerBullets){
+  const bullets=view?[...G.playerBullets,...view.projectiles]:G.playerBullets;
+  for(const b of bullets){
     if(b.dead||!cull(b.x,b.y,80))continue;
     const ang=b.angle;
     const a=Math.min(1,.35+b.life/Math.max(.1,b.maxLife)*.8);

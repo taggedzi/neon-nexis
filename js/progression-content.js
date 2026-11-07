@@ -90,8 +90,7 @@ const hullPrimaries=Object.freeze({
   talon:'rail_lance'
 });
 
-// Issue 043 owns additional-weapon effects. Their stable IDs and order belong
-// to the shared catalog now so slot identity and binary order do not drift.
+// Stable IDs and order are shared with the progression integration contract.
 const additionalOffenseOrder=Object.freeze([
   'seeker_missiles',
   'arc_projector',
@@ -100,10 +99,10 @@ const additionalOffenseOrder=Object.freeze([
 ]);
 
 const additionalOffense=Object.freeze({
-  seeker_missiles:Object.freeze({id:'seeker_missiles',name:'SEEKER MISSILES',color:'#b6ff2b'}),
-  arc_projector:Object.freeze({id:'arc_projector',name:'ARC PROJECTOR',color:'#6ad7ff'}),
-  gravity_bomb:Object.freeze({id:'gravity_bomb',name:'GRAVITY BOMB',color:'#9d5cff'}),
-  plasma_mortar:Object.freeze({id:'plasma_mortar',name:'PLASMA MORTAR',color:'#ffb31f'})
+  seeker_missiles:Object.freeze({id:'seeker_missiles',name:'SEEKER MISSILES',color:'#b6ff2b',baseDamage:16,cooldownSeconds:.9,speed:500,lifeSeconds:2,turnRate:4,targetRange:600}),
+  arc_projector:Object.freeze({id:'arc_projector',name:'ARC PROJECTOR',color:'#6ad7ff',baseDamage:18,chainDamage:Object.freeze([18,12,8]),cooldownSeconds:.8,targetRange:500,chainRange:180}),
+  gravity_bomb:Object.freeze({id:'gravity_bomb',name:'GRAVITY BOMB',color:'#9d5cff',baseDamage:45,cooldownSeconds:3,speed:600,range:360,radius:110,slow:.25,slowSeconds:1.5}),
+  plasma_mortar:Object.freeze({id:'plasma_mortar',name:'PLASMA MORTAR',color:'#ffb31f',baseDamage:12,cooldownSeconds:3.5,speed:600,range:360,radius:90,fieldSeconds:3})
 });
 
 N.ProgressionContent=Object.freeze({

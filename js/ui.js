@@ -19,7 +19,7 @@ const focusTimers=[];
 const navigationTrail = [];
 let activatedControl = null;
 let navDirection='',navRepeatAt=0;
-const fittedScreens = new Set(['menu', 'ship', 'settings', 'pause', 'gameover']);
+const fittedScreens = new Set(['menu', 'ship', 'pause', 'gameover']);
 let fitFrame = 0;
 
 function screenEl(name){return document.getElementById('screen-'+name);}
