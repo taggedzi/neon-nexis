@@ -1,6 +1,6 @@
 # 043 — Add missiles, lightning, bombs and area-denial weapons
 
-Status: Implemented — needs validation
+Status: Done (remaining validation waived by owner)
 
 ## Problem or player need
 
@@ -30,7 +30,7 @@ Area effects increase multiplayer damage and visual load; keep performance evide
 ## Acceptance criteria
 
 - [x] Seeded scenes verify missile targeting, chain ordering/no repeated hits, radius boundaries, field duration and overlap, and boss resistance.
-- [ ] Damage/slow/expiry remain consistent across frame intervals and pause/resume.
+- [ ] Damage/slow/expiry remain consistent across frame intervals and pause/resume. Remaining validation waived by the owner on 2026-11-07; this box does not claim it passed.
 - [x] Host/guest representation and kill/stat attribution have focused coverage using agreed interfaces.
 - [x] Record equivalent-scene visual review and representative effect counts; do not equate headless FPS with real-player performance.
 - [x] Update this record and the backlog together with changed files, actual checks,
@@ -116,6 +116,16 @@ PR #69. Before this change, its equipment dispatch rejected additional weapons.
 
 The owner approved merging issue #60 on 2026-11-07. Public activation and
 regular-play validation remain with issue 049.
+
+### Closure decision — 2026-11-07
+
+The owner directed that the remaining validation for issue 043 be skipped and
+the issue closed as done. This supersedes its earlier validation requirement for
+closure; it does not establish that the unchecked timing criterion passed.
+The implementation is on main through PR #70, including commit `d96afa7`.
+That PR reports the pre-push suite passed, including 200 Chromium and Firefox
+browser tests. Public activation and regular-play validation remain with issue
+049. No additional tests were run for this documentation update.
 
 ### Pre-push browser server — 2026-11-07
 
