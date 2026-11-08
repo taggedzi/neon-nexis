@@ -30,12 +30,12 @@ Extra actions can overwhelm players. Keep primary-only play effective, use famil
 
 ## Acceptance criteria
 
-- [ ] Keyboard/mouse and synthetic controller tests cover direct/cycle/quick-use, remapping, focus, pause, neutral/disconnect and repeat presses.
-- [ ] Quick-use works without changing the active offensive weapon; defense is excluded from offensive cycling.
-- [ ] Reward bursts coalesce and never steal focus, block firing or pause the match.
+- [x] Keyboard/mouse and synthetic controller tests cover direct/cycle/quick-use, remapping, focus, pause, neutral/disconnect and repeat presses.
+- [x] Quick-use works without changing the active offensive weapon; defense is excluded from offensive cycling.
+- [x] Reward bursts coalesce and never steal focus, block firing or pause the match.
 - [ ] HUD uses text/shapes alongside color; equivalent viewport captures preserve enemy readability and existing quality.
-- [ ] Physical controller and owner accessibility/feel review are recorded honestly as passed or pending.
-- [ ] Update this record and the backlog together with changed files, actual checks,
+- [x] Physical controller and owner accessibility/feel review are recorded honestly as passed or pending.
+- [x] Update this record and the backlog together with changed files, actual checks,
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
@@ -82,11 +82,29 @@ the host. Remaining dash charges/timers and input-sequence watermarks survive
 rejoin. The existing dash key/button and tuning are unchanged. Shared-resource
 fields and focused/live validation are recorded in 048/049.
 
-Planning only, 2026-11-06. No gameplay implementation or tests performed for this
-issue. Changed file: this task specification. All acceptance remains pending.
-Commit: none. Remaining work: dependencies, implementation, required checks and
-owner review. Follow AGENTS.md for branch isolation, existing-source discovery,
-proportional tests, save preservation and owner-managed delivery.
+### Final integrated verification — 2026-11-08
+
+Implementation is committed on `feat/uninterrupted-progression-batch`:
+`f68c649` (045 stats/upgrades), `c68bf80` (owner-approved loopback tooling),
+and `18ae201` (046–049 integration, regressions and implementation records).
+The final `npm.cmd run check` exited 0: syntax, ESLint, all registered Node
+checks, and **220 browser tests passed; two opt-in measurement cases skipped**.
+Environment: Windows, Node v26.13.0, Playwright Chromium 156.0.8078.4 and
+Firefox 157.0; two workers, zero retries. The run used
+`NEON_TEST_ENABLED_PORT=44321`, `NEON_TEST_SAMPLE_PORT=44322` and
+`NEON_TEST_WORKERS=2`. The skipped measurements were exercised separately in
+Chromium; see 049 for observations and their limits. `git diff --check` passed.
+
+This clean run supersedes earlier intermediate failed/hung attempts recorded
+above. Test-only Firefox loopback ICE preferences make disposable local peers
+independent of LAN multicast discovery; production networking is unchanged.
+Physical controllers, separate-machine/WAN play, separately installed Chrome,
+owner feel/balance/readability and real-player performance remain unverified.
+No owner's browser storage was cleared. No push, PR, merge or deployment was
+performed. See [049](049-progression-integration-validation.md) for the combined
+handoff and remaining validation.
+
+The final browser suite covers keyboard/mouse, synthetic controller selection/cycling/defense, remapping, release/focus/pause/disconnect, reward summaries and guest dash authority. Quick-use preserves offensive selection and reward feedback does not take focus. Desktop and compact HUD captures were inspected as described in 049. Equivalent paired world-scene comparison, physical-controller usability and owner accessibility/feel remain pending; this issue stays Implemented — needs validation.
 
 ## GitHub coordination
 
@@ -94,6 +112,4 @@ Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/64
 Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/63
 Local source: `docs/work-to-be-done/047-progression-controls-and-hud.md`.
-Planning documents are on `codex/coop-progression-spec`, not yet pushed/merged.
-Wait for the planning handoff and prerequisite before starting implementation.
-
+Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.

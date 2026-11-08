@@ -1,0 +1,643 @@
+{
+  "date": "2026-11-08",
+  "source": "Uncommitted progression batch on c68bf80; final implementation and verification commits are recorded in issue049.",
+  "measurementStage": "Before the final dash resource-state extension and Firefox loopback fixture update; not final performance acceptance or a paired baseline.",
+  "environment": {
+    "browser": "chromium",
+    "version": "156.0.8078.4",
+    "os": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12700KF",
+    "reportedWebGL": {
+      "vendor": "Google Inc. (NVIDIA)",
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3070 Ti (0x00002482) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    },
+    "totalMemoryBytes": 34212798464
+  },
+  "limitations": [
+    "Headless local contexts; this is not real-player or WAN acceptance.",
+    "WebGL renderer does not establish Canvas/compositor rendering mode.",
+    "Accelerated retention renders once per simulation second; heap samples are uncollected JS heap, not retained memory or GPU storage.",
+    "No paired performance baseline or continuous20minute rendering run; no audio gesture.",
+    "Four local clients share one machine/GPU and do not establish four separate computers performance."
+  ],
+  "solo": [
+    {
+      "scenario": "normal",
+      "wallSeconds": 10.90370000000298,
+      "simulatedSeconds": 10,
+      "renderEvery": 1,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "graphics": {
+        "quality": "high",
+        "shake": true,
+        "scanlines": true,
+        "glitch": true,
+        "particles": 1,
+        "showFps": false
+      },
+      "updateP95Ms": 0.8000000007450581,
+      "renderP95Ms": 1.6000000014901161,
+      "frameIntervalP95Ms": 26.700000000000728,
+      "firstCounts": {
+        "enemies": 4,
+        "playerBullets": 1,
+        "enemyBullets": 20,
+        "mines": 0,
+        "orbitals": 0,
+        "strikes": 0,
+        "effects": 4,
+        "particles": 18,
+        "texts": 10,
+        "groundItems": 0
+      },
+      "final": {
+        "mode": "playing",
+        "sector": 1,
+        "counts": {
+          "enemies": 10,
+          "playerBullets": 4,
+          "enemyBullets": 27,
+          "mines": 0,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 3,
+          "particles": 16,
+          "texts": 6,
+          "groundItems": 2
+        }
+      },
+      "heapFirstBytes": 7690224,
+      "heapLastBytes": 7690224,
+      "heapMinBytes": 7690224,
+      "heapMaxBytes": 7690224
+    },
+    {
+      "scenario": "large-wave",
+      "wallSeconds": 13.398800000000746,
+      "simulatedSeconds": 10,
+      "renderEvery": 1,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "graphics": {
+        "quality": "high",
+        "shake": true,
+        "scanlines": true,
+        "glitch": true,
+        "particles": 1,
+        "showFps": false
+      },
+      "updateP95Ms": 3.800000000745058,
+      "renderP95Ms": 4.199999999254942,
+      "frameIntervalP95Ms": 27,
+      "firstCounts": {
+        "enemies": 118,
+        "playerBullets": 1,
+        "enemyBullets": 106,
+        "mines": 3,
+        "orbitals": 0,
+        "strikes": 0,
+        "effects": 12,
+        "particles": 82,
+        "texts": 10,
+        "groundItems": 0
+      },
+      "final": {
+        "mode": "playing",
+        "sector": 1,
+        "counts": {
+          "enemies": 109,
+          "playerBullets": 5,
+          "enemyBullets": 152,
+          "mines": 16,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 4,
+          "particles": 21,
+          "texts": 5,
+          "groundItems": 0
+        }
+      },
+      "heapFirstBytes": 8036483,
+      "heapLastBytes": 8036483,
+      "heapMinBytes": 8036483,
+      "heapMaxBytes": 8036483
+    },
+    {
+      "scenario": "normal",
+      "wallSeconds": 28.494900000002236,
+      "simulatedSeconds": 1200,
+      "renderEvery": 60,
+      "viewport": [
+        1920,
+        1080
+      ],
+      "dpr": 1,
+      "graphics": {
+        "quality": "high",
+        "shake": true,
+        "scanlines": true,
+        "glitch": true,
+        "particles": 1,
+        "showFps": false
+      },
+      "updateP95Ms": 0.6999999992549419,
+      "renderP95Ms": 2.699999999254942,
+      "frameIntervalP95Ms": null,
+      "firstCounts": {
+        "enemies": 4,
+        "playerBullets": 1,
+        "enemyBullets": 20,
+        "mines": 0,
+        "orbitals": 0,
+        "strikes": 0,
+        "effects": 4,
+        "particles": 18,
+        "texts": 10,
+        "groundItems": 0
+      },
+      "final": {
+        "mode": "playing",
+        "sector": 3,
+        "counts": {
+          "enemies": 38,
+          "playerBullets": 6,
+          "enemyBullets": 93,
+          "mines": 21,
+          "orbitals": 0,
+          "strikes": 0,
+          "effects": 5,
+          "particles": 26,
+          "texts": 0,
+          "groundItems": 33
+        }
+      },
+      "heapFirstBytes": 6308892,
+      "heapLastBytes": 18259335,
+      "heapMinBytes": 6308892,
+      "heapMaxBytes": 46208276
+    }
+  ],
+  "fourPlayer": {
+    "browser": "156.0.8078.4",
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i7-12700KF",
+    "hardwareConcurrency": 20,
+    "totalMemoryBytes": 34212798464,
+    "note": "Headless, four local contexts; payload excludes network framing; short heap samples do not establish retained-memory behavior.",
+    "samples": [
+      {
+        "requestedEnemies": 20,
+        "players": [
+          {
+            "seat": 0,
+            "wallSeconds": 20.016699999999254,
+            "simulationElapsedSeconds": 17.64630000000009,
+            "frameCount": 479,
+            "frameMedianMs": 26.80000000000291,
+            "frameP95Ms": 66.90000000000146,
+            "payloadBytesPerSecondByLink": [
+              33726.78813191111,
+              30558.833374133737,
+              30564.278827180446
+            ],
+            "maxBufferedBytes": 8125,
+            "heapBefore": 6687490,
+            "heapAfter": 7966952,
+            "enemies": 20,
+            "playerBullets": 2,
+            "enemyBullets": 108,
+            "fields": 1,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "needle_blaster",
+                "level": 1,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "seeker_missiles",
+                "level": 1,
+                "cooldownSeconds": 0.08449999999999978
+              },
+              {
+                "id": "arc_projector",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "aegis_projector",
+              "level": 1,
+              "cooldownSeconds": 3.584500000000012
+            }
+          },
+          {
+            "seat": 1,
+            "wallSeconds": 20.017599999997763,
+            "simulationElapsedSeconds": 17.597,
+            "frameCount": 478,
+            "frameMedianMs": 26.80000000000291,
+            "frameP95Ms": 66.80000000000291,
+            "payloadBytesPerSecondByLink": [
+              10145.82167692544
+            ],
+            "maxBufferedBytes": 1764,
+            "heapBefore": 7951604,
+            "heapAfter": 6918682,
+            "enemies": 20,
+            "playerBullets": 3,
+            "enemyBullets": 112,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "needle_blaster",
+                "level": 3,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "arc_projector",
+                "level": 1,
+                "cooldownSeconds": 0.034499999999999906
+              },
+              {
+                "id": "gravity_bomb",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "repulsor_pulse",
+              "level": 1,
+              "cooldownSeconds": 2.7345000000000077
+            }
+          },
+          {
+            "seat": 2,
+            "wallSeconds": 20.0175,
+            "simulationElapsedSeconds": 17.596900000000005,
+            "frameCount": 478,
+            "frameMedianMs": 26.799999999999272,
+            "frameP95Ms": 66.80000000000291,
+            "payloadBytesPerSecondByLink": [
+              10032.171849631573
+            ],
+            "maxBufferedBytes": 1813,
+            "heapBefore": 7499552,
+            "heapAfter": 9224797,
+            "enemies": 20,
+            "playerBullets": 3,
+            "enemyBullets": 112,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "pulse_repeater",
+                "level": 1,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "gravity_bomb",
+                "level": 1,
+                "cooldownSeconds": 0.8345000000000026
+              },
+              {
+                "id": "plasma_mortar",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "aegis_projector",
+              "level": 1,
+              "cooldownSeconds": 3.6345000000000116
+            }
+          },
+          {
+            "seat": 3,
+            "wallSeconds": 20.016699999999254,
+            "simulationElapsedSeconds": 17.63340000000001,
+            "frameCount": 479,
+            "frameMedianMs": 26.799999999999272,
+            "frameP95Ms": 66.80000000000291,
+            "payloadBytesPerSecondByLink": [
+              9884.696278607731
+            ],
+            "maxBufferedBytes": 1379,
+            "heapBefore": 6898550,
+            "heapAfter": 7979789,
+            "enemies": 20,
+            "playerBullets": 3,
+            "enemyBullets": 112,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "rail_lance",
+                "level": 3,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "plasma_mortar",
+                "level": 1,
+                "cooldownSeconds": 0.34440000000000937
+              },
+              {
+                "id": "seeker_missiles",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "repulsor_pulse",
+              "level": 1,
+              "cooldownSeconds": 2.7345000000000077
+            }
+          }
+        ]
+      },
+      {
+        "requestedEnemies": 80,
+        "players": [
+          {
+            "seat": 0,
+            "wallSeconds": 20.009199999999254,
+            "simulationElapsedSeconds": 10.29999999999998,
+            "frameCount": 206,
+            "frameMedianMs": 106.5,
+            "frameP95Ms": 120.09999999999854,
+            "payloadBytesPerSecondByLink": [
+              40664.944125703696,
+              38557.1137276867,
+              38555.41450932715
+            ],
+            "maxBufferedBytes": 12967,
+            "heapBefore": 7966952,
+            "heapAfter": 7990777,
+            "enemies": 80,
+            "playerBullets": 1,
+            "enemyBullets": 521,
+            "fields": 1,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "needle_blaster",
+                "level": 1,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "seeker_missiles",
+                "level": 1,
+                "cooldownSeconds": 0.7999999999999995
+              },
+              {
+                "id": "arc_projector",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "aegis_projector",
+              "level": 1,
+              "cooldownSeconds": 0.3000000000000165
+            }
+          },
+          {
+            "seat": 1,
+            "wallSeconds": 20.009,
+            "simulationElapsedSeconds": 10.302899999999994,
+            "frameCount": 206,
+            "frameMedianMs": 106.5,
+            "frameP95Ms": 120.09999999999854,
+            "payloadBytesPerSecondByLink": [
+              8889.999500224898
+            ],
+            "maxBufferedBytes": 1815,
+            "heapBefore": 6918682,
+            "heapAfter": 8581722,
+            "enemies": 80,
+            "playerBullets": 5,
+            "enemyBullets": 508,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "needle_blaster",
+                "level": 3,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "arc_projector",
+                "level": 1,
+                "cooldownSeconds": 0.6499999999999999
+              },
+              {
+                "id": "gravity_bomb",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "repulsor_pulse",
+              "level": 1,
+              "cooldownSeconds": 2.450000000000009
+            }
+          },
+          {
+            "seat": 2,
+            "wallSeconds": 20.00939999999851,
+            "simulationElapsedSeconds": 10.30299999999999,
+            "frameCount": 206,
+            "frameMedianMs": 106.40000000000146,
+            "frameP95Ms": 120.09999999999854,
+            "payloadBytesPerSecondByLink": [
+              8812.45814467266
+            ],
+            "maxBufferedBytes": 2010,
+            "heapBefore": 9224797,
+            "heapAfter": 7349179,
+            "enemies": 80,
+            "playerBullets": 2,
+            "enemyBullets": 505,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "pulse_repeater",
+                "level": 1,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "gravity_bomb",
+                "level": 1,
+                "cooldownSeconds": 2.5000000000000018
+              },
+              {
+                "id": "plasma_mortar",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "aegis_projector",
+              "level": 1,
+              "cooldownSeconds": 0.2500000000000165
+            }
+          },
+          {
+            "seat": 3,
+            "wallSeconds": 20.00939999999851,
+            "simulationElapsedSeconds": 10.293299999999988,
+            "frameCount": 206,
+            "frameMedianMs": 106.39999999999418,
+            "frameP95Ms": 120.09999999999854,
+            "payloadBytesPerSecondByLink": [
+              8743.590512459796
+            ],
+            "maxBufferedBytes": 1358,
+            "heapBefore": 7979789,
+            "heapAfter": 9935374,
+            "enemies": 80,
+            "playerBullets": 5,
+            "enemyBullets": 508,
+            "fields": 0,
+            "mode": "playing",
+            "quality": {
+              "quality": "high",
+              "shake": true,
+              "scanlines": true,
+              "glitch": true,
+              "particles": 1,
+              "showFps": false
+            },
+            "viewport": {
+              "width": 1280,
+              "height": 720
+            },
+            "seed": 2435055888,
+            "offensive": [
+              {
+                "id": "rail_lance",
+                "level": 3,
+                "cooldownSeconds": 0
+              },
+              {
+                "id": "plasma_mortar",
+                "level": 1,
+                "cooldownSeconds": 0.6500000000000041
+              },
+              {
+                "id": "seeker_missiles",
+                "level": 1,
+                "cooldownSeconds": 0
+              }
+            ],
+            "defense": {
+              "id": "repulsor_pulse",
+              "level": 1,
+              "cooldownSeconds": 2.500000000000009
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

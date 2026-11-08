@@ -1,6 +1,6 @@
 # 046 — Implement immediate shared rewards, automatic levels and team pacing
 
-Status: Implemented — needs validation
+Status: Done
 
 ## Problem or player need
 
@@ -32,11 +32,11 @@ Shared grants multiply team power; counting enemy drops per player would over-ac
 ## Acceptance criteria
 
 - [x] Controlled reward sequences prove deterministic upgrades and independent recorded random outcomes without requiring all players to differ.
-- [ ] Duplicate/reordered/retried messages and simultaneous collection yield one outcome per eligible participant; reconnect does not reroll.
-- [ ] Downed/disconnected original players recover rewards; new mid-run participants are not introduced.
-- [ ] XP/drops and full/maxed inventories cannot open a choice screen, silently lose progression or generate unlimited fallback healing.
-- [ ] Solo and 2–4-player pacing measurements use comparable workloads and record actual reward counts.
-- [ ] Update this record and the backlog together with changed files, actual checks,
+- [x] Duplicate/reordered/retried messages and simultaneous collection yield one outcome per eligible participant; reconnect does not reroll.
+- [x] Downed/disconnected original players recover rewards; new mid-run participants are not introduced.
+- [x] XP/drops and full/maxed inventories cannot open a choice screen, silently lose progression or generate unlimited fallback healing.
+- [x] Solo and 2–4-player pacing measurements use comparable workloads and record actual reward counts.
+- [x] Update this record and the backlog together with changed files, actual checks,
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
@@ -116,12 +116,34 @@ match/lifetime attribution through cumulative authority counters. The dev
 scenario helper uses fixed slots and automatic passive levels and blocks saving
 throughout construction; the browser regression is updated but remains pending.
 
+### Final integrated verification — 2026-11-08
+
+Implementation is committed on `feat/uninterrupted-progression-batch`:
+`f68c649` (045 stats/upgrades), `c68bf80` (owner-approved loopback tooling),
+and `18ae201` (046–049 integration, regressions and implementation records).
+The final `npm.cmd run check` exited 0: syntax, ESLint, all registered Node
+checks, and **220 browser tests passed; two opt-in measurement cases skipped**.
+Environment: Windows, Node v26.13.0, Playwright Chromium 156.0.8078.4 and
+Firefox 157.0; two workers, zero retries. The run used
+`NEON_TEST_ENABLED_PORT=44321`, `NEON_TEST_SAMPLE_PORT=44322` and
+`NEON_TEST_WORKERS=2`. The skipped measurements were exercised separately in
+Chromium; see 049 for observations and their limits. `git diff --check` passed.
+
+This clean run supersedes earlier intermediate failed/hung attempts recorded
+above. Test-only Firefox loopback ICE preferences make disposable local peers
+independent of LAN multicast discovery; production networking is unchanged.
+Physical controllers, separate-machine/WAN play, separately installed Chrome,
+owner feel/balance/readability and real-player performance remain unverified.
+No owner's browser storage was cleared. No push, PR, merge or deployment was
+performed. See [049](049-progression-integration-validation.md) for the combined
+handoff and remaining validation.
+
+The clean browser suite confirms public solo and 2-4-player progression, lost-event recovery, repeated snapshots, original-roster rejoin, downing/revival and no reward-choice interruption. The comparable 1-4-player reward counts above satisfy the controlled pacing criterion; natural pacing and balance remain with the parent owner playtest.
+
 ## GitHub coordination
 
 Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/63
 Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/62
 Local source: `docs/work-to-be-done/046-immediate-shared-rewards.md`.
-Planning documents are on `codex/coop-progression-spec`, not yet pushed/merged.
-Wait for the planning handoff and prerequisite before starting implementation.
-
+Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.

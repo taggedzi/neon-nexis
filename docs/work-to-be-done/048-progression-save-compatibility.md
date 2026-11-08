@@ -1,6 +1,6 @@
 # 048 — Preserve saved ships and version progression state and network compatibility
 
-Status: Implemented — needs validation
+Status: Done
 
 ## Problem or player need
 
@@ -30,12 +30,12 @@ Silent simplification of legacy builds would destroy earned progress; compatibil
 
 ## Acceptance criteria
 
-- [ ] Fixture matrix covers old/fresh/current saves, named ships, pending rewards/protocols, oversized inventories, capped items and malformed/future data.
-- [ ] Backup round trips and repeated save/continue preserve equivalent state and do not duplicate upgrades or healing.
-- [ ] Recovery offers export before removal or explicit removal; tests use isolated storage only.
-- [ ] Host/guest version mismatch, reconnection and repeated grant snapshots are tested in multiplayer.
-- [ ] No new-mode path is publicly enabled until complete compatibility and 049 cutover checks pass.
-- [ ] Update this record and the backlog together with changed files, actual checks,
+- [x] Fixture matrix covers old/fresh/current saves, named ships, pending rewards/protocols, oversized inventories, capped items and malformed/future data.
+- [x] Backup round trips and repeated save/continue preserve equivalent state and do not duplicate upgrades or healing.
+- [x] Recovery offers export before removal or explicit removal; tests use isolated storage only.
+- [x] Host/guest version mismatch, reconnection and repeated grant snapshots are tested in multiplayer.
+- [x] No new-mode path is publicly enabled until complete compatibility and 049 cutover checks pass.
+- [x] Update this record and the backlog together with changed files, actual checks,
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
@@ -137,12 +137,34 @@ Legacy builds, including apparently fresh legacy ships, have no conversion path.
 This implements the approved incompatibility policy and supersedes no gameplay
 decision. The public mode switch remains owned by 049's integrated delivery.
 
+### Final integrated verification — 2026-11-08
+
+Implementation is committed on `feat/uninterrupted-progression-batch`:
+`f68c649` (045 stats/upgrades), `c68bf80` (owner-approved loopback tooling),
+and `18ae201` (046–049 integration, regressions and implementation records).
+The final `npm.cmd run check` exited 0: syntax, ESLint, all registered Node
+checks, and **220 browser tests passed; two opt-in measurement cases skipped**.
+Environment: Windows, Node v26.13.0, Playwright Chromium 156.0.8078.4 and
+Firefox 157.0; two workers, zero retries. The run used
+`NEON_TEST_ENABLED_PORT=44321`, `NEON_TEST_SAMPLE_PORT=44322` and
+`NEON_TEST_WORKERS=2`. The skipped measurements were exercised separately in
+Chromium; see 049 for observations and their limits. `git diff --check` passed.
+
+This clean run supersedes earlier intermediate failed/hung attempts recorded
+above. Test-only Firefox loopback ICE preferences make disposable local peers
+independent of LAN multicast discovery; production networking is unchanged.
+Physical controllers, separate-machine/WAN play, separately installed Chrome,
+owner feel/balance/readability and real-player performance remain unverified.
+No owner's browser storage was cleared. No push, PR, merge or deployment was
+performed. See [049](049-progression-integration-validation.md) for the combined
+handoff and remaining validation.
+
+The final suite confirms the previously pending three/four-player retained-hull rejoin, legacy packet rejection, checkpoint preflight and Chromium/Firefox save/backup/recovery paths. Complete authoritative resources now include dash charges, recharge/time/direction and action sequence watermarks, preserving deliberate host-validated dash behavior across snapshots/rejoin. VM regressions also cover Repulsor late-bullet suppression across long wall-clock pauses using simulated expiry. All compatibility acceptance cases have automated evidence; owner playtesting and environment/performance limits remain tracked in 049.
+
 ## GitHub coordination
 
 Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/65
 Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/64
 Local source: `docs/work-to-be-done/048-progression-save-compatibility.md`.
-Planning documents are on `codex/coop-progression-spec`, not yet pushed/merged.
-Wait for the planning handoff and prerequisite before starting implementation.
-
+Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.
