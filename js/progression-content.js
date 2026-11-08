@@ -105,6 +105,12 @@ const additionalOffense=Object.freeze({
   plasma_mortar:Object.freeze({id:'plasma_mortar',name:'PLASMA MORTAR',color:'#ffb31f',baseDamage:12,cooldownSeconds:3.5,speed:600,range:360,radius:90,fieldSeconds:3})
 });
 
+const defensiveOrder=Object.freeze(['repulsor_pulse','aegis_projector']);
+const defenses=Object.freeze({
+  repulsor_pulse:Object.freeze({id:'repulsor_pulse',name:'REPULSOR PULSE',radius:125,damage:12,pushDistance:60,cooldownSeconds:5,cooldownPerLevel:.4,color:'#6ad7ff'}),
+  aegis_projector:Object.freeze({id:'aegis_projector',name:'AEGIS PROJECTOR',radius:140,capacity:25,capacityPerLevel:5,windowSeconds:3,lockoutSeconds:2,cooldownSeconds:7,color:'#00f0ff'})
+});
+
 N.ProgressionContent=Object.freeze({
   schemaVersion:1,
   catalogVersion:1,
@@ -121,6 +127,8 @@ N.ProgressionContent=Object.freeze({
   hullPrimaries,
   additionalOffenseOrder,
   additionalOffense,
+  defensiveOrder,
+  defenses,
   primaryForHull(hullId){
     return Object.hasOwn(hullPrimaries,hullId)?hullPrimaries[hullId]:null;
   },
@@ -129,6 +137,9 @@ N.ProgressionContent=Object.freeze({
   },
   additional(id){
     return Object.hasOwn(additionalOffense,id)?additionalOffense[id]:null;
+  },
+  defense(id){
+    return Object.hasOwn(defenses,id)?defenses[id]:null;
   }
 });
 })();

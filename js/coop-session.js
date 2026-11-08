@@ -592,6 +592,7 @@
         if (launchSetup && setups.size === 0) {C.sendReady();}
         return;
       case 'event_ack': {
+        if (mirror?.progressionMode === 'shared_v1') return;
         const event = pendingEvents.get(message.eventId);
         if (!event || event.owner !== clientId || message._life !== guestLife) {return;}
         if (mirror && !mirror.dead && message.player) restore(mirror, message.player, false);
@@ -600,12 +601,14 @@
         return;
       }
       case 'participant':
+        if (mirror?.progressionMode === 'shared_v1') return;
         if (mirror && !setups.has(clientId) && !mirror.dead && message._life === guestLife) {
           restore(mirror, message.player, false);
           rememberGuest();
         }
         return;
       case 'death':
+        if (mirror?.progressionMode === 'shared_v1') return;
         if (!mirror || message._life !== guestLife) return;
         if (!mirror.deathHandled) {
           if (!restore(mirror, message.player, false)) return;
@@ -639,7 +642,7 @@
     }
     if (C.isGuest() && ['hit', 'heal', 'grant', 'xp', 'kill'].includes(message.t) && message._targetLife !== localLife) return;
     if (C.host && (!mirror || setups.has(clientId) || message._life !== guestLife)) {return;}
-    if (C.host && mirror && !mirror.dead && message.participant) restore(mirror, message.participant, false);
+    if (C.host && mirror && mirror.progressionMode !== 'shared_v1' && !mirror.dead && message.participant) restore(mirror, message.participant, false);
     if (C.host && mirror && mirror.dead && ['state', 'loadout', 'fire'].includes(message.t)) return;
     if (C.isGuest() && message.t === 'grant' && G.player.dead && !C._acceptedGrants.has(message.grantId)) {
       N.Net.send({ t: 'grant_ack', grantId: message.grantId, ok: false });
@@ -695,12 +698,12 @@
   const originalDamage = G.damagePlayer;
   G.damagePlayer = function (...args) {
     const result = originalDamage(...args);
-    if (C.isGuest() && G.player && !G.player.dead) N.Net.send({ t: 'participant', player: snapshot(G.player, true) });
+    if (C.isGuest() && G.player && G.player.progressionMode !== 'shared_v1' && !G.player.dead) N.Net.send({ t: 'participant', player: snapshot(G.player, true) });
     return result;
   };
   const originalSave = G.saveCheckpoint;
   G.saveCheckpoint = function (...args) {
-    if (C.isGuest() && G.player && !deathPending) N.Net.send({ t: 'participant', player: snapshot(G.player, true) });
+    if (C.isGuest() && G.player && G.player.progressionMode !== 'shared_v1' && !deathPending) N.Net.send({ t: 'participant', player: snapshot(G.player, true) });
     return originalSave(...args);
   };
 })();

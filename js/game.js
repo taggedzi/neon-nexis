@@ -241,6 +241,7 @@ function makePlayer(selection,progressionMode='legacy'){
   };
   if(progressionMode==='shared_v1'){
     p.progressionMode='shared_v1';
+    p.resourceRevision=0;
     p.progression=N.Equipment.create(p.shipType);
     if(!p.progression)throw Error('Unknown hull for progression construction');
     Object.defineProperties(p,{
@@ -407,6 +408,7 @@ G.newRun=function(selection,options){
     return false;
   }
   G.coopRun=!!options.coop;
+  G.progressionAuthority=null;
   G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
   G.player=makePlayer(selection);
   if(loadout) N.Loadouts.apply(G.player,loadout);

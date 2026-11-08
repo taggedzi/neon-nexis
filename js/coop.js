@@ -593,6 +593,11 @@
         mirror.x += (mirror.tx - mirror.x) * follow;
         mirror.y += (mirror.ty - mirror.y) * follow;
         mirror.aim = N.lerpAngle(mirror.aim, mirror.ta, follow);
+        // Shared-mode guests no longer supply authoritative hit timers.
+        if (mirror.progressionMode === 'shared_v1' && !mirror.dead && mirror.connected !== false &&
+          G.mode === 'playing' && Coop.pauseState === 'PLAY') {
+          mirror.invuln = Math.max(0, mirror.invuln - dt);
+        }
       }
     }
     if (now - Coop._stateAt >= STATE_INTERVAL_MS) {
@@ -682,22 +687,24 @@
     mirror.vy = finite(message.vy, 0);
     mirror.ta = finite(message.aim, mirror.aim);
     mirror.heading = finite(message.heading, mirror.heading);
-    mirror.hp = finite(message.hp, mirror.hp);
-    mirror.shield = finite(message.shield, mirror.shield);
-    mirror.stats.maxHp = finite(message.maxHp, mirror.stats.maxHp);
-    mirror.stats.maxShield = finite(message.maxShield, mirror.stats.maxShield);
-    mirror.level = Math.max(1, Math.floor(finite(message.level, mirror.level || 1)));
-    mirror.dead = !!message.dead;
-    mirror.invuln = finite(message.invuln, 0);
-    mirror.shipType = N.Ships.get(message.shipType).id;
+    if (mirror.progressionMode !== 'shared_v1') {
+      mirror.hp = finite(message.hp, mirror.hp);
+      mirror.shield = finite(message.shield, mirror.shield);
+      mirror.stats.maxHp = finite(message.maxHp, mirror.stats.maxHp);
+      mirror.stats.maxShield = finite(message.maxShield, mirror.stats.maxShield);
+      mirror.level = Math.max(1, Math.floor(finite(message.level, mirror.level || 1)));
+      mirror.dead = !!message.dead;
+      mirror.invuln = finite(message.invuln, 0);
+      mirror.shipType = N.Ships.get(message.shipType).id;
+      mirror.magnet = !!message.magnet;
+      mirror.pickupRadius = finite(message.pickupRadius, mirror.pickupRadius || 95);
+    }
     mirror.shipColor = N.Ships.selection({ shipType: mirror.shipType, shipColor: message.shipColor }).shipColor;
-    mirror.magnet = !!message.magnet;
-    mirror.pickupRadius = finite(message.pickupRadius, mirror.pickupRadius || 95);
   };
 
   Coop.applyLoadout = function (message, clientId) {
     const mirror = Coop.guestMirror(clientId);
-    if (!mirror) return;
+    if (!mirror || mirror.progressionMode === 'shared_v1') return;
     mirror.weapons = (message.weapons || []).filter(function (weapon) {
       return weapon && N.WEAPON_BY_ID[weapon.id];
     }).map(function (weapon) {
@@ -885,7 +892,7 @@
         G.addXp(Math.max(0, finite(message.amount, 0)));
         break;
       case 'heal':
-        if (Coop.isGuest() && G.player && !G.player.dead) {
+        if (Coop.isGuest() && G.player && G.player.progressionMode !== 'shared_v1' && !G.player.dead) {
           const healed = Math.max(0, finite(message.amount, 0));
           G.player.hp = Math.min(G.player.stats.maxHp, G.player.hp + healed);
           if (healed >= 1) G.addText(G.player.x, G.player.y - 28, '+' + Math.round(healed), '#b6ff2b', 11);
@@ -1018,12 +1025,20 @@
   };
 
   Coop.sendHeal = function (amount, player) {
-    if (!Coop.isHost() || !(amount > 0)) return;
+    if (!Coop.isHost() || player?.progressionMode === 'shared_v1' || !(amount > 0)) return;
     N.Net.send({ t: 'heal', amount: round(amount, 1) }, player.clientId);
   };
 
   Coop.sendHit = function (player, amount, x, y, contact) {
     if (!Coop.isHost() || !player || player === G.player) return false;
+    if (player.progressionMode === 'shared_v1') {
+      const authority = G.progressionAuthority;
+      if (!authority || typeof authority.identityFor !== 'function' || typeof authority.publishResource !== 'function') return false;
+      const result = N.ProgressionDefense.damageTransaction(player, amount, authority.identityFor(player));
+      if (!result.ok) return false;
+      authority.publishResource(result.event);
+      return true;
+    }
     player.invuln = Math.max(player.invuln || 0, 0.68);
     N.Net.send({ t: 'hit', amount: round(amount, 1), x: round(x, 1), y: round(y, 1), contact: !!contact }, player.clientId);
     return true;

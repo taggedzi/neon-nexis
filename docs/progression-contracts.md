@@ -156,6 +156,45 @@ and positions world coordinates.
 | `ProgressionRewards.view(state)` | 047: read-only labels, levels, readiness and bounded recent outcomes; no simulation mutation. |
 | `ProgressionPersistence.validate/read/write` | 048: validate whole envelopes before any live/storage mutation; distinguish checkpoint, named-ship launch, recovery export and backup import. |
 
+### 044 defensive integration surface
+
+Agent implementation choices, 2026-11-07, on issue 044: `Equipment.tryDefend`
+returns the committed effect outcome and starts the separate cooldown. A host
+call supplies `participantId` and `activationId`; an Aegis host call also
+supplies `resourceIdentity(player)`, returning the run token and original
+participant ID for every eligible recipient. The call preflights all recipient
+resource identities before applying barriers and returns complete resource
+revisions alongside the effect event. An empty or rejected cast never queues an
+input for later. These are internal interfaces, not the 048 wire format.
+
+`ProgressionDefense.damageTransaction(player, amount, identity)` is the host
+damage boundary for a remote participant: it applies the derived damage-taken
+multiplier, barrier, shield and HP in order and returns a cumulative resource
+revision. It rejects guest authority. `commitResources(player, identity)`
+produces a complete revision after another resource transaction; 046 must use
+the same participant revision sequence for repairs and buffs. No caller may
+also apply the legacy guest hit/heal packet for the same shared-mode transaction.
+For shared-mode host combat, `G.progressionAuthority` supplies
+`identityFor(player)` and `publishResource(event)`; absent or invalid authority
+rejects the hit before mutation. The legacy participant, loadout and hit/heal
+paths do not overwrite shared-mode resources. 048 must install and remove this
+adapter with the run and implement its reliable delivery; it must not publish
+an incomplete event or apply the old packet in addition.
+048 owns strict packet validation, atomic receiver application, progression
+dependency recovery and delivery/retry; 049 wires the inactive paths together.
+
+`snapshotBarrier` and `restoreBarrier` copy and validate remaining recipient
+window/lockout state. `tickWorld` advances barriers on the world clock, including
+downed/offline retained records supplied by the caller, without advancing their
+equipment cooldowns. 048 must retain those records and hand each participant to
+the clock exactly once; it must not recreate or refresh a window on rejoin.
+`snapshotVisuals`/`setGuestVisuals` expose bounded draw-only effects for 048's
+hazard-sync adapter. They do not authorize a guest to simulate the effect.
+Repulsor outcomes identify cleared host bullet IDs. The current legacy bullet
+codec does not preserve those IDs, so 048 must add matching IDs and reconcile
+late or reordered spawns/clears before activating this path; position matching
+or guest-side eligibility checks are insufficient.
+
 Increases to maximum health/shield are handled as a one-time committed capacity
 delta, separately from pure derivation. Repeated derive/load/rejoin must not heal.
 Downed players remain downed even when maximum health increases. Effect snapshots

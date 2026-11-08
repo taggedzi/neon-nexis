@@ -43,7 +43,7 @@ G.spawnEnemyBullet=function(o){
   const b=Object.assign({
     id:uid('eb_'),x:0,y:0,vx:0,vy:0,angle:0,speed:0,damage:0,size:3,life:4.4,maxLife:4.4,
     color:'#ff335c',kind:'hostile',curve:0,homing:false,turnRate:0,accel:0,owner:'enemy',
-    prevX:0,prevY:0,dead:false,spin:0,coopCosmetic:false
+    prevX:0,prevY:0,dead:false,spin:0,coopCosmetic:false,repulsorClearable:false
   },o);
   b.maxLife=b.life;
   b.vx=Math.cos(b.angle)*b.speed;
@@ -382,6 +382,37 @@ G.damagePlayer=function(amount,x,y,contact=false){
   if(N.Coop&&N.Coop.blocksLocalDamage()) return false;
   const p=G.player;
   if(!p||p.dead||p.invuln>0)return false;
+  if(p.progressionMode==='shared_v1'){
+    // A guest may display a host result but must not apply the old hit packet.
+    if(N.Coop?.isGuest())return false;
+    const authority=G.progressionAuthority;
+    let identity=null;
+    if(N.Coop?.isHost()){
+      if(!authority||typeof authority.identityFor!=='function'||typeof authority.publishResource!=='function')return false;
+      identity=authority.identityFor(p);
+      if(!N.ProgressionDefense.canCommitResources(p,identity))return false;
+    }
+    const result=N.ProgressionDefense.applyDamage(p,amount);
+    if(!result.ok)return false;
+    if(result.shieldDamage>0){
+      p.shieldRegenFx=1;
+      G.addParticles(p.x,p.y,'#00f0ff',12,{speed:120,life:.45,size:1.8,glow:true});
+      G.addRing(p.x,p.y,32,'#00f0ff',.32,2);
+      N.Audio.shield();
+    }
+    if(result.healthDamage>0){
+      G.addText(p.x,p.y-30,'−'+Math.round(result.healthDamage),'#ff335c',15);
+      G.addParticles(p.x,p.y,'#ff335c',20,{speed:190,life:.55,size:2.2,glow:true});
+      G.addRing(p.x,p.y,40,'#ff335c',.35,2.2);
+      G.screenFlash('hit');G.triggerGlitch(.55,'#ff335c');G.shake(9);
+      N.Audio.hurt();
+    }else{
+      G.screenFlash('pickup');G.shake(2.2);
+    }
+    if(result.lethal)G.gameOver();
+    if(identity)authority.publishResource(N.ProgressionDefense.commitResources(p,identity).event);
+    return true;
+  }
   if(p.stats.dodge>0&&Math.random()<p.stats.dodge){
     p.invuln=Math.max(p.invuln,.18);
     G.addText(p.x,p.y-26,'PHASE','#6ad7ff',12);
@@ -891,6 +922,11 @@ G.update=function(dt){
   if(N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards')){G.openRewards();return;}
   if(N.Coop) N.Coop.preUpdate(dt);
   N.Rewards.tick(dt);
+  if(!(N.Coop&&N.Coop.isGuest())){
+    const players=N.Coop?.isHost()?N.Coop.players():[G.player];
+    N.ProgressionDefense.tickWorld(players.filter(player=>player?.progressionMode==='shared_v1'),dt);
+    N.ProgressionDefense.tickEffects(G.level,dt);
+  }
   const prevElapsed=G.level.elapsed;
   G.time+=dt;
   if(!(N.Coop&&N.Coop.isGuest()))G.level.elapsed=Math.min(DURATION,G.level.elapsed+dt);

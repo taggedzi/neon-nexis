@@ -439,6 +439,340 @@ try{
 }finally{
   Math.random=random;
 }
+const defensePlayer=G.makePlayer({shipType:'kite'},'shared_v1');
+defensePlayer.x=500;defensePlayer.y=500;
+defensePlayer.progression.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+const ally=G.makePlayer({shipType:'kite'},'shared_v1');
+ally.x=550;ally.y=500;
+const far=G.makePlayer({shipType:'kite'},'shared_v1');
+far.x=641;far.y=500;
+G.level.layout=null;
+const context={game:G,player:defensePlayer,recipients:[defensePlayer,ally,far]};
+const defend=E.tryDefend(context,{});
+check(defend.ok&&defend.recipients===2&&ally.barrier.capacity===25&&!far.barrier,'Aegis protects living allies within range');
+check(defend.event.type==='defense'&&defend.event.weaponId==='aegis_projector'&&defend.event.recipientIds.length===2,'activation returns the authoritative effect outcome');
+check(defensePlayer.progression.selectedOffensiveSlot===0&&defensePlayer.progression.offensive[0].cooldownSeconds===0,'defense preserves offensive selection and cooldown');
+check(!E.tryDefend(context,{}).ok&&defensePlayer.progression.defensive.cooldownSeconds===7,'cooldown rejects a repeat activation');
+for(let slotIndex=0;slotIndex<3;slotIndex++){
+  const pilot=G.makePlayer({shipType:'kite'},'shared_v1');
+  pilot.x=500;pilot.y=500;
+  pilot.progression.offensive[1]={id:'seeker_missiles',level:1,cooldownSeconds:0};
+  pilot.progression.offensive[2]={id:'arc_projector',level:1,cooldownSeconds:0};
+  pilot.progression.selectedOffensiveSlot=slotIndex;
+  pilot.progression.offensive[slotIndex].cooldownSeconds=.33;
+  pilot.progression.defensive={id:'repulsor_pulse',level:1,cooldownSeconds:0};
+  const activation=E.tryDefend({game:G,player:pilot},{});
+  check(activation.ok&&pilot.progression.selectedOffensiveSlot===slotIndex&&pilot.progression.offensive[slotIndex].cooldownSeconds===.33,
+    'defense preserves selected offensive slot '+slotIndex+' and its cooldown');
+  pilot.progression.offensive[slotIndex].cooldownSeconds=0;
+  check(E.tryFire({game:G,player:pilot},{aimAngle:0}).ok,'offense can fire in the same step as defense for slot '+slotIndex);
+}
+const switchingPilot=G.makePlayer({shipType:'kite'},'shared_v1');
+switchingPilot.x=500;switchingPilot.y=500;
+switchingPilot.progression.switchDelaySeconds=.15;
+switchingPilot.progression.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+check(E.tryDefend({game:G,player:switchingPilot},{}).ok&&
+  E.tryFire({game:G,player:switchingPilot},{aimAngle:0}).reason==='switch-delay',
+  'defense can activate during an offensive switching delay');
+N.ProgressionDefense.tickBarrier(ally,2);
+ally.barrier.capacity=4;
+defensePlayer.progression.defensive.cooldownSeconds=0;
+defensePlayer.progression.defensive.level=5;
+E.tryDefend(context,{});
+check(ally.barrier.capacity===45&&approx(ally.barrier.windowSeconds,1),'reapplication raises capacity without extending the window');
+check(N.ProgressionDefense.absorb(ally,50)===5&&ally.barrier.capacity===0,'barrier absorbs damage before other resources');
+N.ProgressionDefense.tickBarrier(ally,1.5);
+check(ally.barrier.windowSeconds===0&&approx(ally.barrier.lockoutSeconds,1.5),'expiration begins the recipient lockout in simulation time');
+defensePlayer.progression.defensive.cooldownSeconds=0;
+E.tryDefend(context,{});
+check(ally.barrier.capacity===0,'casts during lockout do not restore a barrier');
+N.ProgressionDefense.tickBarrier(ally,1.5);
+defensePlayer.progression.defensive.cooldownSeconds=0;
+E.tryDefend(context,{});
+check(ally.barrier.capacity===45&&ally.barrier.windowSeconds===3,'a new window starts after lockout');
+E.tick(defensePlayer.progression,2);
+check(defensePlayer.progression.defensive.cooldownSeconds===5,'defense cooldown advances on equipment simulation ticks');
+const recovered=G.makePlayer({shipType:'kite'},'shared_v1');
+const barrierSnapshot=N.ProgressionDefense.snapshotBarrier(ally);
+check(N.ProgressionDefense.restoreBarrier(recovered,barrierSnapshot).ok&&recovered.barrier!==ally.barrier,'barrier restoration copies remaining state');
+const beforeInvalid=JSON.stringify(recovered.barrier);
+check(!N.ProgressionDefense.restoreBarrier(recovered,{capacity:46,windowSeconds:1,lockoutSeconds:2}).ok&&JSON.stringify(recovered.barrier)===beforeInvalid,'invalid barrier restoration does not alter the live state');
+recovered.dead=true;
+const frozenCooldown=defensePlayer.progression.defensive.cooldownSeconds;
+N.ProgressionDefense.tickWorld([recovered,recovered],3.5);
+check(recovered.barrier.capacity===0&&approx(recovered.barrier.lockoutSeconds,1.5),'downed or offline barriers use the world clock once per participant');
+check(defensePlayer.progression.defensive.cooldownSeconds===frozenCooldown,'world barrier ticking does not recharge an offline defense');
+const disconnected=G.makePlayer({shipType:'kite'},'shared_v1');
+disconnected.progression.defensive={id:'aegis_projector',level:2,cooldownSeconds:4};
+N.ProgressionDefense.restoreBarrier(disconnected,{capacity:20,windowSeconds:1,lockoutSeconds:2});
+N.ProgressionDefense.tickWorld([disconnected],2);
+const reconnect=G.makePlayer({shipType:'kite'},'shared_v1');
+reconnect.progression=JSON.parse(JSON.stringify(disconnected.progression));
+check(N.ProgressionDefense.restoreBarrier(reconnect,N.ProgressionDefense.snapshotBarrier(disconnected)).ok&&
+  reconnect.progression.defensive.cooldownSeconds===4&&reconnect.barrier.capacity===0&&reconnect.barrier.lockoutSeconds===1,
+  'reconnect preserves a frozen defense cooldown and the elapsed offline barrier lockout');
+const pausedPlayer=G.player;
+const pausedMode=G.mode;
+try{
+  G.player=reconnect;G.mode='paused';
+  G.update(1);
+  check(reconnect.barrier.lockoutSeconds===1&&reconnect.progression.defensive.cooldownSeconds===4,
+    'pause freezes both the world barrier clock and equipment cooldown');
+}finally{
+  G.player=pausedPlayer;G.mode=pausedMode;
+}
+const casters=Array.from({length:4},(_,index)=>{
+  const caster=G.makePlayer({shipType:'kite'},'shared_v1');
+  caster.x=500;caster.y=500;caster.clientId='caster-'+index;
+  caster.progression.defensive={id:'aegis_projector',level:index+1,cooldownSeconds:0};
+  return caster;
+});
+for(const caster of casters){
+  E.tryDefend({game:G,player:caster,recipients:casters,participantId:caster.clientId,activationId:'a-'+caster.clientId},{});
+}
+check(casters.every(caster=>caster.barrier.capacity===40&&caster.barrier.windowSeconds===3),'four casts keep the strongest barrier without stacking capacity or time');
+N.ProgressionDefense.tickWorld(casters,3);
+for(const caster of casters){
+  caster.progression.defensive.cooldownSeconds=0;
+  E.tryDefend({game:G,player:caster,recipients:casters},{});
+}
+check(casters.every(caster=>caster.barrier.capacity===0&&caster.barrier.lockoutSeconds===2),'four casts cannot bypass the shared recipient lockout');
+for(const unavailable of [{paused:true},{connected:false}]){
+  const state=E.create('kite');
+  state.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+  const player={x:500,y:500,shipType:'kite',progression:state};
+  check(!E.tryDefend({game:G,player,...unavailable},{}).ok&&state.defensive.cooldownSeconds===0,'unavailable activation does not consume cooldown');
+}
+const resourcePlayer=G.makePlayer({shipType:'kite'},'shared_v1');
+resourcePlayer.x=500;resourcePlayer.y=500;
+resourcePlayer.hp=70;resourcePlayer.shield=12;resourcePlayer.resourceRevision=10;
+resourcePlayer.progression.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+const identity={runToken:'0123456789abcdef0123456789abcdef',participantId:'resource-player'};
+const repaired=N.ProgressionDefense.commitResources(resourcePlayer,identity);
+const resourceCast=E.tryDefend({game:G,player:resourcePlayer,participantId:identity.participantId,
+  resourceIdentity:()=>identity},{});
+const barrierRevision=resourceCast.resourceEvents[0];
+check(repaired.event.resourceRevision===11&&barrierRevision.resourceRevision===12&&barrierRevision.hp===70&&
+  barrierRevision.shield===12&&barrierRevision.barrier.capacity===25&&barrierRevision.buffs.speed===0,
+  'barrier resource revision includes the earlier repair and complete current resources');
+const damaged=N.ProgressionDefense.applyDamage(resourcePlayer,40);
+check(damaged.ok&&damaged.barrierDamage===25&&damaged.shieldDamage===12&&damaged.healthDamage===3&&
+  resourcePlayer.hp===67&&resourcePlayer.invuln===.68&&resourcePlayer.shieldDelay===4.2,
+  'accepted damage consumes barrier, shield and then health with hit timers');
+check(!N.ProgressionDefense.applyDamage(resourcePlayer,5).ok&&resourcePlayer.hp===67,'invulnerability rejects a second damage event');
+const invalidResource=G.makePlayer({shipType:'kite'},'shared_v1');
+invalidResource.x=500;invalidResource.y=500;
+invalidResource.progression.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+const invalidCast=E.tryDefend({game:G,player:invalidResource,resourceIdentity:()=>({runToken:'bad',participantId:'p'})},{});
+check(!invalidCast.ok&&!invalidResource.barrier&&invalidResource.progression.defensive.cooldownSeconds===0,
+  'invalid resource identity rejects the whole cast before mutation');
+const invalidAlly=G.makePlayer({shipType:'kite'},'shared_v1');
+invalidAlly.x=510;invalidAlly.y=500;
+const invalidTeamCast=E.tryDefend({game:G,player:invalidResource,recipients:[invalidAlly],
+  resourceIdentity:recipient=>recipient===invalidAlly?{runToken:'bad',participantId:'ally'}:identity},{});
+check(!invalidTeamCast.ok&&!invalidResource.barrier&&!invalidAlly.barrier&&invalidResource.progression.defensive.cooldownSeconds===0,
+  'invalid recipient rejects the whole team cast before any recipient changes');
+const missingHandlerState=E.create('kite');
+missingHandlerState.defensive={id:'repulsor_pulse',level:1,cooldownSeconds:0};
+const vulnerableBullet={x:0,y:0,owner:'enemy',repulsorClearable:true};
+const invalidWorld={level:{layout:null,width:100,height:100},enemies:[],enemyBullets:[vulnerableBullet],addRing(){}};
+const missingHandler=E.tryDefend({game:invalidWorld,player:{x:0,y:0,shipType:'kite',progression:missingHandlerState}},{});
+check(!missingHandler.ok&&!vulnerableBullet.dead&&missingHandlerState.defensive.cooldownSeconds===0,
+  'missing damage handler rejects a repulsor before clearing bullets or consuming cooldown');
+for(const steps of [1,60,180]){
+  const timed={barrier:{capacity:25,windowSeconds:3,lockoutSeconds:2}};
+  for(let index=0;index<steps;index++)N.ProgressionDefense.tickWorld([timed],3/steps);
+  check(timed.barrier.capacity===0&&timed.barrier.windowSeconds===0&&approx(timed.barrier.lockoutSeconds,2),
+    'barrier window expires consistently across '+steps+' simulation steps');
+}
+const remoteResource=G.makePlayer({shipType:'kite'},'shared_v1');
+remoteResource.hp=50;remoteResource.shield=10;
+N.ProgressionDefense.restoreBarrier(remoteResource,{capacity:25,windowSeconds:2,lockoutSeconds:2});
+const remoteHit=N.ProgressionDefense.damageTransaction(remoteResource,40,identity);
+check(remoteHit.ok&&remoteHit.event.hp===45&&remoteHit.event.shield===0&&remoteHit.event.barrier.capacity===0&&
+  remoteHit.event.resourceRevision===1,'host damage returns a complete resource revision for a remote participant');
+const savedHostFlag=N.Coop.host;
+const savedRemotePlayers=N.Coop.remotePlayers;
+const savedAuthority=G.progressionAuthority;
+const published=[];
+remoteResource.clientId='resource-player';remoteResource.invuln=0;
+const misdirected=N.ProgressionDefense.damageTransaction(remoteResource,10,{...identity,participantId:'other-player'});
+check(!misdirected.ok&&remoteResource.hp===45&&remoteResource.resourceRevision===1,
+  'mismatched remote participant identity is rejected before resource mutation');
+N.Coop.host=true;N.Coop.remotePlayers=[remoteResource];
+G.progressionAuthority={identityFor:()=>identity,publishResource:event=>published.push(event)};
+const hostFunction=N.Coop.isHost;
+try{
+  N.Coop.isHost=()=>true;
+  N.Coop.applyRemoteState({x:600,y:600,hp:99,shield:99,maxHp:999,maxShield:999,level:50,dead:true,invuln:9,shipType:'talon'},remoteResource.clientId);
+  check(remoteResource.hp===45&&remoteResource.shield===0&&remoteResource.level===1&&!remoteResource.dead&&remoteResource.shipType==='kite'&&remoteResource.tx===600,
+    'guest movement updates cannot overwrite host progression or resources');
+  N.Coop.applyLoadout({weapons:[],passives:[],stats:{maxHp:999}},remoteResource.clientId);
+  check(remoteResource.stats.maxHp===100&&remoteResource.progression.offensive[0].id==='pulse_repeater',
+    'legacy guest loadout cannot overwrite shared-mode state');
+  check(N.Coop.sendHit(remoteResource,10,500,500,false)&&published.length===1&&published[0].hp===35&&published[0].resourceRevision===2,
+    'host remote hit publishes a cumulative resource result through the authority adapter');
+  const previousTimerState={active:N.Coop.active,pauseState:N.Coop.pauseState,mode:G.mode,
+    stateAt:N.Coop._stateAt,worldAt:N.Coop._worldAt,flushAt:N.Coop._flushAt};
+  try{
+    N.Coop.active=true;G.mode='playing';N.Coop.pauseState='PLAY';
+    N.Coop._stateAt=Infinity;N.Coop._worldAt=Infinity;N.Coop._flushAt=Infinity;
+    check(!N.Coop.sendHit(remoteResource,10,500,500,false),'a second remote hit inside immunity is rejected');
+    N.Coop.pauseState='PAUSED';N.Coop.preUpdate(1);
+    check(approx(remoteResource.invuln,.68),'pause freezes host-owned remote hit immunity');
+    N.Coop.pauseState='PLAY';remoteResource.connected=false;N.Coop.preUpdate(1);
+    check(approx(remoteResource.invuln,.68),'disconnect freezes host-owned remote hit immunity');
+    remoteResource.connected=true;remoteResource.dead=true;N.Coop.preUpdate(1);
+    check(approx(remoteResource.invuln,.68),'downed state freezes host-owned remote hit immunity');
+    remoteResource.dead=false;
+    for(let frame=0;frame<60;frame++)N.Coop.preUpdate(1/120);
+    check(approx(remoteResource.invuln,.18)&&!N.Coop.sendHit(remoteResource,10,500,500,false),
+      'remote immunity advances by elapsed time and still rejects an early hit');
+    for(let frame=0;frame<30;frame++)N.Coop.preUpdate(1/120);
+    check(N.Coop.sendHit(remoteResource,10,500,500,false)&&remoteResource.hp===25&&published.at(-1).resourceRevision===3,
+      'a later remote hit succeeds after host-owned immunity expires');
+    remoteResource.progressionMode='legacy';N.Coop.preUpdate(1);
+    check(approx(remoteResource.invuln,.68),'legacy remote immunity remains owned by guest updates');
+    remoteResource.progressionMode='shared_v1';
+  }finally{
+    N.Coop.active=previousTimerState.active;N.Coop.pauseState=previousTimerState.pauseState;G.mode=previousTimerState.mode;
+    N.Coop._stateAt=previousTimerState.stateAt;N.Coop._worldAt=previousTimerState.worldAt;N.Coop._flushAt=previousTimerState.flushAt;
+  }
+  const previousPlayer=G.player;
+  const hostPlayer=G.makePlayer({shipType:'kite'},'shared_v1');
+  hostPlayer.x=500;hostPlayer.y=500;hostPlayer.hp=80;hostPlayer.shield=10;
+  N.ProgressionDefense.restoreBarrier(hostPlayer,{capacity:25,windowSeconds:3,lockoutSeconds:2});
+  G.player=hostPlayer;
+  try{
+    check(G.damagePlayer(40,500,500)&&hostPlayer.hp===75&&hostPlayer.shield===0&&published.at(-1).hp===75&&
+      published.at(-1).barrier.capacity===0,'host local hit publishes the same barrier, shield and health order');
+    hostPlayer.invuln=0;
+    N.ProgressionDefense.restoreBarrier(hostPlayer,{capacity:20,windowSeconds:2,lockoutSeconds:2});
+    const previousRecord=N.PlayerStats.record;
+    const recorded=[];
+    N.PlayerStats.record=key=>recorded.push(key);
+    try{
+      check(G.damagePlayer(5,500,500)&&hostPlayer.hp===75&&hostPlayer.barrier.capacity===15&&recorded.filter(key=>key==='hitsTaken').length===1,
+        'a fully absorbed barrier hit preserves hit statistics');
+    }finally{
+      N.PlayerStats.record=previousRecord;
+    }
+    const previousGuest=N.Coop.isGuest;
+    N.Coop.isGuest=()=>true;
+    hostPlayer.invuln=0;
+    N.Coop._applyingRemote=true;
+    try{
+      check(!G.damagePlayer(10,500,500)&&hostPlayer.hp===75,'shared guest rejects an old remote hit even during legacy dispatch');
+    }finally{
+      N.Coop._applyingRemote=false;
+      N.Coop.isGuest=previousGuest;
+    }
+  }finally{
+    G.player=previousPlayer;
+  }
+}finally{
+  N.Coop.isHost=hostFunction;N.Coop.host=savedHostFlag;N.Coop.remotePlayers=savedRemotePlayers;G.progressionAuthority=savedAuthority;
+}
+const originalHost=N.Coop.isHost;
+const originalGuest=N.Coop.isGuest;
+try{
+  N.Coop.isHost=()=>true;
+  invalidResource.progression.defensive.cooldownSeconds=0;
+  check(E.tryDefend({game:G,player:invalidResource},{}).reason==='missing-authority-context'&&!invalidResource.barrier,
+    'host activation requires an authority identity and resource adapter');
+  N.Coop.isHost=()=>false;
+  N.Coop.isGuest=()=>true;
+  const before=remoteResource.hp;
+  check(!N.ProgressionDefense.damageTransaction(remoteResource,10,identity).ok&&remoteResource.hp===before,
+    'a guest cannot commit host resource damage');
+}finally{
+  N.Coop.isHost=originalHost;
+  N.Coop.isGuest=originalGuest;
+}
+const defenseProjection=N.ProgressionDefense.snapshotVisuals(G,casters);
+check(defenseProjection.flashes.length>0&&defenseProjection.flashes.every(effect=>!Object.hasOwn(effect,'damage')),
+  'guest visual projection contains draw data without simulation authority');
+N.ProgressionDefense.setGuestVisuals(G.level,defenseProjection);
+check(N.ProgressionDefense.guestVisuals(G.level)===defenseProjection,'decoded guest visual projection is exposed for rendering');
+N.ProgressionDefense.tickEffects(G.level,1);
+check(N.ProgressionDefense.snapshotVisuals(G,casters).flashes.length===0,'expired defensive visual effects are released');
+defensePlayer.progression.defensive={id:'repulsor_pulse',level:5,cooldownSeconds:0};
+const ordinary={x:550,y:500,r:10,role:'rusher',dead:false};
+const boss={x:550,y:520,r:10,role:'boss',boss:true,dead:false};
+const bullet={x:510,y:500,owner:'enemy',repulsorClearable:true};
+const bossBullet={x:510,y:500,owner:'enemy',repulsorClearable:false};
+const unknownBullet={x:510,y:500,owner:'enemy'};
+const alliedBullet={x:510,y:500,owner:'player',repulsorClearable:true};
+G.enemies=[ordinary,boss];
+G.enemyBullets=[bullet,bossBullet,unknownBullet,alliedBullet];
+const originalDamageEnemy=G.damageEnemy;
+const hits=[];
+G.damageEnemy=(target,damage)=>hits.push([target,damage]);
+try{
+  const pulse=E.tryDefend({...context,participantId:'pilot',activationId:'pulse-1'},{});
+  check(pulse.ok&&pulse.cleared===1&&bullet.dead&&!bossBullet.dead&&!unknownBullet.dead&&!alliedBullet.dead,'repulsor clears only explicitly eligible hostile bullets');
+  check(hits.length===2&&hits.every(([,damage])=>damage===12),'repulsor uses fixed damage on ordinary and boss enemies');
+  check(approx(ordinary.x,610)&&boss.x===550&&boss.y===520,'repulsor moves ordinary enemies but not bosses');
+  check(approx(defensePlayer.progression.defensive.cooldownSeconds,3.4),'level-five repulsor cooldown is 3.4 seconds');
+  check(pulse.event.ownerParticipantId==='pilot'&&pulse.event.activationId==='pulse-1'&&pulse.event.targets.length===2,'repulsor effect reports authoritative attribution and target results');
+}finally{
+  G.damageEnemy=originalDamageEnemy;
+}
+const floorDefense=Array(144).fill(true);
+for(let row=0;row<12;row++)floorDefense[row*12+7]=false;
+G.level.layout={cols:12,rows:12,floor:floorDefense};
+defensePlayer.x=640;defensePlayer.y=500;
+defensePlayer.progression.defensive.cooldownSeconds=0;
+const nearWall=enemy('near-defense-wall',680,500);
+const behindWall=enemy('behind-defense-wall',710,500);
+const hiddenBullet={id:'hidden',x:710,y:500,owner:'enemy',repulsorClearable:true};
+G.enemies=[nearWall,behindWall];G.enemyBullets=[hiddenBullet];
+E.tryDefend({game:G,player:defensePlayer},{});
+check(nearWall.hp===988&&nearWall.x<=690&&nearWall.x>680,'repulsor push stops at solid geometry');
+check(behindWall.hp===1000&&!hiddenBullet.dead,'walls occlude repulsor damage and projectile clearing');
+const blockedAlly=G.makePlayer({shipType:'kite'},'shared_v1');
+blockedAlly.x=710;blockedAlly.y=500;
+const downedAlly=G.makePlayer({shipType:'kite'},'shared_v1');
+downedAlly.x=645;downedAlly.y=500;downedAlly.dead=true;
+defensePlayer.progression.defensive={id:'aegis_projector',level:1,cooldownSeconds:0};
+E.tryDefend({game:G,player:defensePlayer,recipients:[blockedAlly,downedAlly]},{});
+check(!blockedAlly.barrier&&!downedAlly.barrier,'Aegis excludes occluded and downed allies');
+G.level.layout=null;
+const edgeEnemy=enemy('edge-enemy',G.level.width-15,500);
+defensePlayer.x=G.level.width-50;defensePlayer.y=500;
+defensePlayer.progression.defensive={id:'repulsor_pulse',level:1,cooldownSeconds:0};
+G.enemies=[edgeEnemy];G.enemyBullets=[];
+E.tryDefend({game:G,player:defensePlayer},{});
+check(edgeEnemy.x<=G.level.width-edgeEnemy.r&&edgeEnemy.x>G.level.width-15,'repulsor cannot push an enemy beyond the world boundary');
+G.enemyBullets=[];
+const ordinaryShot=G.enemyFireAt({x:500,y:500,r:10,color:'#fff',role:'warden',boss:false},0,100,1);
+const bossShot=G.enemyFireAt({x:500,y:500,r:10,color:'#fff',role:'boss',boss:true},0,100,1);
+check(ordinaryShot.repulsorClearable===true&&bossShot.repulsorClearable===false,'enemy firing records boss-origin clearability at spawn');
+defensePlayer.x=500;defensePlayer.y=500;
+defensePlayer.progression.defensive={id:'repulsor_pulse',level:1,cooldownSeconds:0};
+const edgeBullet={id:'edge',x:625,y:500,owner:'enemy',repulsorClearable:true};
+const outsideBullet={id:'outside',x:625.1,y:500,owner:'enemy',repulsorClearable:true};
+const unclassifiedBullet=G.spawnEnemyBullet({x:510,y:500,angle:0,speed:0,kind:'anchor'});
+const anchorBullet=G.spawnEnemyBullet({x:510,y:500,angle:0,speed:0,kind:'anchor',repulsorClearable:true});
+const mine={x:510,y:500,owner:'enemy',dead:false};
+const alliedProjectile={x:510,y:500,dead:false};
+G.enemies=[];G.enemyBullets=[edgeBullet,outsideBullet,unclassifiedBullet,anchorBullet];
+G.mines=[mine];G.playerBullets=[alliedProjectile];
+E.tryDefend({game:G,player:defensePlayer},{});
+check(edgeBullet.dead&&anchorBullet.dead&&!outsideBullet.dead&&!unclassifiedBullet.dead&&!mine.dead&&!alliedProjectile.dead,
+  'repulsor clears eligible bullets at the boundary and leaves unclassified or non-bullet hazards intact');
+const oldPlayerForAnchors=G.player;
+const oldAnchors=G.level.anchors;
+try{
+  G.player=defensePlayer;
+  G.level.anchors=[0,1,2].map(type=>({type,x:550,y:500,r:10,alive:true,hitFlash:0,phase:0,angle:0,attackTimer:0,guardTimer:100}));
+  G.enemyBullets=[];
+  G.updateAnchors(.01);
+  check(G.enemyBullets.length===21&&G.enemyBullets.every(projectile=>projectile.repulsorClearable===true),
+    'all three anchor patterns explicitly mark ordinary bullets as clearable');
+}finally{
+  G.player=oldPlayerForAnchors;G.level.anchors=oldAnchors;
+}
 G.pauseGame();
 window.equipmentResult={passed:passed.length,checks:passed};
 })();
