@@ -442,3 +442,12 @@ Local source: `docs/work-to-be-done/041-progression-contracts.md`.
 The planning handoff is merged through PR #67 at the base recorded above.
 The earlier unmerged-planning note is superseded by this verified history.
 
+### D7 follow-up - 2026-11-08 owner targeting correction
+
+The owner explicitly requested seeking/locking weapons hit nearby aimed
+progression structures as well as enemy units. This supersedes D7's enemy-only
+selection for Seeker Missiles and Arc Projector. Live anchors and caches now
+share the existing acquisition cone/range/line-of-sight and distance/ID ordering;
+Arc chains can include them and seekers invalidate destroyed structure targets.
+Other D7 values remain unchanged. Implementation and tests are recorded in
+[043](043-offensive-area-weapons.md#owner-playtest-correction---structure-acquisition-2026-11-08).

@@ -28,13 +28,13 @@ function visible(game,x,y,target){
 function nearest(game,x,y,range,angle,excluded){
   let best=null;
   let distance=range*range;
-  for(const enemy of game.enemies){
-    if(enemy.dead||excluded?.has(enemy.id))continue;
-    const d=N.dist2(x,y,enemy.x,enemy.y);
-    if(d>distance||(d===distance&&best&&enemy.id>=best.id))continue;
-    if(angle!==null&&Math.abs(N.angleDelta(angle,Math.atan2(enemy.y-y,enemy.x-x)))>CONE)continue;
-    if(!visible(game,x,y,enemy))continue;
-    best=enemy;
+  for(const target of targets(game)){
+    if(excluded?.has(target.id))continue;
+    const d=N.dist2(x,y,target.x,target.y);
+    if(d>distance||(d===distance&&best&&target.id>=best.id))continue;
+    if(angle!==null&&Math.abs(N.angleDelta(angle,Math.atan2(target.y-y,target.x-x)))>CONE)continue;
+    if(!visible(game,x,y,target))continue;
+    best=target;
     distance=d;
   }
   return best;
@@ -62,11 +62,11 @@ function fire(game,spawn,definition,shot){
     const excluded=new Set();
     let {x,y}=shot;
     for(const [index,base] of definition.chainDamage.entries()){
-      const enemy=nearest(game,x,y,index?definition.chainRange:definition.targetRange,index?null:shot.angle,excluded);
-      if(!enemy)break;
-      excluded.add(enemy.id);
-      hit(game,enemy,{...shot,x,y},shot.damage*base/definition.baseDamage,true);
-      ({x,y}=enemy);
+      const target=nearest(game,x,y,index?definition.chainRange:definition.targetRange,index?null:shot.angle,excluded);
+      if(!target)break;
+      excluded.add(target.id);
+      hit(game,target,{...shot,x,y},shot.damage*base/definition.baseDamage,true);
+      ({x,y}=target);
       points.push([x,y]);
     }
     if(points.length>1){
@@ -106,7 +106,7 @@ function steer(game,bullet,dt){
   const definition=C.additional(bullet.weaponId);
   const range=definition.targetRange;
   const target=bullet.target;
-  if(!target||target.dead||N.dist2(bullet.x,bullet.y,target.x,target.y)>range*range||!visible(game,bullet.x,bullet.y,target)){
+  if(!target||target.dead||target.alive===false||N.dist2(bullet.x,bullet.y,target.x,target.y)>range*range||!visible(game,bullet.x,bullet.y,target)){
     bullet.target=nearest(game,bullet.x,bullet.y,range,bullet.activationAim);
   }
   if(!bullet.target)return;

@@ -183,3 +183,9 @@ separately in Chromium. Objective 045/046/048 criteria are Done. Parent 040 and
 visual and performance gates. Four local-client stress measurements were slow;
 no real-player performance acceptance is claimed. See
 [049](049-progression-integration-validation.md) for the single combined handoff.
+
+Owner playtest follow-up, 2026-11-08: Seeker Missiles and Arc Projector now
+acquire nearby aimed progression structures/caches under their existing
+range/cone/line-of-sight rules. See [043](043-offensive-area-weapons.md) for
+regressions and the superseding targeting decision. Batch owner validation
+remains pending; no other issue status changed.

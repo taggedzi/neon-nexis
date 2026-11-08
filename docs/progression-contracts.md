@@ -410,15 +410,19 @@ permit wall/enemy tunneling. Preserve existing ship hitboxes and solid geometry.
   pellets across the approved cone. Rail counts distinct enemies, never repeats
   damage on one enemy, and stops at a wall or third enemy. Use existing
   destructible objective collision rules; primary-only play must clear sectors.
-- Missiles start along aim, seek live enemies only and retain a valid acquired
-  target. If it dies or line of sight/range becomes invalid, reacquire using the
+- Missiles start along aim, seek live enemies and destructible objectives/caches,
+  and retain a valid acquired target. If it dies or line of sight/range becomes
+  invalid, reacquire using the
   original activation aim cone from the missile's current position. Without a
   target they continue forward. They stop on collision/expiry and deal one direct
-  hit, without splash. Each missile may independently select the same enemy.
-- Arc selects enemies only, with line of sight for the first hit and every hop.
+  hit, without splash. Each missile may independently select the same target.
+- Arc selects live enemies and destructible objectives/caches, with line of
+  sight for the first hit and every hop.
   A hop uses its previous target as origin. No valid target means no hit, with
-  normal cooldown consumed. Primary/projectile/area attacks retain objective
-  damage paths; no automatic objective target substitution is added to Arc.
+  normal cooldown consumed. All eligible target types compete by the same
+  distance/ID ordering, initial aim cone and range rules. This supersedes the
+  enemy-only acquisition rule under the owner's 2026-11-08 playtest correction;
+  primary/projectile/area attacks retain their existing objective damage paths.
 - Bomb/mortar fly along fixed activation aim, unaffected by mouse distance,
   homing or owner motion. They pass through enemies and detonate at 360 units or
   first wall, on the reachable side. There is no extra direct-impact damage.
