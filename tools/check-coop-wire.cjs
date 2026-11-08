@@ -19,6 +19,7 @@ vm.createContext(sandbox);
 const root = path.join(__dirname, '..', 'js');
 for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: 'js/' + file });
+  if (file === 'util.js') sandbox.NEON.PROGRESSION_ENABLED = false;
 }
 
 const N = sandbox.NEON;
@@ -26,6 +27,22 @@ const Wire = N.Wire;
 assert.equal(Wire.VERSION, 6);
 assert.equal(typeof Wire.encode, 'function');
 assert.equal(typeof Wire.decode, 'function');
+
+// The released replacement format carries the host enemy-bullet identity.
+const modern = { TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, DataView };
+modern.window = modern;
+modern.NEON = {};
+vm.createContext(modern);
+for (const file of ['util.js', 'content.js', 'ships.js', 'coop-wire.js']) {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), modern);
+}
+const modernWire = modern.NEON.Wire;
+assert.equal(modernWire.VERSION, 7);
+const modernBullet = modernWire.encode({ t: 'ebullet', b: [{ id: 'eb_17', x: 10, y: 20,
+  angle: 0, speed: 100, size: 3, life: 1, color: '#ff335c', kind: 'hostile' }] });
+assert.equal(modernWire.decode(modernBullet).b[0].id, 'eb_17');
+assert.equal(Wire.decode(modernBullet).versionMismatch, true);
+assert.equal(modernWire.decode(Wire.encode({ t: 'ebullet', b: [] })).versionMismatch, true);
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);

@@ -53,7 +53,20 @@ assert.equal(migrated.keyboard.rewards, 'KeyR');
 assert.equal(migrated.gamepad.rewards, 2);
 assert.equal(migrated.deadzone, 0.33);
 assert.equal(migrated.capturePointer, true);
+assert.equal(migrated.keyboard.defense,'KeyR');
+assert.equal(migrated.keyboard.offensive1,'Digit1');
+assert.equal(migrated.gamepad.defense,2);
 assert.equal(stored.size, 1);
+
+const remapped=N.normalizeSettings({keyboard:{pause:'Digit1',fire:'KeyR'},gamepad:{pause:14,fire:2}});
+assert.equal(remapped.keyboard.pause,'Digit1');
+assert.equal(remapped.keyboard.fire,'KeyR');
+assert.notEqual(remapped.keyboard.offensive1,'Digit1');
+assert.notEqual(remapped.keyboard.defense,'KeyR');
+assert.equal(remapped.gamepad.pause,14);
+assert.equal(remapped.gamepad.fire,2);
+assert.notEqual(remapped.gamepad.offensive1,14);
+assert.notEqual(remapped.gamepad.defense,2);
 
 stored.set(N.Storage.settingsKey, JSON.stringify({ capturePointer: false, deadzone: 0.2 }));
 const captureOff = N.loadSettings();

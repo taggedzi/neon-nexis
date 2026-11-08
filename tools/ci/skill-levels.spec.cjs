@@ -44,7 +44,7 @@ test('023 skill selection persists; Medium baseline, multipliers and Hardcore sa
       }
     }finally{Math.random=originalRandom;}
     const legacy={version:1,run:{seed:42,level:1,mapVersion:1},player:{}};
-    const oldLoaded=G.loadFromSave(legacy)&&G.run.skill==='medium';
+    const oldLoaded=G.loadFromSave(legacy);
     G.pauseGame();
     const invalid=G.canLoadSave({...legacy,run:{...legacy.run,skill:'impossible'}});
     G.settings.skill='hardcore';G.newRun();G.pauseGame();
@@ -67,7 +67,7 @@ test('023 skill selection persists; Medium baseline, multipliers and Hardcore sa
     return {selected,rows,oldLoaded,invalid,death,preservesOtherRun};
   });
   expect(result.selected).toBe('hard');
-  expect(result.oldLoaded).toBe(true);
+  expect(result.oldLoaded).toBe(false);
   expect(result.invalid).toBe(false);
   expect(result.preservesOtherRun).toBe(true);
   for(const sector of [1,10]){

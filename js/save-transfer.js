@@ -3,7 +3,7 @@
 'use strict';
 const N = window.NEON;
 const transfer = N.SaveTransfer = {};
-const FILE_VERSION = 4;
+const FILE_VERSION = 5;
 
 // A backup is one sector of checkpoint data plus settings. One million
 // characters is far above that and rejects a huge file before it is applied.
@@ -158,7 +158,7 @@ function recoveryFile(entries) {
       release: String(N.RELEASE_VERSION || ''),
       checkpoint: parsed[0],
       settings: parsed[1] || {},
-      loadouts: parsed[2] || { version: 1, ships: [] },
+      loadouts: parsed[2] || { version: N.PROGRESSION_ENABLED === true ? 2 : 1, ships: [] },
       profile: parsed[3] || { version: 2, stats: N.Profile.emptyStats(), book: {} }
     };
     return transfer.validate(file).ok ? file : null;
@@ -223,7 +223,7 @@ transfer.build = function() {
 };
 
 transfer.validate = function(file) {
-  if (!plainObject(file) || ![1, 2, 3, FILE_VERSION].includes(file.fileVersion)) {
+  if (!plainObject(file) || ![1, 2, 3, 4, FILE_VERSION].includes(file.fileVersion)) {
     return { ok: false, reason: plainObject(file) ? 'version' : 'invalid' };
   }
   if (!Object.hasOwn(file, 'settings') || !plainObject(file.settings)) {
@@ -267,7 +267,7 @@ transfer.summary = function(file) {
     if (hasExisting) sentences.push('This replaces the checkpoint already stored in this browser.');
   }
   sentences.push(file.fileVersion>=2?'Saved ships in the file replace this browser’s saved ship list.':'This older backup preserves the saved ships already in this browser.');
-  sentences.push(file.fileVersion===4?'The enemy logbook in this file replaces this browser’s logbook.':'This older backup preserves the enemy logbook already in this browser.');
+  sentences.push(file.fileVersion>=4?'The enemy logbook in this file replaces this browser’s logbook.':'This older backup preserves the enemy logbook already in this browser.');
   sentences.push(file.fileVersion>=3?'Lifetime profile totals in the file replace this browser’s totals.':'This older backup preserves lifetime profile totals already in this browser.');
   sentences.push('Settings in the file replace settings in this browser, including controls, audio, and graphics.');
   return sentences.join(' ');
@@ -302,7 +302,7 @@ transfer.apply = function(file) {
     if(file.fileVersion>=3){
       const old=N.Profile.current();
       localStorage.setItem(N.Profile.key,JSON.stringify({version:2,stats:N.Profile.cleanStats(file.profile.stats),
-        book:file.fileVersion===4?N.Profile.cleanBook(file.profile.book):N.Profile.cleanBook(old?.book)}));
+        book:file.fileVersion>=4?N.Profile.cleanBook(file.profile.book):N.Profile.cleanBook(old?.book)}));
     }
   } catch (error) {
     if (!captured) return { ok: false, reason: 'storage' };

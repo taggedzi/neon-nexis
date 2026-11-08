@@ -15,6 +15,7 @@ let bootReady=false;
 let shipSelection=null;
 let coopSelection=null;
 let oldSaveRaw=null;
+let oldSaveKey=null;
 const focusTimers=[];
 const navigationTrail = [];
 let activatedControl = null;
@@ -190,8 +191,9 @@ UI.init=function(){
   $('menu-version').textContent = 'BUILD ' + N.RELEASE_VERSION + ' // CLIENT-SIDE ASSET SYNTHESIS';
   for (const [id, shouldExport] of [['btn-old-save-export', true], ['btn-old-save-remove', false]]) {
     $(id).addEventListener('click', () => {
-      if (N.SavePolicy.resolve(oldSaveRaw, shouldExport)) {
+      if (N.SavePolicy.resolve(oldSaveRaw, shouldExport, oldSaveKey)) {
         oldSaveRaw = null;
+        oldSaveKey = null;
       }
       UI.showMenu();
     });
@@ -431,6 +433,10 @@ UI.showMenu=function(){
   const checkpoint = N.SavePolicy.inspect();
   if (checkpoint.incompatible) {
     oldSaveRaw = checkpoint.raw;
+    oldSaveKey = checkpoint.key;
+    const kind=checkpoint.kind==='loadouts'?'saved ship list':'checkpoint';
+    $('old-save-description').textContent='This '+kind+' uses an unsupported format or cannot be read. Export a copy before removing it?';
+    $('old-save-consequence').textContent='Export starts a download, then removes this browser\'s '+kind+'. Check that your browser allows the download. Settings are kept.';
     G.setMode('menu');
     showScreen('oldsave');
     return;
@@ -804,7 +810,7 @@ function assignBinding(type,action,value){
   const old=map[action];
   const defs=type==='keyboard'?N.KEY_ACTIONS:N.PAD_ACTIONS;
   for(const [a] of defs){
-    if(a!==action&&map[a]===value)map[a]=old;
+    if(a!==action&&a!=='rewards'&&map[a]===value)map[a]=old;
   }
   map[action]=value;
 }
@@ -849,7 +855,7 @@ function renderSettings(){
         <h3 id="controls-keyboard-title">KEYBOARD &amp; MOUSE</h3>
         <p class="micro">SELECT A BINDING, THEN PRESS A KEY. ESCAPE CANCELS. DUPLICATES SWAP.</p>
       <div class="settings-section"><h3>KEYBOARD BINDINGS</h3>
-        ${N.KEY_ACTIONS.map(([action,label])=>`
+        ${N.KEY_ACTIONS.filter(([action])=>action!=='rewards').map(([action,label])=>`
           <div class="setting-row"><div class="setting-label"><b>${driving?(drivingLabels[action]||label):label}</b><small>KEYBOARD / MOUSE SETUP</small></div>
           <button class="keybind" data-bind-key="${action}" type="button">${esc(N.keyLabel(s.keyboard[action]))}</button></div>`).join('')}
       </div>
@@ -864,7 +870,7 @@ function renderSettings(){
         <p class="micro">MENUS: D-PAD / LEFT STICK SELECTS · A / CROSS CONFIRMS · B / CIRCLE GOES BACK.</p>
         ${toggleHTML('rightStickFire','RIGHT STICK FIRES','DIRECTIONAL MODE: AIM TO TRIGGER FIRE')}
       <div class="settings-section"><h3>GAMEPAD BINDINGS</h3>
-        ${N.PAD_ACTIONS.map(([action,label])=>`
+        ${N.PAD_ACTIONS.filter(([action])=>action!=='rewards').map(([action,label])=>`
           <div class="setting-row"><div class="setting-label"><b>${label}</b><small>GAMEPLAY BUTTON</small></div>
           <button class="keybind pad" data-bind-pad="${action}" type="button">${esc(N.padLabel(s.gamepad[action]))}</button></div>`).join('')}
         <div class="setting-row"><div class="setting-label"><b>STICK DEADZONE</b><small>GAMEPAD INPUT THRESHOLD</small></div>
@@ -875,7 +881,7 @@ function renderSettings(){
         </div>
       </div>
         <details class="menu-details" data-help="controller"><summary>Controller guide and remapping details</summary><div class="data-block"><p>Menus: D-pad or left stick selects; left/right adjusts sliders. A / Cross (bottom face button) confirms; B / Circle (right face button) goes back. START / Options also goes back. Hold a direction to repeat. Menu buttons stay fixed when gameplay bindings change.</p>
-        <p>Gameplay: left stick ${driving?'steers and thrusts / brakes / reverses':'moves'}; right stick aims. ${N.PAD_ACTIONS.map(([action,label])=>esc(label)+': '+esc(N.padLabel(s.gamepad[action]))).join(' · ')}. Weapon cycling requires more than one equipped weapon. Pickups attach automatically while weapon bays are available; with full bays, open Rewards to install or replace weapons.</p>
+        <p>Gameplay: left stick ${driving?'steers and thrusts / brakes / reverses':'moves'}; right stick aims. ${N.PAD_ACTIONS.filter(([action])=>action!=='rewards').map(([action,label])=>esc(label)+': '+esc(N.padLabel(s.gamepad[action]))).join(' · ')}. Cycle through installed offensive weapons or select a slot directly. Defensive quick use activates once per press without changing your weapon. Team pickups install or upgrade immediately, including for downed and temporarily disconnected original participants.</p>
         <p>Labels use Xbox / standard browser button order (A = Cross, B = Circle, X = Square, Y = Triangle; LB/RB = L1/R1; LT/RT = L2/R2). Other controllers may report different layouts; use the input monitor and remap gameplay buttons in this section.</p>
         </div>
       <div class="data-block"><p>Select a binding, then press the desired key or gamepad button. Duplicate assignments are swapped automatically. Escape cancels keyboard capture; B / Circle also cancels keyboard capture. Controller capture accepts any button, including menu buttons. Mouse aim/fire is always available in addition to gamepad controls.</p></div>
@@ -977,6 +983,7 @@ function fillStatGrid(el,cells,accentFirst){
 // ——— pause / inventory / overflow ———
 UI.showPause=function(data){
   if(!data)return;
+  $('btn-pause-rewards').hidden=G.player?.progressionMode==='shared_v1';
   $('pause-sector').textContent='SECTOR '+String(data.sector).padStart(2,'0');
   const cells=[
     ['TIME ELAPSED',N.formatTime(data.time)],
@@ -1074,6 +1081,10 @@ UI.updateCoopCountdown=function(seconds){
 UI.showInventory=function(data){
   if(!data)return;
   const p=G.player;
+  if(p.progressionMode==='shared_v1'){
+    showProgressionInventory(p);
+    return;
+  }
   const stats=p.stats;
   $('inv-summary').innerHTML=[
     `<span class="chip">WEAPON BAYS <b>${data.weapons.length}/${data.weaponSlots}</b></span>`,
@@ -1116,6 +1127,32 @@ UI.showInventory=function(data){
   });
   showScreen('inventory');
 };
+function showProgressionInventory(player){
+  const projection=N.ProgressionControls.view(player);
+  const summary=$('inv-summary');
+  summary.replaceChildren();
+  for(const label of ['PILOT LV '+player.level,'SALVAGE '+projection.salvage,'REWARDS APPLY IMMEDIATELY TO THE TEAM']){
+    const chip=document.createElement('span');chip.className='chip';chip.textContent=label;summary.appendChild(chip);
+  }
+  $('inv-weapon-count').textContent='3 OFFENSE + 1 DEFENSE';
+  $('inv-passive-count').textContent=projection.passives.length+' TYPES';
+  const weapons=$('inv-weapons'),passives=$('inv-passives');
+  weapons.replaceChildren();passives.replaceChildren();
+  const card=(parent,text)=>{
+    const element=document.createElement('div');element.className='item-card';element.textContent=text;parent.appendChild(element);
+  };
+  for(const slot of projection.offensive){
+    card(weapons,(slot.slotIndex+1)+'. '+slot.name+(slot.id?' — LV '+slot.level:'')+(slot.selected?' — SELECTED':''));
+  }
+  card(weapons,'DEFENSE: '+(projection.defensive?projection.defensive.name+' — LV '+projection.defensive.level:'EMPTY'));
+  for(const passive of projection.passives)card(passives,passive.name+' × '+passive.stacks);
+  if(!projection.passives.length)card(passives,'NO PASSIVES YET');
+  if(projection.history.length){
+    card(passives,'RECENT TEAM REWARDS');
+    for(const result of projection.history)card(passives,result.message);
+  }
+  showScreen('inventory');
+}
 function itemIcon(kind,it){
   if(kind==='weapon'){
     const def=it.def||N.WEAPON_BY_ID[it.id]||N.WEAPON_BY_ID[it.itemId];
@@ -1142,6 +1179,7 @@ function itemCard(kind,it,index,active,disableDrop){
 
 UI.updateRewards=function(){
   const button=$('btn-rewards-hud'),count=N.Rewards.count();
+  if(G.player?.progressionMode==='shared_v1'){button.hidden=true;return;}
   button.hidden=G.mode!=='playing'||count===0;
   if(button.hidden)return;
   const key=G.settings.keyboard.rewards,pad=G.settings.gamepad.rewards;
@@ -1317,7 +1355,7 @@ function onKeyDown(e){
     }
     return;
   }
-  if(e.code===G.settings.keyboard.rewards&&(currentScreen==='rewards'||currentScreen==='pause')){
+  if(G.player?.progressionMode!=='shared_v1'&&e.code===G.settings.keyboard.rewards&&(currentScreen==='rewards'||currentScreen==='pause')){
     e.preventDefault();e.stopPropagation();
     if(currentScreen==='rewards')G.closeRewards();else G.openRewards();
     return;

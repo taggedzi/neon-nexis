@@ -13,7 +13,7 @@
 
   // Keep later automatic saves from overwriting the owner's real checkpoint.
   G.saveCheckpoint = function(silent, reason) {
-    if (devRuns.has(G.run) && reason !== 'manual') {
+    if (G.devScenarioLoading || (devRuns.has(G.run) && reason !== 'manual')) {
       return false;
     }
     return saveCheckpoint(silent, reason);
@@ -57,14 +57,17 @@
       return {
         hulls: N.Ships.types.map(ship => ship.id),
         colors: N.Ships.palette.map(entry => entry.color),
-        weapons: Object.keys(N.WEAPON_BY_ID),
+        primaries: [...N.ProgressionContent.primaryOrder],
+        weapons: [...N.ProgressionContent.additionalOffenseOrder],
+        defenses: [...N.ProgressionContent.defensiveOrder],
+        passives: [...N.ProgressionContent.passiveOrder],
         enemies: Object.keys(N.ENEMY_BY_ID)
       };
     },
     // A setup is a fresh scenario, not an edit to the stored checkpoint.
     setup(options = {}) {
       allowed(false);
-      const keys = ['hull', 'color', 'weapons', 'level', 'sector', 'seed', 'invulnerable'];
+      const keys = ['hull', 'color', 'weapons', 'defense', 'level', 'sector', 'seed', 'invulnerable'];
       if (!options || typeof options !== 'object' || Array.isArray(options) ||
           Object.keys(options).some(key => !keys.includes(key))) {
         throw Error('Unknown setup option. See docs/dev-mode.md.');
@@ -78,31 +81,49 @@
       const level = integer(options.level ?? 1, 1, 100, 'level');
       const sector = integer(options.sector ?? 1, 1, 100, 'sector');
       const seed = integer(options.seed ?? 1, 0, 0xffffffff, 'seed');
-      const weapons = options.weapons ?? [N.STARTING_WEAPON];
-      if (!Array.isArray(weapons) || weapons.length < 1 || weapons.length > 8 ||
-          weapons.some(id => typeof id !== 'string' || !Object.hasOwn(N.WEAPON_BY_ID, id)) ||
+      const weapons = options.weapons ?? [];
+      if (!Array.isArray(weapons) || weapons.length > 2 ||
+          weapons.some(id => typeof id !== 'string' || !N.ProgressionContent.additional(id)) ||
           new Set(weapons).size !== weapons.length) {
-        throw Error('weapons must contain 1–8 distinct catalog IDs.');
+        throw Error('weapons must contain 0–2 distinct additional-offense catalog IDs.');
+      }
+      const defense = options.defense ?? null;
+      if (defense !== null && !N.ProgressionContent.defense(defense)) {
+        throw Error('defense must be a defensive catalog ID or null.');
       }
       if (options.invulnerable !== undefined && typeof options.invulnerable !== 'boolean') {
         throw Error('invulnerable must be boolean.');
       }
-      const checkpoint = {
-        version: 1,
-        run: { seed, mapVersion: 1, level: sector, sectors: sector - 1 },
-        player: {
-          shipType: hull, shipColor: color, level, xpNext: G.xpForLevel(level),
-          hp: N.BASE_STATS.maxHp, shield: N.BASE_STATS.maxShield,
-          weapons: weapons.map(id => ({ id, tier: 1, level: 1 })),
-          weaponSlots: Math.max(N.START_SLOTS.weapons, weapons.length)
-        }
-      };
       const previous = G.devScenarioLoading;
       G.devScenarioLoading = true;
       try {
-        if (!G.loadFromSave(checkpoint)) {
+        if (G.newRun({shipType:hull, shipColor:color}, {seed, skill:'medium', progressionMode:'shared_v1'}) === false) {
           throw Error('Scenario could not be loaded.');
         }
+        devRuns.add(G.run);
+        let experience = 0;
+        for (let earnedLevel = 1; earnedLevel < level; earnedLevel++) {
+          experience += N.ProgressionContent.xpNext(earnedLevel);
+        }
+        if (experience) {
+          const source = {id:'dev-scenario-level'};
+          N.ProgressionRewards.addXp({...N.ProgressionRuntime.context(G), resolveSource:() => source}, source.id, experience);
+        }
+        const player = G.player;
+        weapons.forEach((id, index) => {
+          player.progression.offensive[index + 1] = {id, level:1, cooldownSeconds:0};
+        });
+        player.progression.defensive = defense ? {id:defense, level:1, cooldownSeconds:0} : null;
+        G.rebuildStats(player, true);
+        G.run.level = G.run.highestSector = sector;
+        G.run.sectors = sector - 1;
+        G.level = G.generateLevel(sector, null);
+        G.resetEntityArrays();
+        player.x = G.level.layout?.spawn.x || G.level.cx;
+        player.y = G.level.layout?.spawn.y || G.level.cy;
+        G.camera.x = player.x;
+        G.camera.y = player.y;
+        G.spawnInitialEnemies();
       } finally {
         G.devScenarioLoading = previous;
       }

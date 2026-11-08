@@ -2,6 +2,13 @@ const { test, expect } = require('@playwright/test');
 const { expectRevival } = require('./coop-revival.cjs');
 const { sampleUrl } = require('./browser-ports.cjs');
 
+// Retained pre-cutover transport/tray regression fixtures. Public shared-mode
+// integration is exercised in coop-progression.spec.cjs and coop-four.spec.cjs.
+async function legacyPage(page, url) {
+  await page.goto(url);
+  await page.evaluate(() => { window.NEON.PROGRESSION_ENABLED = false; });
+}
+
 const ROOM_SETUP_TIMEOUT = 30000;
 const openContexts = [];
 
@@ -59,7 +66,7 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
   const errors = [];
   watchPage(host, 'host', errors);
 
-  await host.goto('/');
+  await legacyPage(host, '/');
   await host.locator('#btn-boot').click();
   if (delayInitialPause) await host.evaluate(() => {
     const net=window.NEON.Net, receive=net.onMessage;
@@ -91,7 +98,7 @@ async function startCoopRun(browser, delayInitialPause = false, skill = 'medium'
   const guest = await guestContext.newPage();
   watchPage(guest, 'guest', errors);
 
-  await guest.goto('/');
+  await legacyPage(guest, '/');
   await guest.locator('#btn-boot').click();
   if(savedShips) await guest.evaluate(()=>{
     const N=window.NEON,G=N.Game;
@@ -273,7 +280,7 @@ test('session survives a brief direct-link drop inside the grace window', async 
   let guestContext = null;
   let guest = null;
   try {
-    await host.goto('/');
+    await legacyPage(host, '/');
     await host.locator('#btn-boot').click();
     await host.locator('#btn-coop').click();
     await host.locator('#btn-coop-host').click();
@@ -289,7 +296,7 @@ test('session survives a brief direct-link drop inside the grace window', async 
     guest.on('console', message => {
       if (message.type() === 'error') errors.push('guest console: ' + message.text());
     });
-    await guest.goto('/');
+    await legacyPage(guest, '/');
     await guest.locator('#btn-boot').click();
     await guest.locator('#btn-coop').click();
     await fillRoomCode(guest, code);
@@ -564,13 +571,13 @@ test('pause and ready are retried after a direct-link outage', async ({ browser 
     });
   }
   try {
-    await host.goto('/');
+    await legacyPage(host, '/');
     await host.locator('#btn-boot').click();
     await host.locator('#btn-coop').click();
     await host.locator('#btn-coop-host').click();
     await expect.poll(() => host.evaluate(() => window.NEON.Net.code || ''), { timeout: ROOM_SETUP_TIMEOUT }).not.toBe('');
     const code = await host.evaluate(() => window.NEON.Net.code);
-    await guest.goto('/');
+    await legacyPage(guest, '/');
     await guest.locator('#btn-boot').click();
     await guest.locator('#btn-coop').click();
     await fillRoomCode(guest, code);
@@ -968,6 +975,7 @@ test('014 page reload restores participant equipment and health; both players mu
     G.spawnEnemyBullet({x:G.player.x+300,y:G.player.y,angle:0,speed:40,size:5,life:20,color:'#ff335c',damage:1});
   });
   await guest.reload();
+  await guest.evaluate(() => { window.NEON.PROGRESSION_ENABLED = false; });
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
   await fillRoomCode(guest, code);
@@ -991,7 +999,7 @@ test('014 page reload restores participant equipment and health; both players mu
 test('014 lone host starts and death ends the mission despite spare respawns', async ({browser}) => {
   const context=trackContext(await browser.newContext());
   const page=await context.newPage();
-  await page.goto('/');
+  await legacyPage(page, '/');
   await page.locator('#btn-boot').click();
   await page.locator('#btn-coop').click();
   await page.locator('#btn-coop-stats').click();
@@ -1038,7 +1046,7 @@ test('028 locked roster preserves a dead returning guest and admits a fresh repl
   const replacementContext=trackContext(await browser.newContext());
   const replacement=await replacementContext.newPage();
   watchPage(replacement,'replacement',errors);
-  await replacement.goto('/');
+  await legacyPage(replacement, '/');
   await replacement.locator('#btn-boot').click();
   await replacement.locator('#btn-coop').click();
   await fillRoomCode(replacement, code);
@@ -1056,7 +1064,7 @@ test('028 locked roster preserves a dead returning guest and admits a fresh repl
 test('014 lobby selections invalidate readiness and controls fit a compact viewport', async ({browser},testInfo) => {
   const context=trackContext(await browser.newContext({viewport:{width:960,height:720}}));
   const page=await context.newPage();
-  await page.goto('/');
+  await legacyPage(page, '/');
   await page.locator('#btn-boot').click();
   await page.locator('#btn-coop').click();
   await page.locator('#btn-coop-host').click();
@@ -1087,7 +1095,7 @@ test('028 a lone host locks its roster, admits guests between runs, and preserve
   const host=await hostContext.newPage();
   const errors=[];
   watchPage(host,'host',errors);
-  await host.goto('/');
+  await legacyPage(host, '/');
   await host.locator('#btn-boot').click();
   await host.locator('#btn-coop').click();
   await host.locator('#btn-coop-host').click();
@@ -1099,7 +1107,7 @@ test('028 a lone host locks its roster, admits guests between runs, and preserve
   const guestContext=trackContext(await browser.newContext());
   const guest=await guestContext.newPage();
   watchPage(guest,'guest',errors);
-  await guest.goto('/');
+  await legacyPage(guest, '/');
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
   await fillRoomCode(guest, code);
@@ -1139,7 +1147,7 @@ test('sample config keeps CO-OP UPLINK visible and disabled while solo play work
   page.on('console', message => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.goto(sampleUrl + '/');
+  await legacyPage(page, sampleUrl + '/');
   await page.locator('#btn-boot').click();
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await expect(page.locator('#btn-coop')).toBeVisible();
@@ -1206,13 +1214,13 @@ test('a direct link that never opens stays on the co-op screen', async ({ browse
       try { bodies.push(await response.json()); } catch (error) { bodies.push(null); }
     });
   }
-  await host.goto('/');
+  await legacyPage(host, '/');
   await host.locator('#btn-boot').click();
   await host.locator('#btn-coop').click();
   await host.locator('#btn-coop-host').click();
   await expect.poll(() => host.evaluate(() => window.NEON.Net.code || '')).not.toBe('');
   const code = await host.evaluate(() => window.NEON.Net.code);
-  await guest.goto('/');
+  await legacyPage(guest, '/');
   await guest.locator('#btn-boot').click();
   await guest.locator('#btn-coop').click();
   await fillRoomCode(guest, code);
@@ -1439,7 +1447,7 @@ test('a stalled introduction poll lets the next session poll without waiting out
     await route.continue();
   });
   try {
-    await page.goto('/');
+    await legacyPage(page, '/');
     await page.locator('#btn-boot').click();
     await page.locator('#btn-coop').click();
     await page.locator('#btn-coop-host').click();

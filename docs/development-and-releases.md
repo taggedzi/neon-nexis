@@ -24,9 +24,11 @@ so run the install command once per clone. `npm install` without
 `--ignore-scripts` runs it through the `prepare` script.
 
 `check` runs syntax validation, ESLint correctness rules, Node regression checks,
-and browser regression/smoke tests. Browser tests run side by side, up to 4 at
-once. Co-op cases open several game pages each; increasing this limit exposed
-an intermittent fourth-player join timeout during delivery. Linux browser
+and browser regression/smoke tests. Browser tests use two workers by default;
+`NEON_TEST_WORKERS` accepts an explicit value from 1 through 4. Co-op cases open
+several game pages each. The progression batch reduced the default after larger
+local pools exposed introduction/setup timeouts. No tests or assertions were
+removed and retries remain disabled. Linux browser
 installation may also require `npx playwright install --with-deps chromium firefox`.
 
 Existing compact source is not reformatted. The initial lint rules catch undefined
@@ -35,7 +37,9 @@ blocks and invalid superclass construction. They do not certify overall code
 quality or security.
 
 Browser tests use new disposable contexts and a loopback-only server on port
-4173. They never open the owner's browser profile or clear existing browser data.
+4173 and a separate sample-configuration server on 4174. Set
+`NEON_TEST_ENABLED_PORT` and `NEON_TEST_SAMPLE_PORT` to distinct free ports when
+needed. They never open the owner's browser profile or clear existing browser data.
 An occupied port causes failure rather than reusing an unknown server. Run tests
 from the repository root. Reports/traces are local ignored artifacts.
 

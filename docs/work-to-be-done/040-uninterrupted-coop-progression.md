@@ -1,6 +1,6 @@
 # 040 — Uninterrupted cooperative progression
 
-Status: Planned
+Status: Implemented — needs validation
 
 ## Problem or player need
 
@@ -285,6 +285,15 @@ discovery starting points, not verified current symbol locations.
 - [ ] Representative four-player effects/performance meet recorded acceptance goals.
 
 ## Implementation and validation
+
+### Combined implementation — 2026-11-08
+
+The owner authorized delegated implementation of the remaining issues, using
+best judgment, review, focused commits and one combined playtest handoff. This
+supersedes the serial branch/PR workflow above for this batch. See the
+[decision record](../decisions.md#2026-11-08--combined-progression-implementation-handoff)
+and [049](049-progression-integration-validation.md) for current evidence.
+Owner playtesting and real-player performance acceptance remain pending.
 
 Planning only, 2026-11-06. Changed files: this parent spec, child tracker documents,
 backlog index and project decision log. No gameplay code changed. Document checks

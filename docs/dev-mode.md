@@ -1,18 +1,22 @@
 # Source scenario commands
 
 Boot to the main menu in a source checkout, then open the browser console.
-`NEON.Dev.catalog()` lists hull, color, weapon, and enemy IDs.
+`NEON.Dev.catalog()` lists hull, color, primary, additional weapon, defense,
+passive, and enemy IDs.
 
 ```js
 NEON.Dev.setup({ hull: 'talon', color: '#ffd166', level: 5, sector: 3,
+  weapons: ['seeker_missiles', 'arc_projector'], defense: 'aegis_projector',
   seed: 42, invulnerable: true });
 NEON.Dev.spawn('dart');
 ```
 
 `setup` starts a fresh scenario, replacing the live run, without changing the
-stored checkpoint. Optional `weapons` is an array of 1–8 distinct catalog IDs;
-weapons start at tier 1, weapon level 1. Player level and sector accept 1–100.
-The player starts healthy; level-based protocol choices use the normal system.
+stored checkpoint. Optional `weapons` is an array of 0–2 distinct additional
+weapon IDs; the primary remains fixed to the hull. Optional `defense` is one
+defensive ID or `null`. Equipment starts at weapon level 1. Player level and
+sector accept 1–100. The player starts healthy and automatically earns the
+normal passive sequence up to the requested level, without protocol choices.
 The map seed defaults to 1. Initial enemies use the normal spawn path.
 
 `NEON.Dev.invulnerable(true)` enables damage immunity; pass `false` to disable it.

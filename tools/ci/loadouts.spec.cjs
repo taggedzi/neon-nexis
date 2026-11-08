@@ -5,8 +5,8 @@ test('024 earned ships persist, refuse invalid equipment, and join backups',asyn
   const result=await page.evaluate(()=>{
     const N=window.NEON,G=N.Game,L=N.Loadouts;
     G.newRun();G.pauseGame();
-    G.run.level=5;G.player.level=4;G.player.xp=7;G.player.xpNext=G.xpForLevel(4);
-    G.player.weapons[0].level=5;
+    G.run.level=5;G.player.progression.level=4;G.player.progression.xp=7;G.player.progression.nextPassiveIndex=3;
+    G.player.progression.offensive[0].level=5;
     const save=L.save('Veteran'),duplicate=L.save('veteran');
     const two=L.save('Second'),three=L.save('Third'),full=L.save('Fourth');
     const rename=L.rename('Second','Renamed');
@@ -18,7 +18,7 @@ test('024 earned ships persist, refuse invalid equipment, and join backups',asyn
     const locked=G.newRun(null,{loadout:ship,sector:6});
     const lockedUntouched=before===G.run;
     const hardcore=G.newRun(null,{loadout:ship,skill:'hardcore'});
-    const invalid=N.deepClone(ship);invalid.player.weapons[0].id='removed-weapon';
+    const invalid=N.deepClone(ship);invalid.player.progression.offensive[0].id='removed-weapon';
     const refused=G.newRun(null,{loadout:invalid});
     const invalidUntouched=before===G.run;
     G.completeToMenu();
@@ -30,9 +30,9 @@ test('024 earned ships persist, refuse invalid equipment, and join backups',asyn
     N.SaveTransfer.apply(oldBackup);
     const oldPreserves=L.read().data.ships.length;
     N.clearSave();const checkpointPreserves=L.read().data.ships.length;
-    const badList=JSON.stringify({version:1,ships:[invalid]});
+    const badList=JSON.stringify({version:2,ships:[invalid]});
     localStorage.setItem(L.key,badList);
-    const unknownPreserved=L.read().ok&&!L.validateShip(L.find('Veteran'));
+    const unknownPreserved=!L.read().ok&&localStorage.getItem(L.key)===badList;
     const corrupted='{broken';localStorage.setItem(L.key,corrupted);
     const bad=L.read();const corruptionPreserved=localStorage.getItem(L.key)===corrupted;
     localStorage.setItem(L.key,JSON.stringify(backup.file.loadouts));
@@ -44,7 +44,7 @@ test('024 earned ships persist, refuse invalid equipment, and join backups',asyn
   expect(result.applied).toEqual([4,4,7,5,true]);
   for(const key of ['locked','hardcore','refused'])expect(result[key]).toBe(false);
   for(const key of ['lockedUntouched','invalidUntouched','unknownPreserved','corruptionPreserved'])expect(result[key]).toBe(true);
-  expect(result.version).toBe(4);expect(result.afterRestore).toBe(3);expect(result.oldPreserves).toBe(3);expect(result.checkpointPreserves).toBe(3);
+  expect(result.version).toBe(5);expect(result.afterRestore).toBe(3);expect(result.oldPreserves).toBe(3);expect(result.checkpointPreserves).toBe(3);
   expect(result.bad.ok).toBe(false);
   await page.reload();await page.locator('#btn-boot').click();await page.locator('#btn-new-run').click();
   await expect(page.locator('#solo-loadouts')).toContainText('Veteran');

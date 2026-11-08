@@ -8,7 +8,7 @@
   let dirtyRun = null, lastSend = 0, warned = false;
   const runKey = () => String(G.run?.seed) + '|' + String(G.run?.startedAt);
   const peerId = () => N.Net.peerId || C._peerId || '';
-  const excluded = () => G.devScenarioLoading || N.Dev?.isScenario();
+  const excluded = () => G.preparingCheckpoint || G.devScenarioLoading || N.Dev?.isScenario();
   function changed() {
     dirty = true;
     dirtyRun = G.run;

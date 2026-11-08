@@ -34,7 +34,7 @@ test('start, move, pause, save, reload and continue', async ({ page, browser }) 
   await expect(page.locator('#screen-pause')).toHaveClass(/active/);
   await page.locator('#btn-save-quit').click();
   const saved = await page.evaluate(() => localStorage.getItem(window.NEON.Storage.key));
-  expect(JSON.parse(saved).version).toBe(1);
+  expect(JSON.parse(saved).version).toBe(2);
   await page.reload();
   await page.locator('#btn-boot').click();
   await page.locator('#btn-continue').click();

@@ -2,6 +2,13 @@
 
 Status: Done
 
+Later configuration note, 2026-11-08: the progression batch defaults to two
+browser workers after multi-client setup timeouts under heavier concurrent
+fixtures. Explicit overrides remain 1–4; no tests, assertions or timeout/retry
+rules were removed. The historical measurements below are unchanged. See the
+[decision log](../decisions.md#2026-11-08--bound-progression-browser-test-concurrency)
+and [049](049-progression-integration-validation.md).
+
 ## Scope and acceptance
 
 Owner request (2026-11-06): reduce the more-than-15-minute push checks without

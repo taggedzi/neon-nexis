@@ -11,7 +11,7 @@
   S.activeShot = null;
   S.remoteFire = null;
   let serial = 0, flushTimer = null, dirty = false, rowSequence = 0, sentAt = 0, currentRun = '', dirtyRun = null, warnedStorage = false;
-  const authorityKeys = ['shotsHit','shipsDestroyed','objectivesDestroyed'];
+  const authorityKeys = ['shotsFired','shotsHit','shipsDestroyed','objectivesDestroyed','itemsPickedUp','hitsTaken'];
   S.received = P.emptyStats();
   S.authority = P.emptyStats();
   S.lastBoard = null;
@@ -79,11 +79,13 @@
     if (entity.coopCosmetic || entity.owner === 'enemy') return null;
     const player = entity.coopPlayer || (typeof entity.owner === 'object' ? entity.owner : G.player);
     const remote = S.isRemote(player);
-    const fire = S.fire || { id: remote ? 0 : ++serial, index: 0 };
+    const progression = player?.progressionMode === 'shared_v1' && typeof entity.activationId === 'string';
+    const fire = S.fire || { id: progression ? entity.activationId : remote ? 0 : ++serial, index: 0 };
     const shot = { fire: fire.id, index: ++fire.index, player, remote,
-      eligible: remote ? fire.id > 0 : S.enabled(), hit: false };
+      eligible: remote ? progression || fire.id > 0 : S.enabled(), hit: false };
     entity.tallyShot = shot;
-    if (!remote) S.record('shotsFired');
+    if (remote && progression) S.credit('shotsFired', player);
+    else if (!remote) S.record('shotsFired');
     return shot;
   };
   S.credit = function (key, player) {
@@ -204,6 +206,16 @@
     if (player && !S.isRemote(player) && total(player) < before){S.record('hitsTaken');if(player.dead)S.flush();}
     return result;
   });
+  wrap(N.Coop, 'sendHit', (original, args) => {
+    const player = args[0];
+    if (player?.progressionMode !== 'shared_v1' || !S.isRemote(player)) return original(...args);
+    const total = () => player.hp + player.shield +
+      (player.barrier?.windowSeconds > 0 ? player.barrier.capacity : 0);
+    const before = total();
+    const result = original(...args);
+    if (result && total() < before) S.credit('hitsTaken', player);
+    return result;
+  });
   wrap(G, 'collectGroundItem', (original, args) => {
     const item = args[0], already = item?.collected;
     const banked = N.Rewards.state().pending.includes(item);
@@ -244,6 +256,12 @@
     try { return original(...args); } finally { S.remoteFire = null; }
   });
   function inventoryKeys(player, rewards) {
+    const progression = player?.progression || player?.snapshot?.progression;
+    if (progression) {
+      return [...progression.offensive.filter(Boolean).map(item => 'weapon:' + item.id),
+        ...(progression.defensive ? ['defense:' + progression.defensive.id] : []),
+        ...Object.keys(progression.passives).map(id => 'mod:' + id)];
+    }
     return [...(player?.weapons||[]).map(item=>'weapon:'+item.id),
       ...(player?.passives||[]).map(item=>'mod:'+item.id),
       ...(rewards?.pending||[]).map(item=>item.kind+':'+item.itemId)];

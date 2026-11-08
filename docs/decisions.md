@@ -1,5 +1,53 @@
 # Project decisions
 
+## 2026-11-08 — Deterministic Firefox loopback test transport
+
+- Decision: Disposable Firefox test profiles permit loopback ICE candidates and
+  expose local candidate addresses to their isolated peer contexts. Production
+  browser preferences and the game's WebRTC configuration are unchanged.
+- Approval source: Agent implementation choice for this batch's local validation.
+- Rationale: The full run reached 216 passing cases but two Firefox co-op cases
+  reported ICE negotiation failures on the host network. Same-machine regression
+  tests should not depend on multicast host discovery. Mozilla's
+  [preference definitions](https://github.com/mozilla-firefox/firefox/blob/main/modules/libpref/init/all.js)
+  identify the loopback setting as test support.
+- Consequences: This still exercises real data channels, recovery and protocol
+  authority, but does not establish ordinary Firefox LAN/WAN connectivity.
+  No assertion, console-error check, timeout or retry policy is relaxed.
+- Supersedes: Default ICE candidate preferences in disposable Firefox automation
+  profiles only; no gameplay or hosting decision is changed.
+
+## 2026-11-08 — Bound progression browser-test concurrency
+
+- Decision: Default to two browser workers, retaining the existing explicit
+  `NEON_TEST_WORKERS=1..4` override. Keep every test, assertion, timeout and
+  zero-retry policy.
+- Approval source: Agent implementation choice within the owner's authorized
+  progression batch and preference for slower, correct completion.
+- Rationale: Concurrent multi-client fixtures overloaded the local introduction
+  and rendering workload; four-worker runs exhibited setup timeouts. Limiting
+  the test pool isolates correctness checks from unnecessary host contention.
+- Consequences: Push/publish validation may take longer. The dedicated four-client
+  stress run is still separate and its poor frame times remain recorded; reducing
+  test concurrency is not a game optimization or performance acceptance.
+- Supersedes: The default four-worker setting recorded in issue039 only. No game
+  population, visual setting, release process or branch guard changes.
+
+## 2026-11-08 — Combined progression implementation handoff
+
+- Decision: Complete issues 045–049 and parent 040 on one task branch, using
+  delegated work, focused commits and one combined owner playtest handoff.
+- Approval source: Owner instructions in this session, including permission to
+  review and commit the three existing loopback-port test-tool changes.
+- Rationale: Reduce repeated owner verification and conversation overhead while
+  preserving implementation review and automated validation.
+- Consequences: This task supersedes the older serial branch/PR prerequisites
+  and one-agent workflow for these issues. Agents share explicit file ownership;
+  the primary agent integrates and reviews the result. Owner playtesting remains
+  pending until actually performed. No push, PR, merge or deployment is delegated.
+- Supersedes: Serial delivery requirements for this batch only. Gameplay rules
+  approved in 041 and data-preservation requirements remain in force.
+
 ## 2026-11-06 — Progression rules and integration contracts
 
 - Decision: Adopt the owner answers D1–D12 in

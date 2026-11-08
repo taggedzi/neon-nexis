@@ -30,6 +30,14 @@
   let acceptedEvents = new Set();
 
   function snapshot(player, local) {
+    if (player.progressionMode === 'shared_v1') {
+      const id = player.clientId || player.participantId;
+      return { progressionMode: 'shared_v1', snapshot: N.ProgressionRewards.snapshot({ run: G.run.progression }, id),
+        x: player.x, y: player.y, vx: player.vx, vy: player.vy, aim: player.aim, heading: player.heading,
+        life: local ? localLife : (player.coopLife || 0), respawnSeconds: player.respawnSeconds ?? null,
+        lastIntentSequence: player.lastIntentSequence || 0,
+        unlockedSector: Math.max(G.level.number, player.loadoutHighestSector || 1) };
+    }
     const result = {};
     for (const key of PLAYER_FIELDS) result[key] = copy(player[key] === undefined ? null : player[key]);
     result.unlockedSector = Math.max(G.level.number,player.loadoutHighestSector||1);
@@ -44,6 +52,28 @@
   }
 
   function restore(player, data, local) {
+    if (data?.progressionMode === 'shared_v1') {
+      if (!N.ProgressionPersistence.validateSnapshot(data.snapshot) || !Number.isSafeInteger(data.life) || data.life < 0 ||
+          !Number.isSafeInteger(data.lastIntentSequence) || data.lastIntentSequence < 0 ||
+          !['x', 'y', 'vx', 'vy', 'aim', 'heading'].every(key => Number.isFinite(data[key]))) return false;
+      if (player.progressionMode !== 'shared_v1') return false;
+      player.clientId = player.participantId = data.snapshot.participantId;
+      if (!N.ProgressionPersistence.adoptSnapshot(player, data.snapshot).ok) return false;
+      for (const key of ['x', 'y', 'vx', 'vy', 'aim', 'heading']) player[key] = data[key];
+      player.tx = player.x;
+      player.ty = player.y;
+      player.ta = player.aim;
+      player.respawnSeconds = data.respawnSeconds;
+      player.loadoutHighestSector = data.unlockedSector;
+      if (local) {
+        localLife = data.life;
+        C.restoreProgressionIntentSequence?.(data.lastIntentSequence);
+        G.pendingLevelUps = 0;
+        G.overflow = null;
+      }
+      else player.coopLife = data.life;
+      return true;
+    }
     if (!data || !Array.isArray(data.weapons) || !Array.isArray(data.passives)) return false;
     for (const key of PLAYER_FIELDS) {
       if (typeof player[key] === 'number' && !Number.isFinite(data[key])) return false;
@@ -94,18 +124,33 @@
     if (!C.isHost() || !peer) {return;}
     const retained = C.records.get(peer.clientId);
     const profile = C.lobby.members.find(member => member.clientId === peer.clientId)?.profile || peer.profile;
-    const player = C.makeRemotePlayer(profile, G.level, peer.seat);
+    const earned = G.run.progression?.participants?.[peer.clientId];
+    const retainedProfile = earned ? { ...profile, shipType: earned.shipType, shipColor: earned.shipColor } : profile;
+    const player = C.makeRemotePlayer(retainedProfile, G.level, peer.seat);
     player.clientId = player.statsPeerId = peer.clientId;
     player.seat = peer.seat;
     player.name = 'PLAYER ' + (peer.seat + 1);
     player.coopLife = 0;
     N.PlayerStats?.selectPeer(peer.clientId);
     N.Logbook?.selectPeer(peer.clientId, true);
-    if (profile.loadout && C.lobby.allowLoadouts && G.run.skill !== 'hardcore') {
+    if (!earned && profile.loadout && C.lobby.allowLoadouts && G.run.skill !== 'hardcore') {
       N.Loadouts.apply(player, profile.loadout);
-      player.pendingLevelUps = Math.max(0, player.level - 1 - player.core.length);
+      player.pendingLevelUps = player.progressionMode === 'shared_v1' ? 0 : Math.max(0, player.level - 1 - player.core.length);
     }
-    if (retained && retained.runId === C.runId) {
+    if (earned) {
+      player.progression = earned.progression;
+      for (const key of ['hp', 'shield', 'dead', 'buffs', 'barrier', 'invuln', 'shieldDelay', 'resourceRevision',
+        'coopLife', 'respawnSeconds', 'deathHandled', 'lastIntentSequence']) {
+        if (earned[key] !== undefined) player[key] = copy(earned[key]);
+      }
+      for (const key of ['dashCharges', 'maxDashCharges', 'dashTimer', 'dashTime', 'dashDir']) player[key] = earned[key];
+      if (!retained || retained.sector === G.level.number) {
+        player.x = player.tx = earned.x;
+        player.y = player.ty = earned.y;
+      }
+      player.connected = true;
+      G.rebuildStats(player, false);
+    } else if (retained && retained.runId === C.runId) {
       restore(player, retained.player, false);
       if (retained.sector !== G.level.number) {
         const spawn = G.level.layout ? G.level.layout.spawn : { x: G.level.cx, y: G.level.cy };
@@ -117,6 +162,10 @@
     C.remotePlayers = C.remotePlayers.filter(item => item.clientId !== peer.clientId);
     C.remotePlayers.push(player);
     C.remotePlayers.sort((a, b) => a.seat - b.seat);
+    if (player.progressionMode === 'shared_v1') {
+      if (!G.run.progression.participantIds.includes(peer.clientId)) G.initializeProgressionRun(C.players(), G.run.progression.runToken);
+      else G.run.progression.participants[peer.clientId] = player;
+    }
     setups.set(peer.clientId, { serial: ++syncSerial, lastAt: -Infinity });
     C.requestGlobalPause();
     C.applyGlobalPause(N.Net.clientId);
@@ -132,7 +181,7 @@
       N.Net.send({ t: 'session_sync', syncId: setup.serial, seed: G.run.seed, level: G.level.number,
         host: C.localProfile, player: snapshot(player, false), hostPlayer: snapshot(G.player, true),
         autoReady: launchSetup, statsPeer: N.PlayerStats?.peerRow(id) || null,
-        run: copy(G.run), pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
+        run: { ...copy(G.run), ...(G.run.progression && { progression: N.ProgressionRewards.runSnapshot({ run: G.run.progression }) }) }, pool: C.remainingRespawns, epoch: C.pauseEpoch || 0,
         complete: G.mode === 'complete', summary: G.lastSummary }, id);
       C.sendWorld(id);
       const hazards = C.captureHazards();
@@ -222,7 +271,15 @@
     launchSetup = N.Net.peers.size > 0;
     const started = originalStartHost();
     if (started) {
+      if (G.player.progressionMode === 'shared_v1') {
+        G.player.clientId = N.Net.clientId;
+        G.initializeProgressionRun([G.player], G.run.progression.runToken);
+      }
       for (const peer of N.Net.peers.values()) {attachGuest(peer);}
+      // Every initial recovery envelope must describe the final locked roster.
+      // Earlier per-seat sends may already be queued; a new serial supersedes them.
+      for (const setup of setups.values()) { setup.serial = ++syncSerial; setup.lastAt = -Infinity; }
+      sendSync();
     }
     return started;
   };
@@ -231,6 +288,7 @@
     if (C.isHost()) {
       rememberGuest();
       if (!peer) {
+        if (G.run?.progression?.participants[clientId]) G.run.progression.participants[clientId].connected = false;
         C.remotePlayers = C.remotePlayers.filter(player => player.clientId !== clientId);
         setups.delete(clientId);
         revives.delete(clientId);
@@ -302,6 +360,10 @@
     player.invuln = 3;
     player.vx = player.vy = 0;
     player.respawnSeconds = null;
+    if (player.progressionMode === 'shared_v1' && G.progressionAuthority) {
+      const result = N.ProgressionDefense.commitResources(player, G.progressionAuthority.identityFor(player));
+      if (result.ok) G.progressionAuthority.publishResource(result.event);
+    }
   }
 
   // Select only the highest-level tied candidates, once on the host.
@@ -419,7 +481,9 @@
       seen.add(state._seat);
     }
     C.remotePlayers = message.players.map(state => {
-      const player = C.remotePlayers.find(item => item.seat === state._seat) || C.makeRemotePlayer(state, G.level, state._seat);
+      const player = C.remotePlayers.find(item => item.seat === state._seat) ||
+        Object.values(G.run?.progression?.participants || {}).find(item => item.seat === state._seat) ||
+        C.makeRemotePlayer(state, G.level, state._seat);
       player.seat = state._seat;
       return player;
     });
@@ -478,7 +542,7 @@
   C.onMessage = function (message, clientId) {
     if (!message || typeof message !== 'object') return;
     if (message.t === 'lobby_state') {
-      if(message.protocol!==2 || message.capacity!==4 || message.loadoutRules!==1){C.endSession('INCOMPATIBLE SAVED SHIP RULES // UPDATE BOTH CLIENTS');return;}
+      if(message.protocol!==2 || message.capacity!==4 || message.loadoutRules!==(N.PROGRESSION_ENABLED === true ? 2 : 1)){C.endSession('INCOMPATIBLE SAVED SHIP RULES // UPDATE BOTH CLIENTS');return;}
       if (!Object.hasOwn(N.SKILLS,message.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (C.lobby && message.runId < C.lobby.runId) return;
       C.lobby = message;
@@ -530,6 +594,14 @@
       return;
     }
     if (message.t === 'session_sync') {
+      if (message.run?.progression && (!N.ProgressionPersistence.validateRun(message.run.progression) ||
+          !N.ProgressionPersistence.validateSnapshot(message.player?.snapshot) ||
+          !N.ProgressionPersistence.validateSnapshot(message.hostPlayer?.snapshot) ||
+          message.player.snapshot.participantId !== N.Net.clientId || message.hostPlayer.snapshot.participantId !== clientId ||
+          !N.ProgressionPersistence.sameSnapshot(message.player.snapshot, message.run.progression.participants[N.Net.clientId]) ||
+          !N.ProgressionPersistence.sameSnapshot(message.hostPlayer.snapshot, message.run.progression.participants[clientId]))) {
+        C.endSession('INVALID PROGRESSION RECOVERY STATE'); return;
+      }
       if (!message.run || !Object.hasOwn(N.SKILLS, message.run.skill)) { C.endSession('INCOMPATIBLE SKILL RULES // UPDATE BOTH CLIENTS'); return; }
       if (N.Net.role !== 'guest' || !C.lobby || C.lobby.phase !== 'run') return;
       if (message.syncId <= receivedSync) {
@@ -546,7 +618,15 @@
       if (!restore(G.player, message.player, true)) { C.endSession('INVALID RECOVERY STATE'); return; }
       C.remotePlayers[0].seat = 0;
       restore(C.remotePlayers[0], message.hostPlayer, false);
+      const previousProgression = G.run?.progression;
       G.run = copy(message.run);
+      if (message.run.progression) {
+        if (previousProgression?.runToken === message.run.progression.runToken) G.run.progression = previousProgression;
+        N.ProgressionRuntime.restoreRun(G, message.run.progression, N.Net.clientId);
+        C.remotePlayers = Object.values(G.run.progression.participants).filter(player => player !== G.player);
+        for (const player of C.remotePlayers) player.seat = C.lobby.members.find(member => member.clientId === player.clientId)?.seat ?? 0;
+        C.installProgressionAuthority?.();
+      }
       G.run.highestSector=Math.max(message.level,G.player.loadoutHighestSector||1);
       N.PlayerStats?.recoverGuest(message.statsPeer);
       C.remainingRespawns = message.pool;

@@ -33,7 +33,6 @@ test('pause destinations restore focus for mouse, keyboard and synthetic control
   await boot(page);
   await pause(page);
   const routes = [
-    ['btn-pause-rewards', 'rewards', 'btn-rewards-close'],
     ['btn-inventory', 'inventory', 'btn-inventory-done'],
     ['btn-pause-loadouts', 'loadouts', 'loadout-close'],
     ['btn-pause-logbook', 'logbook', 'logbook-close'],
@@ -64,10 +63,10 @@ test('pause destinations restore focus for mouse, keyboard and synthetic control
     await expect(page.locator('#' + origin)).toBeFocused();
   }
   await page.locator('#btn-resume').click();
-  // Rewards opened during combat still returns to combat.
+  // Immediate progression has no reward-choice destination.
+  await expect(page.locator('#btn-pause-rewards')).toBeHidden();
   await page.evaluate(() => window.NEON.Game.openRewards());
-  await expect(page.locator('#btn-rewards-close')).toHaveText('RETURN TO COMBAT');
-  await page.locator('#btn-rewards-close').click();
+  await expect(page.locator('#screen-rewards')).not.toHaveClass(/active/);
   await expect.poll(() => page.evaluate(() => window.NEON.Game.mode)).toBe('playing');
   await page.keyboard.press('Escape');
   await expect(page.locator('#btn-resume')).toBeFocused();

@@ -88,6 +88,7 @@
   }
 
   function makeRemotePlayer(profile, level, index, progressionMode = 'legacy') {
+    if (N.PROGRESSION_ENABLED === true) progressionMode = 'shared_v1';
     const p = G.makePlayer(profile, progressionMode);
     const selection = profileOf(profile || {});
     Object.assign(p, N.Ships.selection(selection));
@@ -265,6 +266,8 @@
     Coop.peerProfile = message.host || null;
     Coop._peerId = message.host && message.host.clientId ? message.host.clientId : null;
     Coop.localProfile = profileOf(Object.assign({}, Coop.localProfile, { name: 'PLAYER ' + (N.Net.seat + 1) }));
+    if (message.player?.snapshot) Object.assign(Coop.localProfile, {
+      shipType: message.player.snapshot.shipType, shipColor: message.player.snapshot.shipColor });
 
     G.run = {
       seed: seed,
@@ -280,7 +283,7 @@
       checkpointLevel: 0
     };
     G.coopRun = true;
-    G.player = G.makePlayer(Coop.localProfile);
+    G.player = G.makePlayer(Coop.localProfile, message.player?.progressionMode === 'shared_v1' || N.PROGRESSION_ENABLED === true ? 'shared_v1' : 'legacy');
     Object.assign(G.player, N.Ships.selection(Coop.localProfile));
     G.player.name = 'PLAYER ' + (N.Net.seat + 1);
     G.player.coopGuest = true;
@@ -336,9 +339,11 @@
     G.player.y = spawn.y;
     G.player.vx = 0;
     G.player.vy = 0;
-    G.player.hp = Math.min(G.player.stats.maxHp, G.player.hp + G.player.stats.maxHp * 0.35);
-    G.player.shield = G.player.stats.maxShield;
-    G.player.dead = false;
+    if (G.player.progressionMode !== 'shared_v1') {
+      G.player.hp = Math.min(G.player.stats.maxHp, G.player.hp + G.player.stats.maxHp * 0.35);
+      G.player.shield = G.player.stats.maxShield;
+      G.player.dead = false;
+    }
     G.camera.x = spawn.x;
     G.camera.y = spawn.y;
     G.camera.shake = 0;
@@ -440,6 +445,7 @@
   Coop.sendLoadout = function (force) {
     const p = G.player;
     if (!p || !Coop.isGuest()) return;
+    if (p.progressionMode === 'shared_v1') return;
     const stats = {};
     for (const key of Object.keys(p.stats)) {
       const value = p.stats[key];
@@ -533,6 +539,7 @@
 
   function bulletPayload(bullet) {
     return {
+      id: bullet.id,
       x: round(bullet.x, 1),
       y: round(bullet.y, 1),
       angle: round(bullet.angle, 3),
@@ -1358,12 +1365,16 @@
 
   Coop.onLocalFire = function () {
     if (!Coop.isGuest() || !G.player) return;
+    if (G.player.progressionMode === 'shared_v1') {
+      Coop.sendProgressionIntent({ fire: true, aim: G.aim.angle });
+      return;
+    }
     N.Net.send({ t: 'fire', w: G.player.weapons[G.player.activeWeapon] ? G.player.weapons[G.player.activeWeapon].id : null, a: round(G.aim.angle, 3), x: round(G.player.x, 1), y: round(G.player.y, 1), statsFire: N.PlayerStats?.fire?.id || 0 });
   };
 
   Coop.onPlayerBullet = function (bullet) {
     if (!Coop.isHost()) return;
-    if (bullet.coopPlayer && bullet.coopPlayer !== G.player) return;
+    if (bullet.coopPlayer && bullet.coopPlayer !== G.player && !bullet.progressionPrimary) return;
     if (Coop._bulletQueue.length < MAX_QUEUED_BULLETS) Coop._bulletQueue.push(bulletPayload(bullet));
   };
 

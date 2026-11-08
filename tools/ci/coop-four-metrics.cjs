@@ -42,6 +42,17 @@ async function installMetrics(context) {
 
 async function measureFight(pages, testInfo, browser) {
   const samples = [];
+  await pages[0].evaluate(() => {
+    const N=window.NEON,G=N.Game;
+    if(G.player.progressionMode!=='shared_v1')return;
+    for(const [index,player] of N.Coop.players().entries()){
+      player.progression.offensive[1]={id:N.ProgressionContent.additionalOffenseOrder[index%4],level:1,cooldownSeconds:0};
+      player.progression.offensive[2]={id:N.ProgressionContent.additionalOffenseOrder[(index+1)%4],level:1,cooldownSeconds:0};
+      player.progression.selectedOffensiveSlot=1;
+      player.progression.defensive={id:index%2?'repulsor_pulse':'aegis_projector',level:1,cooldownSeconds:0};
+      G.rebuildStats(player);
+    }
+  });
   for (const enemyCount of [20, 80]) {
     await pages[0].evaluate(count => {
       const N = window.NEON, G = N.Game;
@@ -52,17 +63,27 @@ async function measureFight(pages, testInfo, browser) {
         const enemy = G.spawnEnemy(N.ENEMY_BY_ID[styles[index % styles.length]], G.player.x + Math.cos(angle) * 500, G.player.y + Math.sin(angle) * 500, { requiredEncounter: true });
         enemy.hp = enemy.maxHp = 1e6;
       }
+      // Shared resources belong to the host; changing only a guest's local
+      // invulnerability would be replaced by the next authoritative snapshot.
+      for(const player of N.Coop.players())player.invuln=300;
     }, enemyCount);
     await Promise.all(pages.map(page => page.evaluate(() => {
       const N = window.NEON, metrics = window.__coopMetrics;
       metrics.frames = []; metrics.bytes = []; metrics.buffered = 0;
       metrics.startedAt = performance.now();
+      metrics.simStartedAt = N.Game.level.elapsed;
       metrics.heapBefore = performance.memory?.usedJSHeapSize ?? null;
       metrics.enabled = true;
-      N.Game.player.invuln = 300;
       window.__coopFireTimer = setInterval(() => {
-        const G = N.Game;
-        if (G.mode === 'playing') {G.fireWeapon(G.player.weapons[G.player.activeWeapon]);}
+        const G = N.Game,p=G.player;
+        if(G.mode!=='playing')return;
+        if(p.progressionMode==='shared_v1'){
+          if(N.Coop.isGuest())N.Coop.sendProgressionIntent({fire:true,defense:true});
+          else{
+            N.Equipment.tryFire({game:G,player:p,participantId:p.clientId,activationId:'measure-'+G.time},{aimAngle:G.aim.angle});
+            N.Coop.useProgressionDefense(p);
+          }
+        }else G.fireWeapon(p.weapons[p.activeWeapon]);
       }, 150);
     })));
     await new Promise(resolve => setTimeout(resolve, 20000));
@@ -80,9 +101,15 @@ async function measureFight(pages, testInfo, browser) {
         heapAfter: performance.memory?.usedJSHeapSize ?? null,
         enemies: G.enemies.filter(enemy => !enemy.dead).length,
         playerBullets: G.playerBullets.length, enemyBullets: G.enemyBullets.length,
+        simulationElapsedSeconds:G.level.elapsed-metrics.simStartedAt,
         mode: G.mode, quality: G.settings.graphics, seed: G.run.seed,
+        progression:G.player.progressionMode==='shared_v1'?JSON.parse(JSON.stringify(G.player.progression)):null,
+        fields:N.ProgressionOffense.activeFields(G.level).length,
         viewport: { width: innerWidth, height: innerHeight }, userAgent: navigator.userAgent };
     })));
+    if(players.some(player=>player.mode!=='playing'||player.simulationElapsedSeconds<10)){
+      throw Error('Fight measurement did not remain in advancing gameplay: '+JSON.stringify(players.map(player=>({seat:player.seat,mode:player.mode,simulationElapsedSeconds:player.simulationElapsedSeconds}))));
+    }
     samples.push({ requestedEnemies: enemyCount, players });
   }
   const os = require('node:os');

@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const N = window.NEON;
-  const Wire = N.Wire = { VERSION: 6 };
+  const Wire = N.Wire = { VERSION: N.PROGRESSION_ENABLED === true ? 7 : 6 };
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
 
@@ -652,6 +652,7 @@
   }
   function writeBullet(bullet) {
     if (!bullet) fail();
+    if (Wire.VERSION >= 7) writeText(String(bullet.id ?? ''), 80);
     let mask = 0;
     for (let bit = 0; bit < BULLET_BITS.length; bit++) if (bulletBit(bullet, BULLET_BITS[bit])) mask |= 1 << bit;
     writer.u32(mask);
@@ -673,12 +674,14 @@
     }
   }
   function readBullet() {
+    const id = Wire.VERSION >= 7 ? readText() : null;
     const mask = reader.u32();
     const bullet = {
       x: 0, y: 0, angle: 0, speed: 0, size: 0, life: 0, color: '#00f0ff', kind: 'pulse',
       pierce: 0, bounce: 0, chain: 0, aoe: 0, curve: 0, homing: false, turnRate: 0, accel: 0,
       trail: false, dot: false, tick: 0, pull: 0, explode: false, weaponId: null, critChance: 0, critMul: 0
     };
+    if (id) bullet.id = id;
     for (let bit = 0; bit < BULLET_BITS.length; bit++) {
       if (!(mask & (1 << bit))) continue;
       const key = BULLET_BITS[bit];
