@@ -63,3 +63,21 @@ For player confirmation, run the normal game at 1080p/high quality on the agreed
 machine with developer-tool frame recording. Capture normal combat, a large wave,
 and a full 20-minute run, recording counts, browser/GPU, frame-time percentiles,
 memory trend and visual observations. Keep enemy cadence and effects unchanged.
+
+## Progression batch measurements
+
+Issue 049 uses the same harness plus `tools/ci/progression-integration.spec.cjs`
+with `NEON_PROGRESSION_MEASURE=1`. The large-wave setup explicitly marks its
+120 scripted enemies as required encounters so the ordinary population gate
+cannot silently reduce the stress fixture. A regression requires at least 80
+survivors at the first measured sample. This changes the benchmark setup only,
+not ordinary enemy cadence or quality.
+
+`NEON_COOP_MEASURE=1` enables the existing four-player test's two 20-second
+workloads. It equips the four additional weapons and both defenses on the host,
+applies test invulnerability through host authority, and requires continuing
+simulation. Invalid samples taken after an unintended pause are rejected.
+The four clients share one machine; they are not a substitute for WAN or
+separate-machine measurements. The recorded observations and limits are in
+`results-049.json` and issue 049. No performance improvement or real-player target
+pass is claimed from these headless runs.

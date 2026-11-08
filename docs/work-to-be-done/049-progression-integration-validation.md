@@ -30,12 +30,12 @@ Automated correctness cannot establish feel, fairness or real-player performance
 
 ## Acceptance criteria
 
-- [ ] Full registered automated suite passes on recorded environments; desired Chrome/Chromium/Firefox support is not inferred from one browser.
+- [x] Full registered automated suite passes on recorded environments; desired Chrome/Chromium/Firefox support is not inferred from one browser.
 - [ ] Real multiplayer/WAN and physical-device checks are recorded with limitations; unavailable checks remain pending.
 - [ ] Owner accepts no reward-menu waiting, all hulls' solo viability and friendly team progression without mandatory roles or rapid cycling.
 - [ ] Four-player area/defense effects meet 041's performance/readability goals without lowered default quality.
 - [ ] All migration/reward/controls acceptance cases have evidence; no unresolved material design decision or required validation is hidden by closing the parent.
-- [ ] Update this record and the backlog together with changed files, actual checks,
+- [x] Update this record and the backlog together with changed files, actual checks,
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
@@ -47,14 +47,13 @@ focused commits and one combined playtest handoff. The branch is
 `feat/uninterrupted-progression-batch`; it includes the existing committed 044
 implementation and the owner-approved loopback-port test-tool changes.
 
-Integration and automated validation are in progress. The cutover switch is
+Integration and automated validation are complete as recorded below. The cutover switch is
 `N.PROGRESSION_ENABLED`; it coordinates new-run construction, persistence and
 peer compatibility. Older mechanics are exercised by explicitly scoped legacy
 test fixtures; public launch and new progression scenarios exercise shared mode.
 No release, push, merge or deployment is authorized or performed.
 
-Stat/upgrade implementation commit: `f68c649`. Final validation, actual browser
-environments, review fixes and remaining owner/performance checks will follow.
+Stat/upgrade implementation commit: `f68c649`; integration commit: `18ae201`.
 
 ### Performance observations and visual review — 2026-11-08
 
@@ -108,11 +107,46 @@ continuous extended rendering and real-machine performance acceptance have not
 been established. The parent must remain open; automated correctness and the
 headless observations do not close these gates.
 
-Planning only, 2026-11-06. No gameplay implementation or tests performed for this
-issue. Changed file: this task specification. All acceptance remains pending.
-Commit: none. Remaining work: dependencies, implementation, required checks and
-owner review. Follow AGENTS.md for branch isolation, existing-source discovery,
-proportional tests, save preservation and owner-managed delivery.
+### Final integrated verification — 2026-11-08
+
+Implementation is committed on `feat/uninterrupted-progression-batch`:
+`f68c649` (045 stats/upgrades), `c68bf80` (owner-approved loopback tooling),
+and `18ae201` (046–049 integration, regressions and implementation records).
+The final `npm.cmd run check` exited 0: syntax, ESLint, all registered Node
+checks, and **220 browser tests passed; two opt-in measurement cases skipped**.
+Environment: Windows, Node v26.13.0, Playwright Chromium 156.0.8078.4 and
+Firefox 157.0; two workers, zero retries. The run used
+`NEON_TEST_ENABLED_PORT=44321`, `NEON_TEST_SAMPLE_PORT=44322` and
+`NEON_TEST_WORKERS=2`. The skipped measurements were exercised separately in
+Chromium; see 049 for observations and their limits. `git diff --check` passed.
+
+This clean run supersedes earlier intermediate failed/hung attempts recorded
+above. Test-only Firefox loopback ICE preferences make disposable local peers
+independent of LAN multicast discovery; production networking is unchanged.
+Physical controllers, separate-machine/WAN play, separately installed Chrome,
+owner feel/balance/readability and real-player performance remain unverified.
+No owner's browser storage was cleared. No push, PR, merge or deployment was
+performed. See [049](049-progression-integration-validation.md) for the combined
+handoff and remaining validation.
+
+Public cutover is active and implementation/review are complete. Review corrected
+roster/rejoin hull restoration, stale lifecycle resource rewinds, source-ID reuse,
+legacy packet mutation, atomic checkpoint preflight/profile side effects,
+authoritative guest dash, and paused Repulsor bullet suppression. Existing
+procedural weapon glyphs, glow and cooldown bars remain in the HUD. Approved
+numeric rules and default effects/quality were preserved.
+
+Optional Chromium measurements passed separately: two solo/hull cases and one
+four-player case. These establish that the fixtures ran, not performance
+acceptance. The four-context stress observations below are slow and remain an
+explicit limitation. No further implementation task or material design decision
+is concealed by the pending owner/environment validation.
+
+Suggested PR title: **Integrate uninterrupted shared progression**.
+Suggested description: Activate automatic shared rewards, bounded upgrades,
+remappable equipment controls and versioned save/network recovery; preserve
+existing effects and record Chromium/Firefox regression and performance evidence.
+Owner gameplay and real-player performance acceptance remain pending.
 
 ## GitHub coordination
 
@@ -120,6 +154,4 @@ Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/66
 Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/65
 Local source: `docs/work-to-be-done/049-progression-integration-validation.md`.
-Planning documents are on `codex/coop-progression-spec`, not yet pushed/merged.
-Wait for the planning handoff and prerequisite before starting implementation.
-
+Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.

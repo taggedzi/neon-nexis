@@ -54,10 +54,10 @@ in [the decision log](../decisions.md).
 | 042 | [Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) ([GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)) | Done |
 | 043 | [Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) ([GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)) | Done (remaining validation waived by owner) |
 | 044 | [Implement the separate defensive quick-use slot](044-defensive-quick-use.md) ([GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)) | Done |
-| 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Implemented — needs validation |
-| 046 | [Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) ([GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)) | Implemented — needs validation |
+| 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Done |
+| 046 | [Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) ([GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)) | Done |
 | 047 | [Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) ([GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)) | Implemented — needs validation |
-| 048 | [Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) ([GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)) | Implemented — needs validation |
+| 048 | [Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) ([GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)) | Done |
 | 049 | [Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) ([GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)) | Implemented — needs validation |
 
 Publishing follow-up: PRs #53 and #54 add Linux audio output and select Ubuntu's
@@ -171,3 +171,15 @@ notes stay local and are not in the commit history.
 Environment: Windows, Node v24.14.1, Playwright Chromium 156.0.8078.4, Playwright Firefox 157.0. `npm ci --ignore-scripts` installed 82 packages. `npm audit` reported 0 vulnerabilities. `npm run check` then passed syntax, lint, unit checks, and 68 browser tests. An earlier run of the same command timed out once while Firefox was joining a room; that test passed on an immediate rerun and in the clean suite. Google Chrome was not run separately from Chromium.
 
 GitHub Actions run 41094372550 on pull request #14 failed the same Firefox room join three times. The host already had a code, and `Net.peer` stayed false for 30 seconds. The smoke setup now opens the guest after that code exists, brings forward a page whose peer message has not been applied, and closes contexts left open by a failed setup. An inbound signaling message also marks the socket alive so a missed ping does not drop it on the next sweep. After that change, `node tools/check-coop-server.cjs` passed 69 assertions, and Playwright Firefox 157.0 passed `tools/ci/coop-smoke.spec.cjs` twice (10 tests each time). The full `npm run check` was not rerun for this follow-up. GitHub Actions run 41098022986 then passed on `e378d88`.
+
+## 040 progression batch handoff — 2026-11-08
+
+Implementation is complete and committed locally on
+`feat/uninterrupted-progression-batch` (`f68c649`, `c68bf80`, `18ae201`).
+The full check passed syntax, lint, registered Node checks and 220 browser tests
+across Chromium/Firefox, with two optional measurement cases skipped and run
+separately in Chromium. Objective 045/046/048 criteria are Done. Parent 040 and
+047/049 remain Implemented — needs validation for the recorded owner/device,
+visual and performance gates. Four local-client stress measurements were slow;
+no real-player performance acceptance is claimed. See
+[049](049-progression-integration-validation.md) for the single combined handoff.

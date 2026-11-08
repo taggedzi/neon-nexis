@@ -1,6 +1,6 @@
 # 045 — Implement stackable passives and predictable equipment upgrades
 
-Status: Implemented — needs validation
+Status: Done
 
 ## Problem or player need
 
@@ -33,7 +33,7 @@ Individually modest multipliers can create runaway combinations. Caps must cover
 - [x] Repeated rebuilds and reload-equivalent reconstruction do not compound stats; cooldown formula and damage multipliers match approved examples.
 - [x] Capacity increments cannot fully heal by accident; capped items report eligibility correctly.
 - [x] Combination tests cover defense cooldown/barrier interactions and existing retained stat sources.
-- [ ] Update this record and the backlog together with changed files, actual checks,
+- [x] Update this record and the backlog together with changed files, actual checks,
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
@@ -80,8 +80,31 @@ also routes `G.rebuildStats` through the new derivation boundary.
   claiming balance acceptance. Final batch checks, backlog synchronization and
   commit hash remain pending at this handoff.
 
-Status remains Implemented — needs validation pending the integrated batch checks.
-No separate 045 commit, push, PR, merge or deployment was performed.
+The intermediate handoff above preceded the final integrated verification below.
+
+### Final integrated verification — 2026-11-08
+
+Implementation is committed on `feat/uninterrupted-progression-batch`:
+`f68c649` (045 stats/upgrades), `c68bf80` (owner-approved loopback tooling),
+and `18ae201` (046–049 integration, regressions and implementation records).
+The final `npm.cmd run check` exited 0: syntax, ESLint, all registered Node
+checks, and **220 browser tests passed; two opt-in measurement cases skipped**.
+Environment: Windows, Node v26.13.0, Playwright Chromium 156.0.8078.4 and
+Firefox 157.0; two workers, zero retries. The run used
+`NEON_TEST_ENABLED_PORT=44321`, `NEON_TEST_SAMPLE_PORT=44322` and
+`NEON_TEST_WORKERS=2`. The skipped measurements were exercised separately in
+Chromium; see 049 for observations and their limits. `git diff --check` passed.
+
+This clean run supersedes earlier intermediate failed/hung attempts recorded
+above. Test-only Firefox loopback ICE preferences make disposable local peers
+independent of LAN multicast discovery; production networking is unchanged.
+Physical controllers, separate-machine/WAN play, separately installed Chrome,
+owner feel/balance/readability and real-player performance remain unverified.
+No owner's browser storage was cleared. No push, PR, merge or deployment was
+performed. See [049](049-progression-integration-validation.md) for the combined
+handoff and remaining validation.
+
+All focused acceptance criteria now have supporting automated evidence. Integrated rebuild, firing, equipment and save paths also passed. This closes the bounded stat/upgrade implementation; it does not accept sibling balance or performance.
 
 ## GitHub coordination
 
@@ -89,6 +112,4 @@ Implementation ticket: https://github.com/taggedzi/neon-nexis/issues/62
 Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/61
 Local source: `docs/work-to-be-done/045-passives-and-upgrades.md`.
-Planning documents are on `codex/coop-progression-spec`, not yet pushed/merged.
-Wait for the planning handoff and prerequisite before starting implementation.
-
+Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.

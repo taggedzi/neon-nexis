@@ -273,14 +273,14 @@ discovery starting points, not verified current symbol locations.
 ## Acceptance criteria
 
 - [x] Owner approves remaining material decisions in 041.
-- [ ] All four hulls start with the correct primary and retain approved hull stats.
-- [ ] Three offensive slots and one separate defensive slot work in solo/co-op.
-- [ ] Missiles, lightning, bombs, mortar, repulsor and barriers behave as specified.
-- [ ] Shared rewards and levels apply immediately with no choice/install modal.
-- [ ] Duplicate upgrades and passive stacks follow the approved deterministic rules.
+- [x] All four hulls start with the correct primary and retain approved hull stats.
+- [x] Three offensive slots and one separate defensive slot work in solo/co-op.
+- [x] Missiles, lightning, bombs, mortar, repulsor and barriers behave as specified.
+- [x] Shared rewards and levels apply immediately with no choice/install modal.
+- [x] Duplicate upgrades and passive stacks follow the approved deterministic rules.
 - [ ] Controls remain remappable and no stuck input/cooldown exploits remain.
-- [ ] Downed/rejoining participants receive exactly one grant per eligible event.
-- [ ] Checkpoints, saved ships, backups and incompatible peers follow explicit policy.
+- [x] Downed/rejoining participants receive exactly one grant per eligible event.
+- [x] Checkpoints, saved ships, backups and incompatible peers follow explicit policy.
 - [ ] All child checks pass; owner accepts pacing, feel, accessibility and balance.
 - [ ] Representative four-player effects/performance meet recorded acceptance goals.
 
@@ -295,7 +295,7 @@ supersedes the serial branch/PR workflow above for this batch. See the
 and [049](049-progression-integration-validation.md) for current evidence.
 Owner playtesting and real-player performance acceptance remain pending.
 
-Planning only, 2026-11-06. Changed files: this parent spec, child tracker documents,
+Historical planning record - 2026-11-06 (superseded by the implementation above). Changed files: this parent spec, child tracker documents,
 backlog index and project decision log. No gameplay code changed. Document checks
 and GitHub links are recorded after ticket creation. No gameplay tests or balance
 measurements are claimed. All implementation acceptance boxes remain unchecked.
@@ -307,6 +307,12 @@ were created through the authenticated GitHub CLI after the connector reported
 insufficient integration permissions. Gameplay tests were not run: docs only.
 Branch: codex/coop-progression-spec; all documentation remains uncommitted.
 
+Final batch commits: `f68c649`, `c68bf80`, `18ae201`. The full registered check
+passed 220 browser tests plus syntax/lint/Node checks on Chromium and Firefox.
+045, 046 and 048 are Done against their objective criteria; 047 and 049 retain
+owner/device/visual/performance gates. Controls are tested but the unqualified
+absence of every input exploit is not claimed. No GitHub issue was closed.
+
 ## GitHub implementation checklist
 
 Parent: [GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57).
@@ -314,18 +320,16 @@ The full original spec is included in the parent issue. The planning handoff is
 merged through [PR #67](https://github.com/taggedzi/neon-nexis/pull/67);
 041's current approved decisions and contracts control dependent implementation.
 
-- [x] [041 — Approve progression rules and define integration contracts](041-progression-contracts.md) — [GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58) (design reviewed; branch delivery pending)
-- [ ] [042 — Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) — [GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)
-- [ ] [043 — Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) — [GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)
-- [ ] [044 — Implement the separate defensive quick-use slot](044-defensive-quick-use.md) — [GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)
-- [ ] [045 — Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) — [GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)
-- [ ] [046 — Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) — [GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)
+- [x] [041 — Approve progression rules and define integration contracts](041-progression-contracts.md) — [GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58) (approved design)
+- [x] [042 — Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) — [GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)
+- [x] [043 — Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) — [GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)
+- [x] [044 — Implement the separate defensive quick-use slot](044-defensive-quick-use.md) — [GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)
+- [x] [045 — Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) — [GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)
+- [x] [046 — Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) — [GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)
 - [ ] [047 — Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) — [GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)
-- [ ] [048 — Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) — [GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)
+- [x] [048 — Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) — [GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)
 - [ ] [049 — Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) — [GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)
 
-Execute in the listed order. Each ticket contains scope, dependencies, ownership,
-acceptance criteria and validation requirements. Separate agents may take turns;
-no concurrent implementation or automatic assignment has been started.
-
-
+The owner-authorized combined batch supersedes the original serial execution
+restriction. Checklist completion follows local issue evidence; owner review and
+GitHub delivery remain separate.
