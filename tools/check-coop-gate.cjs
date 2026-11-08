@@ -2,10 +2,10 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const { freeLoopbackPort } = require('./ci/loopback-port.cjs');
 
 const root = path.resolve(__dirname, '..');
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'neon-coop-gate-'));
@@ -38,19 +38,8 @@ function writeConfig(name, value) {
   return file;
 }
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer();
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-    server.on('error', reject);
-  });
-}
-
 async function startPhp(env) {
-  const port = await freePort();
+  const port = await freeLoopbackPort();
   const child = spawn('php', ['-d', 'opcache.enable=0', '-S', '127.0.0.1:' + port, '-t', root, 'php/router.php'], {
     cwd: root,
     env: { ...process.env, ...env },
@@ -236,7 +225,7 @@ async function main() {
       NEON_COOP_CONFIG: path.join(root, 'tools', 'fixtures', 'coop-config.enabled.php'),
       NEON_COOP_DB: blockedDb
     }),
-    freePort()
+    freeLoopbackPort()
   ]);
 
   browser = await playwright.chromium.launch();

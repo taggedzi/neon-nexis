@@ -7,6 +7,7 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
+const { freeLoopbackPort } = require('./ci/loopback-port.cjs');
 
 const root = path.resolve(__dirname, '..');
 const scratch = process.env.NEON_COOP_TEST_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'neon-coop-php-'));
@@ -29,17 +30,6 @@ function check(condition, message) {
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer();
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-    server.on('error', reject);
-  });
 }
 
 function writeConfig(name, value) {
@@ -65,7 +55,7 @@ function phpString(value) {
 }
 
 async function startPhp(env) {
-  const port = await freePort();
+  const port = await freeLoopbackPort();
   const child = spawn('php', ['-d', 'opcache.enable=0', '-S', '127.0.0.1:' + port, '-t', root, 'php/router.php'], {
     cwd: root,
     env: { ...process.env, ...env },
@@ -75,15 +65,18 @@ async function startPhp(env) {
   let log = '';
   child.stderr.on('data', chunk => { log += chunk; });
   child.stdout.on('data', chunk => { log += chunk; });
+  let lastError;
   for (let attempt = 0; attempt < 50; attempt++) {
     try {
       const response = await fetch('http://127.0.0.1:' + port + '/index.html');
       if (response.status) return { port, base: 'http://127.0.0.1:' + port, log: () => log };
-    } catch (error) { /* still starting */ }
+    } catch (error) {
+      lastError = error;
+    }
     if (child.exitCode !== null) break;
     await delay(100);
   }
-  throw new Error('PHP introduction server did not start\n' + log);
+  throw new Error('PHP introduction server did not respond\n' + log, { cause: lastError });
 }
 
 function startStandIn(port) {
@@ -158,7 +151,7 @@ async function main() {
   }
 
   const db = path.join(scratch, 'lobby.sqlite');
-  const standPort = await freePort();
+  const standPort = await freeLoopbackPort();
   const stand = await startStandIn(standPort);
   const standBase = 'http://127.0.0.1:' + standPort;
   const enabled = writeConfig('enabled.php', {
