@@ -111,6 +111,24 @@ const defenses=Object.freeze({
   aegis_projector:Object.freeze({id:'aegis_projector',name:'AEGIS PROJECTOR',radius:140,capacity:25,capacityPerLevel:5,windowSeconds:3,lockoutSeconds:2,cooldownSeconds:7,color:'#00f0ff'})
 });
 
+const passiveOrder=Object.freeze([
+  'reinforced_hull','shield_capacitor','thruster_tuning','weapon_amplifier',
+  'cooling_system','reactive_plating','recovery_circuit'
+]);
+const passives=Object.freeze({
+  reinforced_hull:Object.freeze({id:'reinforced_hull',name:'REINFORCED HULL',maxStacks:10,perStack:10}),
+  shield_capacitor:Object.freeze({id:'shield_capacitor',name:'SHIELD CAPACITOR',maxStacks:10,perStack:5}),
+  thruster_tuning:Object.freeze({id:'thruster_tuning',name:'THRUSTER TUNING',maxStacks:5,perStack:.03}),
+  weapon_amplifier:Object.freeze({id:'weapon_amplifier',name:'WEAPON AMPLIFIER',maxStacks:10,perStack:.04}),
+  cooling_system:Object.freeze({id:'cooling_system',name:'COOLING SYSTEM',maxStacks:6,perStack:.05}),
+  reactive_plating:Object.freeze({id:'reactive_plating',name:'REACTIVE PLATING',maxStacks:5,perStack:.03}),
+  recovery_circuit:Object.freeze({id:'recovery_circuit',name:'RECOVERY CIRCUIT',maxStacks:5,perStack:.10})
+});
+const passiveSequence=Object.freeze([
+  'reinforced_hull','weapon_amplifier','shield_capacitor','cooling_system',
+  'thruster_tuning','reactive_plating','recovery_circuit'
+]);
+
 N.ProgressionContent=Object.freeze({
   schemaVersion:1,
   catalogVersion:1,
@@ -129,6 +147,17 @@ N.ProgressionContent=Object.freeze({
   additionalOffense,
   defensiveOrder,
   defenses,
+  passiveOrder,
+  passives,
+  passiveSequence,
+  xpNext(level){
+    if(!Number.isSafeInteger(level)||level<1)return null;
+    const required=38+11*(level-1);
+    return Number.isSafeInteger(required)?required:null;
+  },
+  passive(id){
+    return Object.hasOwn(passives,id)?passives[id]:null;
+  },
   primaryForHull(hullId){
     return Object.hasOwn(hullPrimaries,hullId)?hullPrimaries[hullId]:null;
   },

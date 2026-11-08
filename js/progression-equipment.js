@@ -120,14 +120,6 @@ function tick(state,elapsedSeconds){
   return {ok:true};
 }
 
-function damageFor(player,slot,definition){
-  const levelMultiplier=C.levelDamageMultipliers[slot.level-1]||1;
-  const hullMultiplier=N.HULL_STATS[player.shipType]?.damageMul||1;
-  // 045 extends this once the derived-stat boundary exists. Hull and level
-  // multipliers are applied exactly once; critical damage is rolled on impact.
-  return definition.baseDamage*levelMultiplier*hullMultiplier;
-}
-
 function projectileAngles(definition,aimAngle){
   const count=definition.projectiles;
   if(count<=1)return [aimAngle];
@@ -162,12 +154,16 @@ function tryFire(context,intent){
   const spawn=typeof context.spawnBullet==='function'?context.spawnBullet:game?.spawnBullet;
   if(typeof spawn!=='function')return {ok:false,reason:'no-spawner'};
 
-  const damage=damageFor(player,slot,definition);
+  const stats=N.ProgressionStats.derive(player.shipType,state);
+  if(stats.ok===false)return stats;
+  const damage=stats.offensive[slotIndex].damage;
+  const buffRate=player.buffs?.overclock>0?1.35:1;
+  const intervalSeconds=stats.offensive[slotIndex].cooldownSeconds/buffRate;
   const credit=cooldownCredit.get(state);
   cooldownCredit.delete(state);
   // A step longer than the interval cannot bank a second shot.
-  const overshoot=credit?.slot===slot&&credit.seconds<definition.cooldownSeconds?credit.seconds:0;
-  slot.cooldownSeconds=definition.cooldownSeconds-overshoot;
+  const overshoot=credit?.slot===slot&&credit.seconds<intervalSeconds?credit.seconds:0;
+  slot.cooldownSeconds=intervalSeconds-overshoot;
   if(slotIndex!==0){
     const projectiles=N.ProgressionOffense.fire(game,spawn,definition,{
       x:player.x,y:player.y,angle:aimAngle,damage,coopPlayer:player,
