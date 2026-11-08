@@ -189,7 +189,8 @@ function fireAt(e,angle,speed,damage,opts={}){
   const b=G.spawnEnemyBullet({
     x:e.x+Math.cos(angle)*r,y:e.y+Math.sin(angle)*r,angle,speed,damage,
     size:opts.size||3.2,life:opts.life||4.2,color:e.color,kind:opts.kind||'hostile',
-    curve:opts.curve||0,spin:Math.random()*TAU
+    curve:opts.curve||0,spin:Math.random()*TAU,
+    repulsorClearable:!e.boss&&e.role!=='boss'
   });
   return b;
 }
@@ -561,11 +562,11 @@ G.updateAnchors=function(dt){
       a.attackTimer=a.type===0?2.5:a.type===1?2.15:2.9;
       if(a.type===0){
         const base=a.angle+a.phase*.7;
-        for(let i=0;i<4;i++)G.spawnEnemyBullet({x:a.x+Math.cos(base+i*.4)*a.r,y:a.y+Math.sin(base+i*.4)*a.r,angle:base+i*.4,speed:190,damage:9*dScale,size:3.4,life:4.8,color:G.level.theme.b,kind:'anchor'});
+        for(let i=0;i<4;i++)G.spawnEnemyBullet({x:a.x+Math.cos(base+i*.4)*a.r,y:a.y+Math.sin(base+i*.4)*a.r,angle:base+i*.4,speed:190,damage:9*dScale,size:3.4,life:4.8,color:G.level.theme.b,kind:'anchor',repulsorClearable:true});
       }else if(a.type===1){
-        for(let i=0;i<5;i++)G.spawnEnemyBullet({x:a.x+Math.cos(ang+(i-2)*.15)*a.r,y:a.y+Math.sin(ang+(i-2)*.15)*a.r,angle:ang+(i-2)*.15,speed:245,damage:8*dScale,size:3,life:4.6,color:G.level.theme.a,kind:'anchor'});
+        for(let i=0;i<5;i++)G.spawnEnemyBullet({x:a.x+Math.cos(ang+(i-2)*.15)*a.r,y:a.y+Math.sin(ang+(i-2)*.15)*a.r,angle:ang+(i-2)*.15,speed:245,damage:8*dScale,size:3,life:4.6,color:G.level.theme.a,kind:'anchor',repulsorClearable:true});
       }else{
-        for(let i=0;i<12;i++)G.spawnEnemyBullet({x:a.x+Math.cos(i/12*TAU)*a.r,y:a.y+Math.sin(i/12*TAU)*a.r,angle:i/12*TAU,speed:145,damage:8*dScale,size:3,life:5.2,color:G.level.theme.b,kind:'anchor'});
+        for(let i=0;i<12;i++)G.spawnEnemyBullet({x:a.x+Math.cos(i/12*TAU)*a.r,y:a.y+Math.sin(i/12*TAU)*a.r,angle:i/12*TAU,speed:145,damage:8*dScale,size:3,life:5.2,color:G.level.theme.b,kind:'anchor',repulsorClearable:true});
       }
       G.addRing(a.x,a.y,a.r*2.4,G.level.theme.a,.28,1.2);
       N.Audio.noiseBurst(.06,.04,650);

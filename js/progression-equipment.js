@@ -30,6 +30,7 @@ function validState(state){
   for(const slot of [first, second]){
     if(!validSlot(slot)||(slot&&!C.additional(slot.id)))return false;
   }
+  if(!validSlot(state.defensive)||(state.defensive&&!C.defense(state.defensive.id)))return false;
   if(first&&second&&first.id===second.id)return false;
   if(!Number.isInteger(state.selectedOffensiveSlot)||state.selectedOffensiveSlot<0||state.selectedOffensiveSlot>=C.offensiveSlotCount)return false;
   if(!isFiniteNonNegative(state.switchDelaySeconds))return false;
@@ -110,6 +111,10 @@ function tick(state,elapsedSeconds){
     const remaining=slot.cooldownSeconds-elapsedSeconds;
     slot.cooldownSeconds=remaining>COOLDOWN_EPSILON?remaining:0;
   }
+  if(state.defensive&&state.defensive.cooldownSeconds>0){
+    const defenseRemaining=state.defensive.cooldownSeconds-elapsedSeconds;
+    state.defensive.cooldownSeconds=defenseRemaining>COOLDOWN_EPSILON?defenseRemaining:0;
+  }
   const remaining=state.switchDelaySeconds-elapsedSeconds;
   state.switchDelaySeconds=remaining>COOLDOWN_EPSILON?remaining:0;
   return {ok:true};
@@ -140,7 +145,7 @@ function tryFire(context,intent){
   const game=context.game||N.Game;
   const player=context.player||game?.player;
   const state=player?.progression;
-  if(!player||player.dead||context.paused||context.connected===false)return {ok:false,reason:'player-unavailable'};
+  if(!player||player.dead||context.paused||context.connected===false||player.connected===false)return {ok:false,reason:'player-unavailable'};
   if(N.Coop?.isGuest())return {ok:false,reason:'not-authoritative'};
   if(!validState(state))return {ok:false,reason:'invalid-state'};
   if(state.offensive[0].id!==C.primaryForHull(player.shipType))return {ok:false,reason:'wrong-hull-primary'};
@@ -213,12 +218,45 @@ function tryFire(context,intent){
   };
 }
 
+// The caller supplies a fresh press, never a held action. Input belongs to 047.
+function tryDefend(context,intent){
+  context=context||{};
+  intent=intent||{};
+  const game=context.game||N.Game;
+  const player=context.player||game?.player;
+  if(!player||player.dead||context.paused||context.connected===false||player.connected===false)return {ok:false,reason:'player-unavailable'};
+  if(N.Coop?.isGuest())return {ok:false,reason:'not-authoritative'};
+  const state=player.progression;
+  if(!validState(state))return {ok:false,reason:'invalid-state'};
+  if(state.offensive[0].id!==C.primaryForHull(player.shipType))return {ok:false,reason:'wrong-hull-primary'};
+  const slot=state.defensive;
+  if(!slot)return {ok:false,reason:'empty-slot'};
+  if(slot.cooldownSeconds>0)return {ok:false,reason:'cooldown'};
+  if(N.Coop?.isHost()&&(typeof context.participantId!=='string'||!context.participantId||
+    typeof context.activationId!=='string'||!context.activationId||
+    (slot.id==='aegis_projector'&&typeof context.resourceIdentity!=='function'))){
+    return {ok:false,reason:'missing-authority-context'};
+  }
+  if(!Number.isFinite(player.x)||!Number.isFinite(player.y))return {ok:false,reason:'invalid-position'};
+  if(!game?.level||!Number.isFinite(game.level.width)||game.level.width<=0||
+    !Number.isFinite(game.level.height)||game.level.height<=0||!Array.isArray(game.enemies)||!Array.isArray(game.enemyBullets)||
+    typeof game.addRing!=='function'||(slot.id==='repulsor_pulse'&&typeof game.damageEnemy!=='function')||
+    (context.recipients!==undefined&&!Array.isArray(context.recipients)))return {ok:false,reason:'invalid-world'};
+  const definition=C.defense(slot.id);
+  const result=N.ProgressionDefense.activate(game,player,slot,definition,context,intent);
+  if(result.ok===false)return result;
+  slot.cooldownSeconds=definition.cooldownSeconds-(slot.level-1)*(definition.cooldownPerLevel||0);
+  result.event.cooldownSeconds=slot.cooldownSeconds;
+  return {ok:true,weaponId:slot.id,cooldownSeconds:slot.cooldownSeconds,...result};
+}
+
 N.Equipment=Object.freeze({
   create,
   select,
   cycle,
   tick,
   tryFire,
+  tryDefend,
   ensureValidSelection,
   offensiveSlot,
   isValidState:validState

@@ -196,9 +196,12 @@
     return result;
   });
   wrap(G, 'damagePlayer', (original, args) => {
-    const player = G.player, before = player ? player.hp + player.shield : 0;
+    const player = G.player;
+    const total = item => item.hp + item.shield +
+      (item.progressionMode === 'shared_v1' && item.barrier?.windowSeconds > 0 ? item.barrier.capacity : 0);
+    const before = player ? total(player) : 0;
     const result = original(...args);
-    if (player && !S.isRemote(player) && player.hp + player.shield < before){S.record('hitsTaken');if(player.dead)S.flush();}
+    if (player && !S.isRemote(player) && total(player) < before){S.record('hitsTaken');if(player.dead)S.flush();}
     return result;
   });
   wrap(G, 'collectGroundItem', (original, args) => {

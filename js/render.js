@@ -444,6 +444,13 @@ function drawPlayer(c,p,theme){
   }
   N.Ships.drawHull(c,p);
   c.restore();
+  if(p.barrier?.windowSeconds>0&&p.barrier.capacity>0&&
+    !(N.Coop?.isGuest()&&N.ProgressionDefense.guestVisuals(G.level))){
+    c.save();c.globalCompositeOperation='lighter';
+    c.strokeStyle=N.withAlpha('#b6fffb',.75);c.lineWidth=2;
+    c.setLineDash([8,4]);c.beginPath();c.arc(p.x,p.y,p.radius+22,0,TAU);c.stroke();
+    c.restore();
+  }
   // shields / invuln ring
   if(p.stats.maxShield>0){
     const frac=p.shield/p.stats.maxShield;
@@ -474,7 +481,20 @@ function drawRemotePlayers(c,theme){
 }
 function drawBullets(c){
   const view=N.Coop?.isGuest()?N.ProgressionOffense.guestVisuals(G.level):null;
+  const defenseView=N.Coop?.isGuest()?N.ProgressionDefense.guestVisuals(G.level):null;
   c.save();
+  for(const effect of defenseView?.flashes??[]){
+    if(!cull(effect.x,effect.y,effect.radius))continue;
+    c.globalAlpha=.75*Math.min(1,effect.life/.35);
+    c.strokeStyle=effect.color;c.lineWidth=2;
+    c.beginPath();c.arc(effect.x,effect.y,effect.radius,0,TAU);c.stroke();
+  }
+  for(const barrier of defenseView?.barriers??[]){
+    if(!cull(barrier.x,barrier.y,barrier.radius))continue;
+    c.globalAlpha=.75;c.strokeStyle='#b6fffb';c.lineWidth=2;c.setLineDash([8,4]);
+    c.beginPath();c.arc(barrier.x,barrier.y,barrier.radius,0,TAU);c.stroke();
+    c.setLineDash([]);
+  }
   for(const field of view?.fields??N.ProgressionOffense.activeFields(G.level)){
     if(!cull(field.x,field.y,field.radius))continue;
     c.globalAlpha=.5*Math.min(1,field.life*4);
