@@ -149,3 +149,35 @@ Prerequisite: https://github.com/taggedzi/neon-nexis/issues/59
 Local source: `docs/work-to-be-done/043-offensive-area-weapons.md`.
 Planning and prerequisites merged in PRs #67, #68 and #69.
 
+### Owner playtest correction - structure acquisition, 2026-11-08
+
+The owner requested that nearby aimed progression structures be eligible for
+weapons that lock on or seek. Inspection confirmed `ProgressionOffense.nearest`
+iterated only enemies: this excluded structures from both Seeker Missiles and
+Arc Projector despite their existing damage support. This instruction supersedes
+041 D7's enemy-only targeting restriction for those weapons; it does not change
+weapon numbers, aim input, range, cone or line-of-sight requirements.
+
+Changed `js/progression-offense.js` to use the same live enemy/anchor/cache set
+already used by area damage. Destroyed structures invalidate a seeker's retained
+target. Arc's distinct-hit tracking applies across all target kinds. Primary,
+bomb and mortar paths already damage structures and need no targeting change;
+retired legacy weapons are not part of the public progression catalog.
+Updated `docs/progression-contracts.md`, `docs/decisions.md` and the controlled
+real-damage regression in `tools/check-equipment.js` on the existing unmerged
+batch branch `feat/uninterrupted-progression-batch`.
+
+Syntax and ESLint passed. The equipment regression passed 238 assertions each
+in Windows Playwright Chromium 156.0.8078.4 and Firefox 157.0. Added cases cover
+mixed unit/anchor/cache chains without repeated hits, nearest aimed-objective
+acquisition while units exist, actual swept missile damage, dead-structure
+exclusion, reacquisition in both directions, aim/range exclusion, the exact Arc
+range boundary and wall occlusion. Test storage is isolated. Owner natural-play
+confirmation remains pending; no additional performance claim is made.
+
+Public progression/co-op integration also passed six browser tests across the
+same Chromium/Firefox versions (46.8 seconds); two optional performance cases
+were skipped. These cover all hull checkpoint equivalence, authoritative shared
+rewards/gap recovery and guest dash/rejoin. The entire 220-test batch suite was
+not repeated for this bounded follow-up. Final syntax, lint and
+`git diff --check` passed. No push, PR, merge or deployment performed.

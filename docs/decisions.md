@@ -736,3 +736,19 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   Manual publication still runs the entire suite against both staged packages.
 - Supersedes: The unconditional pre-push suite and default retained-on-failure
   tracing settings only. Branch-sync and test coverage requirements remain.
+
+## 2026-11-08 - Seeking weapons can acquire destructible structures
+
+- Decision: Seeker Missiles and Arc Projector include live progression anchors
+  and destructible caches alongside enemy units, using the same world-space
+  range, initial aim cone, line of sight and distance/ID ordering. Arc hops can
+  visit either kind once. Seekers reacquire when a structure is destroyed.
+- Rationale: The owner observed that aiming these weapons at nearby structures
+  could not acquire them, preventing expected objective attacks.
+- Approval: Explicit owner playtest correction on 2026-11-08; implementation
+  uses the existing targeting rules without new balance values or input paths.
+- Consequences: Nearby aimed structures compete equally with units; walls,
+  range and aim still constrain acquisition. Bomb/mortar and primary weapons
+  retain existing objective collision/area damage. No save/wire format change.
+- Supersedes: Enemy-only acquisition in 041 D7 and the targeting contract only.
+  See [043](work-to-be-done/043-offensive-area-weapons.md) for verification.
