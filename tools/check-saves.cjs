@@ -24,6 +24,9 @@ for (const file of ['util', 'content', 'game', 'driving', 'ships', 'world', 'map
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), box);
 }
 const N = box.window.NEON;
+// Retained hydration adapter fixtures; public version-2 boundaries are covered
+// by check-progression-persistence and the browser recovery scenarios.
+N.PROGRESSION_ENABLED = false;
 const G = N.Game;
 N.Input = { resetMovement() {}, resetFire() {} };
 N.Audio = { checkpoint() {}, setScene() {}, glitch() {} };

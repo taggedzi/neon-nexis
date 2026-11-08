@@ -12,6 +12,8 @@
   L.validName = name => typeof name === 'string' && name === name.trim() && name.length > 0 && name.length <= 32 && !/[\u0000-\u001f\u007f]/.test(name);
 
   L.validateShip = function (ship, requireKnown = true) {
+    if (ship?.player?.progressionMode === 'shared_v1') return !!N.ProgressionPersistence?.validateShip(ship);
+    if (N.PROGRESSION_ENABLED === true) return false;
     if (!plain(ship) || !L.validName(ship.name) || !integer(ship.highestSector, 1) || !plain(ship.player)) return false;
     const p = ship.player;
     if (typeof p.shipType !== 'string' || typeof p.shipColor !== 'string' ||
@@ -38,6 +40,8 @@
   };
 
   L.validate = function (data) {
+    if (data?.version === 2) return !!N.ProgressionPersistence?.validate(data, 'loadouts').ok;
+    if (N.PROGRESSION_ENABLED === true) return !!data && data.version === 1 && Array.isArray(data.ships) && data.ships.length === 0;
     if (!plain(data) || data.version !== 1 || !Array.isArray(data.ships) || data.ships.length > L.limit) return false;
     const names = new Set();
     for (const ship of data.ships) {
@@ -49,9 +53,10 @@
   L.read = function () {
     try {
       const raw = localStorage.getItem(L.key);
-      if (raw === null) return { ok: true, data: { version: 1, ships: [] } };
+      if (raw === null) return { ok: true, data: { version: N.PROGRESSION_ENABLED === true ? 2 : 1, ships: [] } };
       const data = JSON.parse(raw);
-      return L.validate(data) ? { ok: true, data } : { ok: false, error: 'SAVED SHIP LIST IS INVALID. STORED DATA WAS PRESERVED.' };
+      if (N.PROGRESSION_ENABLED === true && data?.version === 1 && data.ships?.length === 0) data.version = 2;
+      return L.validate(data) ? { ok: true, data } : { ok: false, error: 'SAVED SHIPS ARE INCOMPATIBLE. EXPORT OR REMOVE THEM FROM RECOVERY. STORED DATA WAS PRESERVED.' };
     } catch (error) {
       return { ok: false, error: 'SAVED SHIPS COULD NOT BE READ. STORED DATA WAS PRESERVED.' };
     }
@@ -62,6 +67,8 @@
   L.capture = function (name) {
     const G = N.Game;
     if (!G.run || !G.player || G.player.dead || !['paused', 'complete', 'inventory'].includes(G.mode)) return null;
+    if (G.player.progressionMode === 'shared_v1') return N.ProgressionPersistence.captureShip(name, G.player,
+      Math.max(G.run.level, G.run.highestSector || 1, G.player.loadoutHighestSector || 1));
     const player = {};
     for (const key of fields) player[key] = N.deepClone(G.player[key]);
     player.weapons = G.player.weapons.map(w => ({ id: w.id, level: w.level, tier: w.tier }));
@@ -100,6 +107,20 @@
   };
   L.apply = function (player, ship) {
     if (!L.validateShip(ship)) return false;
+    if (ship.player.progressionMode === 'shared_v1') {
+      if (player.progressionMode !== 'shared_v1') return false;
+      player.progression = N.deepClone(ship.player.progression);
+      player.shipType = ship.player.shipType;
+      player.shipColor = ship.player.shipColor;
+      player.loadoutHighestSector = ship.highestSector;
+      player.resourceRevision = 0;
+      player.buffs = { overclock: 0, speed: 0, magnet: 0 };
+      player.barrier = { capacity: 0, windowSeconds: 0, lockoutSeconds: 0 };
+      player.stats = null;
+      player.hp = player.shield = null;
+      N.Game.rebuildStats(player, true);
+      return true;
+    }
     for (const key of fields) player[key] = N.deepClone(ship.player[key]);
     player.weapons = ship.player.weapons.map(w => N.Game.makeWeapon(w.id, w.tier, w.level));
     player.loadoutHighestSector = ship.highestSector;

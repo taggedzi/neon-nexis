@@ -3,6 +3,14 @@
 Design work for [041 / GitHub #58](work-to-be-done/041-progression-contracts.md),
 under [parent 040](work-to-be-done/040-uninterrupted-coop-progression.md).
 This document describes future interfaces, not implemented gameplay.
+Implementation update, 2026-11-08: the combined 045–049 branch implements these
+contracts; current verification and remaining player/performance gates are in
+[049](work-to-be-done/049-progression-integration-validation.md). The original
+design wording below is retained as the approved contract. The UI projection
+interface is implemented as `ProgressionControls.view(player)`, rather than a
+reward-mutating namespace, and XP source resolution requires the authority's
+canonical live-world source lookup. These are agent implementation choices;
+they do not change the approved gameplay rules.
 Status: design complete; independent follow-up review reported no actionable
 findings on 2026-11-06. Branch delivery remains pending. Owner-approved starting
 rules are D1–D12 in 041; gameplay implementation and playtest acceptance remain
@@ -46,6 +54,14 @@ cosmetic prediction may preserve responsiveness but cannot commit damage or
 progression. Do not apply the old guest hit/heal handler and the new committed
 resource result for the same event. This closes the current mirror/guest race
 without introducing a second resource owner or changing revival policy.
+
+Implementation refinement, 2026-11-08: complete resource revisions also carry
+`dashCharges`, `maxDashCharges`, `dashTimer`, `dashTime` and `dashDir`. A fresh
+guest dash intent is validated against host charge/recharge state and life/input
+sequence; it grants the existing brief invulnerability. Movement prediction stays
+on the existing guest path. Rejoin preserves remaining charge/timer state and the
+accepted intent-sequence watermark. This preserves existing controls under host
+resource authority and changes no dash tuning.
 
 ## Catalog and identity
 

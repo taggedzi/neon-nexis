@@ -196,6 +196,7 @@
       if (link.channel !== channel || !intent) {return;}
       let message;
       try {
+        if (typeof event.data === 'string' && event.data.length > 1000000) return;
         message = typeof event.data === 'string' ? JSON.parse(event.data) : N.Wire.decode(event.data);
       } catch (error) { return; }
       if (!message || typeof message !== 'object') return;
@@ -417,6 +418,10 @@
 
   Net.send = function (message, targetId) {
     if (!message || typeof message !== 'object') {return false;}
+    if (JSON.stringify(message).length > 65536) {
+      Net.onError?.('CO-OP STATE TOO LARGE // RESYNC REQUIRED');
+      return false;
+    }
     let sent = false;
     for (const link of links.values()) {
       if (targetId && link.id !== targetId || link.channel?.readyState !== 'open') {continue;}

@@ -67,7 +67,7 @@ test('automatic checkpoint cannot overwrite an incompatible save', async ({ page
   expect(await page.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(raw);
 });
 
-test('legacy current-version checkpoint continues', async ({ page }) => {
+test('legacy checkpoint remains recoverable after progression cutover', async ({ page }) => {
   const raw = JSON.stringify({ version: 1, run: { seed: 3, mapVersion: 0, level: 2 }, player: { level: 4, hp: 20 } });
   await page.addInitScript(value => {
     localStorage.setItem('neon_nexus_save_v1', value);
@@ -75,13 +75,8 @@ test('legacy current-version checkpoint continues', async ({ page }) => {
   }, raw);
   await page.goto('/');
   await page.locator('#btn-boot').click();
-  await expect(page.locator('#screen-menu')).toHaveClass(/active/);
-  await page.locator('#btn-continue').click();
-  await expect.poll(() => page.evaluate(() => window.NEON.Game.mode)).toBe('playing');
-  expect(await page.evaluate(() => window.NEON.Game.run.level)).toBe(2);
-  expect(await page.evaluate(() => window.NEON.Game.run.mapVersion)).toBe(0);
-  expect(await page.evaluate(() => window.NEON.Game.player.level)).toBe(4);
-  expect(await page.evaluate(() => window.NEON.Game.player.weapons.length)).toBeGreaterThan(0);
+  await expect(page.locator('#screen-oldsave')).toHaveClass(/active/);
+  expect(await page.evaluate(() => window.NEON.Game.canLoadSave(window.NEON.readSave()))).toBe(false);
   expect(await page.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(raw);
   expect(await page.evaluate(() => localStorage.getItem('unrelated-data'))).toBe('keep');
 });
@@ -120,24 +115,17 @@ test('fractional active weapon opens recovery and keeps stored bytes', async ({ 
   }))).toEqual({ save: raw, settings, loadouts, profile });
 });
 
-test('two weapons continue on an integer bay and can switch and fire', async ({ page }) => {
-  const raw = JSON.stringify({
-    version: 1,
-    run: { seed: 6, mapVersion: 1, level: 1 },
-    player: {
-      level: 2,
-      weapons: [
-        { id: 'pulse', level: 1, tier: 1 },
-        { id: 'scatter', level: 1, tier: 1 }
-      ],
-      activeWeapon: 0
-    }
-  });
-  await page.addInitScript(value => {
-    localStorage.setItem('neon_nexus_save_v1', value);
-  }, raw);
+test('current progression checkpoint continues, switches and fires without refilling', async ({ page }) => {
   await page.goto('/');
   await page.locator('#btn-boot').click();
+  await page.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    G.newRun({shipType:'kite'});G.pauseGame();
+    G.player.progression.offensive[1]={id:'arc_projector',level:3,cooldownSeconds:0};
+    G.player.hp=43;G.rebuildStats(G.player);
+    if(!G.saveCheckpoint(true,'current-test'))throw Error('Current checkpoint did not save');
+    G.completeToMenu();
+  });
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await page.locator('#btn-continue').click();
   await expect.poll(() => page.evaluate(() => window.NEON.Game.mode)).toBe('playing');
@@ -153,16 +141,41 @@ test('two weapons continue on an integer bay and can switch and fire', async ({ 
   expect(Number.isInteger(armed.index)).toBe(true);
   expect(armed.index).toBe(0);
   expect(armed.count).toBe(2);
-  expect(armed.id).toBe('pulse');
+  expect(armed.id).toBe('pulse_repeater');
+  expect(await page.evaluate(()=>window.NEON.Game.player.hp)).toBe(43);
   await page.keyboard.press('KeyE');
   await expect.poll(() => page.evaluate(() => {
     const player = window.NEON.Game.player;
     const weapon = player.weapons[player.activeWeapon];
     return Number.isInteger(player.activeWeapon) && weapon ? weapon.id : '';
-  })).toBe('scatter');
+  })).toBe('arc_projector');
+  await page.keyboard.press('Digit1');
   await page.keyboard.down('KeyF');
   await expect.poll(() => page.evaluate(() => window.NEON.Game.playerBullets.length)).toBeGreaterThan(0);
   await page.keyboard.up('KeyF');
+});
+
+test('legacy saved ships export only their list and preserve the checkpoint and settings',async({page})=>{
+  await page.goto('/');await page.locator('#btn-boot').click();
+  const saved=await page.evaluate(()=>{
+    const N=window.NEON,G=N.Game;
+    G.newRun();G.pauseGame();G.saveCheckpoint(true,'preserve');
+    const checkpoint=localStorage.getItem(N.Storage.key);
+    const settings=localStorage.getItem(N.Storage.settingsKey);
+    const raw=JSON.stringify({version:1,ships:[{name:'Old ship',player:{weapons:[{id:'pulse'}]}}]});
+    localStorage.setItem(N.Loadouts.key,raw);N.UI.showMenu();
+    return {checkpoint,settings,raw};
+  });
+  await expect(page.locator('#old-save-description')).toContainText('saved ship list');
+  const downloadPromise=page.waitForEvent('download');
+  await page.locator('#btn-old-save-export').click();
+  const download=await downloadPromise;
+  const stream=await download.createReadStream();const chunks=[];
+  for await(const chunk of stream)chunks.push(chunk);
+  expect(Buffer.concat(chunks).toString()).toBe(saved.raw);
+  expect(await page.evaluate(()=>localStorage.getItem(window.NEON.Storage.key))).toBe(saved.checkpoint);
+  expect(await page.evaluate(()=>localStorage.getItem(window.NEON.Storage.settingsKey))).toBe(saved.settings);
+  expect(await page.evaluate(()=>localStorage.getItem(window.NEON.Loadouts.key))).toBeNull();
 });
 
 test('storage removal failure preserves checkpoint and reports failure', async ({ page }) => {

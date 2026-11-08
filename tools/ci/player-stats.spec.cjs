@@ -26,12 +26,12 @@ async function deathFit(page){
   });
 }
 
-test('025 combat counters count emitted shots once, including shields and persistent attacks',async({page})=>{
+test('025 historical combat counters count emitted shots once, including shields and persistent attacks',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/');await page.locator('#btn-boot').click();
   const result=await page.evaluate(()=>{
     const N=window.NEON,G=N.Game,S=N.PlayerStats;
-    G.newRun();G.pauseGame();G.resetEntityArrays();
+    G.newRun(null,{progressionMode:'legacy'});G.pauseGame();G.resetEntityArrays();
     const e=G.spawnEnemy(N.ENEMY_BY_ID.dart,G.player.x+100,G.player.y);e.hp=1;e.shield=0;
     const bullet=G.spawnBullet({x:e.x,y:e.y,angle:0,speed:0,damage:3,pierce:3,life:10});
     G.updatePlayerBullets(0);
@@ -67,11 +67,11 @@ test('025 combat counters count emitted shots once, including shields and persis
   expect(result.lifetime).toEqual(result.final);expect(errors).toEqual([]);
 });
 
-test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing data',async({page},info)=>{
+test('025 historical discard counters, end board and lifetime backup preserve existing data',async({page},info)=>{
   await page.goto('/');await page.locator('#btn-boot').click();
   await page.evaluate(()=>{
     const N=window.NEON,G=N.Game;
-    G.settings.skill='hardcore';G.newRun();G.pauseGame();
+    G.settings.skill='hardcore';G.newRun(null,{progressionMode:'legacy'});G.pauseGame();
     G.player.weaponSlots=1;
     G.collectGroundItem({kind:'weapon',itemId:'scatter',tier:1,collected:false});
     G.player.invuln=0;G.damagePlayer(99999,G.player.x,G.player.y);
@@ -107,7 +107,7 @@ test('025 toggle, Hardcore loss, end board and lifetime backup preserve existing
   expect(stopped).toBe(true);await expect(page.locator('#gameover-tally')).toBeHidden();
   await page.locator('#btn-gameover-menu').click();
   const backup=await page.evaluate(()=>window.NEON.SaveTransfer.build().file);
-  expect(backup.fileVersion).toBe(4);expect(backup.profile.stats.itemsLost).toBe(3);
+  expect(backup.fileVersion).toBe(5);expect(backup.profile.stats.itemsLost).toBe(3);
   const restore=await page.evaluate(file=>{
     const N=window.NEON;
     const old={...file,fileVersion:2};delete old.profile;
@@ -164,7 +164,7 @@ test('025 optional tally corruption preserves progress and memory checkpoints re
     const lifetime=N.Profile.current().stats.shotsFired;
     const bad=JSON.parse(JSON.stringify(snapshot));bad.run.tally={shotsFired:-1};
     const loaded=G.loadFromSave(bad);
-    const progress=G.run.seed===bad.run.seed&&G.player.level===bad.player.level;
+    const progress=G.run.seed===bad.run.seed&&G.player.level===bad.player.snapshot.progression.level;
     const ignored=S.match.shotsFired===0;
     const preserved=N.Profile.current().stats.shotsFired===lifetime;
     G.pauseGame();

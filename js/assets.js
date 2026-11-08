@@ -357,13 +357,17 @@ const iconBuilders={
     x.beginPath();x.arc(32,32,4,0,TAU);x.stroke();
   }
 };
+const progressionIconAliases=Object.freeze({
+  pulse_repeater:'pulse',needle_blaster:'pulse',scatter_cannon:'scatter',rail_lance:'rail',
+  seeker_missiles:'seeker',arc_projector:'tesla',gravity_bomb:'gravity',plasma_mortar:'mortar'
+});
 AS.weaponIcon=function(id,color){
   const key=id+'|'+color;
   if(iconCache.has(key)) return iconCache.get(key);
   const c=document.createElement('canvas');c.width=c.height=64;
   const x=c.getContext('2d');
   x.translate(0,0);
-  try{iconBuilders[id](x,x,color);}catch(e){ // fallback geometric glyph
+  try{iconBuilders[progressionIconAliases[id]||id](x,x,color);}catch(e){ // fallback geometric glyph
     x.strokeStyle=color;x.lineWidth=2;x.strokeRect(20,20,24,24);x.beginPath();x.arc(32,32,7,0,TAU);x.stroke();
   }
   iconCache.set(key,c); return c;

@@ -3,6 +3,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const box={window:{NEON:{}},location:{search:''}};vm.createContext(box);
 for(const file of ['util','content','game','driving','ships','world','maps','enemies'])vm.runInContext(fs.readFileSync(require('node:path').join(__dirname,'../js',file+'.js'),'utf8'),box);
 const N=box.window.NEON,G=N.Game,W=N.World;
+// Geometry and retained legacy hydration fixtures; current progression save
+// compatibility is exercised by check-progression-persistence.
+N.PROGRESSION_ENABLED=false;
 function reachable(l){
   const start=Math.floor(l.spawn.y/100)*l.cols+Math.floor(l.spawn.x/100),seen=new Set([start]),queue=[start];
   for(let head=0;head<queue.length;head++){

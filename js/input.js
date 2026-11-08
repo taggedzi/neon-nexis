@@ -23,6 +23,7 @@ let initialized=false;
 let movementBlocked=false;
 let unfocused=false;
 let padFireReady=true;
+let progressionPadReady=[];
 let releasingPointer=false;
 let swallowUnlockEscape=false;
 let toldPointerLocked=false;
@@ -32,10 +33,12 @@ const fireActive=()=>!unfocused&&N.Game?.mode==='playing'&&!N.UI?.overlayOpen?.(
 I.resetMovement=function(){
   keys=Object.create(null);pressed.clear();
   I.padMove={x:0,y:0};movementBlocked=true;
+  progressionPadReady=[];
 };
 function clearPad(){
   N.Firing.set('pad',false,false);N.Firing.set('stick',false,false);
   padPrev=[];padHeld=[];padEdges=[];padConsumed.clear();
+  progressionPadReady=[];
   I.padMove={x:0,y:0};I.padAim={x:0,y:0};I.padAimMag=0;I.padAimActive=false;I.padId='';
 }
 
@@ -69,6 +72,9 @@ I.init=function(s){
 I.setSettings=function(s){
   const previous=settings.movementMode,old=settings;
   settings=N.deepMerge(N.SETTINGS_DEFAULT,s||{});
+  if(['offensive1','offensive2','offensive3','defense'].some(action=>old.keyboard[action]!==settings.keyboard[action]||old.gamepad[action]!==settings.gamepad[action])){
+    I.resetMovement();
+  }
   if(old.capturePointer!==false&&settings.capturePointer===false)I.releasePointer();
   N.Firing.configure(settings.firingMode);
   if(previous!==settings.movementMode||old.rightStickFire!==settings.rightStickFire||old.keyboard.fire!==settings.keyboard.fire||old.gamepad.fire!==settings.gamepad.fire)I.resetFire();
@@ -177,6 +183,7 @@ I.update=function(){
     const held=!!(buttons[b]&&(buttons[b].pressed||buttons[b].value>.5));
     padHeld[b]=held;
     padEdges[b]=held&&!prev[b];
+    if(!held)progressionPadReady[b]=true;
     if(padEdges[b] && capturePad){
       I.padCapturedThisFrame=true;
       const cb=capturePad;capturePad=null;cb(b);padConsumed.add(b);
@@ -221,6 +228,14 @@ I.actionDown=function(action){const code=settings.keyboard[action];return !!keys
 I.actionPressed=function(action){const code=settings.keyboard[action];return !!pressed.has(code);};
 I.padActionDown=function(action){const b=settings.gamepad[action];return b!=null&&I.padDown(b);};
 I.padActionPressed=function(action){const b=settings.gamepad[action];return b!=null&&I.consumePad(b);};
+I.progressionActionPressed=function(action){
+  if(unfocused||!fireActive()||I.isCapturing())return false;
+  const button=settings.gamepad[action];
+  // A deliberate conflicting binding may select offense and activate defense
+  // in the same step. Captured menu/remapping edges remain excluded.
+  return I.actionPressed(action)||(button!=null&&progressionPadReady[button]&&
+    !!padEdges[button]&&!padConsumed.has(button));
+};
 I.getMove=function(){
   let x=0,y=0;
   if(I.actionDown('moveUp'))y-=1;
@@ -243,11 +258,11 @@ I.getDrivingInput=function(){
 I.mouseDown=()=>mouse.down;
 I.resetFire=function(){mouse.down=false;padFireReady=false;N.Firing.reset();};
 I.getWheel=function(){const v=wheelDelta; wheelDelta=0; return v;};
-I.getWeaponSwitch=function(){
+I.getWeaponSwitch=function(requireRelease=false){
   if(I.actionPressed('weaponNext')) return 1;
   if(I.actionPressed('weaponPrev')) return -1;
-  if(I.padActionPressed('weaponNext')) return 1;
-  if(I.padActionPressed('weaponPrev')) return -1;
+  if((!requireRelease||progressionPadReady[settings.gamepad.weaponNext])&&I.padActionPressed('weaponNext')) return 1;
+  if((!requireRelease||progressionPadReady[settings.gamepad.weaponPrev])&&I.padActionPressed('weaponPrev')) return -1;
   const w=I.getWheel();
   if(w!==0) return w>0?1:-1;
   return 0;

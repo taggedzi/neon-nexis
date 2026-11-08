@@ -33,6 +33,9 @@ for (const [file, query, resultName] of suites) {
     });
     await page.goto('/?test=' + query);
     await expect(page.locator('#btn-boot')).toBeEnabled();
+    // These fixtures protect the retained legacy adapters and pre-cutover
+    // mechanics. Public shared-mode controls/persistence run in dedicated specs.
+    await page.evaluate(() => { window.NEON.PROGRESSION_ENABLED = false; });
     // evaluate awaits async IIFEs and reports rejected assertions immediately.
     await page.evaluate(readFileSync(path.resolve('tools/check-' + file + '.js'), 'utf8'));
     const result = await page.evaluate(name => window[name], resultName);

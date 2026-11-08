@@ -49,16 +49,16 @@ in [the decision log](../decisions.md).
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
 | 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
 | 039 | [Faster push checks](039-faster-push-checks.md) | Done |
-| 040 | [Uninterrupted cooperative progression](040-uninterrupted-coop-progression.md) ([GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57)) | Planned |
+| 040 | [Uninterrupted cooperative progression](040-uninterrupted-coop-progression.md) ([GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57)) | Implemented — needs validation |
 | 041 | [Approve progression rules and define integration contracts](041-progression-contracts.md) ([GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58)) | Done |
 | 042 | [Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) ([GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)) | Done |
 | 043 | [Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) ([GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)) | Done (remaining validation waived by owner) |
 | 044 | [Implement the separate defensive quick-use slot](044-defensive-quick-use.md) ([GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)) | Done |
-| 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Planned |
-| 046 | [Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) ([GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)) | Planned |
-| 047 | [Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) ([GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)) | Planned |
-| 048 | [Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) ([GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)) | Planned |
-| 049 | [Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) ([GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)) | Planned |
+| 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Implemented — needs validation |
+| 046 | [Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) ([GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)) | Implemented — needs validation |
+| 047 | [Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) ([GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)) | Implemented — needs validation |
+| 048 | [Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) ([GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)) | Implemented — needs validation |
+| 049 | [Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) ([GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)) | Implemented — needs validation |
 
 Publishing follow-up: PRs #53 and #54 add Linux audio output and select Ubuntu's
 main archive after slow Azure-mirror downloads. The hosted minified suite passed;

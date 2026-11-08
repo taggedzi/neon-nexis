@@ -678,10 +678,11 @@ function drawHUD(c,theme){
   const p=G.player;
   const u=clamp(G.w/1400,.72,1.12);
   const compact=G.w<760;
+  const progression=p.progressionMode==='shared_v1'?N.ProgressionControls.view(p):null;
   // top-left vitals
   const px=14*u,py=14*u,pw=compact?G.w*.54:300*u;
   const vitalsHeight=compact?80:90;
-  const ph=(vitalsHeight+16+p.weapons.length*20+26)*u;
+  const ph=(vitalsHeight+16+(progression?4:p.weapons.length)*20+26)*u;
   panel(c,px,py,pw,ph,'rgba(2,8,14,.72)',N.withAlpha(theme.a,.3),8*u);
   txt(c,'BIOMETRIC LINK',px+12*u,py+14*u,8*u,N.withAlpha(theme.a,.65),'left',FONT_M);
   txt(c,'LV '+p.level,px+pw-12*u,py+14*u,10*u,'#fff','right',FONT_D,800);
@@ -707,6 +708,25 @@ function drawHUD(c,theme){
   c.fillStyle=N.withAlpha(theme.b,.8);c.fillRect(hx,xpy,hw*clamp(p.xp/p.xpNext,0,1),3*u);
   // Equipped weapons stay beside vitals; pending rewards are not equipped yet.
   const weaponY=py+vitalsHeight*u;
+  if(progression){
+    txt(c,'OFFENSIVE SLOTS',hx,weaponY,8*u,N.withAlpha(theme.a,.85),'left',FONT_M);
+    for(const slot of progression.offensive){
+      const y=weaponY+(18+slot.slotIndex*20)*u;
+      if(slot.selected){c.fillStyle=N.withAlpha(slot.color,.15);c.fillRect(hx-3*u,y-9*u,hw+6*u,18*u);}
+      if(slot.id)c.drawImage(N.Assets.weaponIcon(slot.id,slot.color),hx,y-7*u,14*u,14*u);
+      txt(c,(slot.selected?'▶ ':'')+(slot.slotIndex+1)+'. '+slot.name+(slot.id?'  L'+slot.level:''),hx+19*u,y,9*u,slot.selected?'#fff':'#91adbf','left',FONT_M);
+    }
+    const defense=progression.defensive;
+    const bindings=N.Input.isPadConnected()?G.settings.gamepad:G.settings.keyboard;
+    const label=N.Input.isPadConnected()?N.padLabel:N.keyLabel;
+    txt(c,label(bindings.defense)+'  '+(defense?defense.name+' L'+defense.level:'DEFENSE EMPTY'),hx,weaponY+80*u,8*u,'#00f0ff','left',FONT_M);
+    const barrier=progression.barrier;
+    const defenseStatus=barrier.windowSeconds>0?'BARRIER '+Math.ceil(barrier.capacity)+' · '+barrier.windowSeconds.toFixed(1)+'s':
+      barrier.lockoutSeconds>0?'BARRIER LOCKOUT '+barrier.lockoutSeconds.toFixed(1)+'s':
+        defense?(defense.ready?'DEFENSE READY':defense.cooldownSeconds.toFixed(1)+'s RECHARGING'):'FIND A DEFENSIVE MODULE';
+    txt(c,defenseStatus,hx,weaponY+96*u,7.5*u,defense?.ready?'#b6ff2b':'#7394a8','left',FONT_M);
+    txt(c,label(bindings.weaponPrev)+' / '+label(bindings.weaponNext)+'  PREV / NEXT',hx,weaponY+112*u,7.5*u,N.withAlpha(theme.a,.9),'left',FONT_M);
+  }else{
   txt(c,'EQUIPPED WEAPONS '+p.weapons.length+' / '+p.weaponSlots,hx,weaponY,8*u,N.withAlpha(theme.a,.85),'left',FONT_M);
   for(let i=0;i<p.weapons.length;i++){
     const weapon=p.weapons[i],def=N.WEAPON_BY_ID[weapon.id],selected=i===p.activeWeapon;
@@ -723,6 +743,7 @@ function drawHUD(c,theme){
   const bindings=N.Input.isPadConnected()?G.settings.gamepad:G.settings.keyboard;
   const label=N.Input.isPadConnected()?N.padLabel:N.keyLabel;
   txt(c,p.weapons.length===1?'ONLY WEAPON EQUIPPED':label(bindings.weaponPrev)+' / '+label(bindings.weaponNext)+'  PREV / NEXT',hx,switchY,7.5*u,N.withAlpha(theme.a,.9),'left',FONT_M);
+  }
   // top-center timer
   const tw=compact?G.w*.36:190*u;
   const tx=compact?G.w-px-tw: G.w/2-tw/2;
@@ -800,7 +821,7 @@ function drawHUD(c,theme){
   }
   // bottom-left weapon card
   const active=p.weapons[p.activeWeapon];
-  if(active){
+  if(active&&!progression){
     const def=N.WEAPON_BY_ID[active.id];
     const cw=compact?Math.min(G.w*.8,280*u):300*u,chh=compact?62*u:70*u;
     const bx=14*u,by=G.h-14*u-chh;
@@ -836,6 +857,25 @@ function drawHUD(c,theme){
       c.fillStyle=theme.a;c.fillRect(dx+34*u,dy+6*u,(p.maxDashCharges*10-2)*u*(1-p.dashTimer/p.stats.dashRecharge),1.5*u);
     }
   }
+  if(progression){
+    const selected=progression.offensive.find(slot=>slot.selected);
+    const bx=14*u,by=G.h-84*u,cw=Math.min(300*u,G.w*.65);
+    panel(c,bx,by,cw,70*u,'rgba(2,8,14,.76)',N.withAlpha(selected.color,.4),8*u);
+    c.save();c.globalCompositeOperation='lighter';c.globalAlpha=.65;glow(c,bx+31*u,by+30*u,30*u,selected.color,.25);c.restore();
+    c.drawImage(N.Assets.weaponIcon(selected.id,selected.color),bx+12*u,by+10*u,36*u,36*u);
+    txt(c,selected.name+'  L'+selected.level,bx+62*u,by+18*u,10*u,'#fff','left',FONT_M);
+    txt(c,selected.cooldownSeconds>0?selected.cooldownSeconds.toFixed(1)+'s RECHARGING':'READY',bx+62*u,by+36*u,8*u,selected.color,'left',FONT_M);
+    txt(c,'DASH '+p.dashCharges+' / '+p.maxDashCharges,bx+12*u,by+54*u,8*u,N.withAlpha(theme.a,.9),'left',FONT_M);
+    const selectedDefinition=N.ProgressionContent.primary(selected.id)||N.ProgressionContent.additional(selected.id);
+    const interval=selectedDefinition.cooldownSeconds/(p.stats.rateMul*(p.buffs.overclock>0?1.35:1));
+    const ready=clamp(1-selected.cooldownSeconds/interval,0,1);
+    c.fillStyle='rgba(255,255,255,.05)';c.fillRect(bx+12*u,by+62*u,cw-24*u,3*u);
+    c.fillStyle=selected.color;c.fillRect(bx+12*u,by+62*u,(cw-24*u)*ready,3*u);
+    if(progression.recentSummary){
+      const latest=progression.recentSummary;
+      txt(c,latest.count>1?'TEAM REWARDS: '+latest.count+' · LATEST '+latest.message:latest.message,G.w/2,G.h-140*u,8*u,'#b6ff2b','center',FONT_M);
+    }
+  }
   // bottom-right buffs + hint
   let by=G.h-14*u;
   const buffs=[];
@@ -850,7 +890,7 @@ function drawHUD(c,theme){
     by-=bh+4*u;
   }
   if(!compact){
-    txt(c,'Q / E  WEAPON     SPACE  DASH     ESC  PAUSE',G.w-14*u,by-8*u,7*u,N.withAlpha('#7394a8',.72),'right',FONT_M);
+    txt(c,N.keyLabel(G.settings.keyboard.weaponPrev)+' / '+N.keyLabel(G.settings.keyboard.weaponNext)+'  WEAPON     '+N.keyLabel(G.settings.keyboard.dash)+'  DASH     '+N.keyLabel(G.settings.keyboard.pause)+'  PAUSE',G.w-14*u,by-8*u,7*u,N.withAlpha('#7394a8',.72),'right',FONT_M);
     txt(c,'LMB / '+N.keyLabel(G.settings.keyboard.fire)+'  '+(G.settings.firingMode==='toggle'?'TOGGLE FIRE':'HOLD TO FIRE'),G.w-14*u,by-20*u,7*u,N.withAlpha('#7394a8',.55),'right',FONT_M);
   }
   if(G.settings.firingMode==='toggle')txt(c,'AUTO FIRE: '+(N.Firing.toggled()?'ON':'OFF'),G.w/2,G.h-84*u,10*u,N.Firing.toggled()?'#b6ff2b':'#7394a8','center',FONT_D,700);

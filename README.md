@@ -2,7 +2,7 @@
 
 A browser-based, top-down survival shooter with neon wireframe visuals,
 procedural sectors, and synthesized audio. Survive enemy waves, collect equipment,
-choose upgrades, and push into increasingly difficult sectors.
+gain automatic upgrades, and push into increasingly difficult sectors.
 
 ![Neon wireframe ship firing at geometric enemies on a dark sector map, with health, weapons, sector timer, and minimap visible.](docs/images/readme-playfield.webp)
 
@@ -53,9 +53,12 @@ mobile device, or older browser version.
 
 ## Play
 
-Choose a ship and color, stay mobile, and build your loadout from weapons,
-modules, and protocol upgrades. Clear a sector by destroying its Null Anchors
-or surviving the sector timer.
+Choose a ship and color, stay mobile, and build your loadout from immediate
+equipment rewards and stackable passives. Each hull keeps its primary, two
+additional offensive slots, and a separate defensive quick-use slot. Levels
+automatically grant passives; original teammates share progression without
+reward-choice menus. Clear a sector by destroying its Null Anchors or surviving
+the sector timer.
 
 | Default keyboard / mouse input | Action |
 | --- | --- |
@@ -64,14 +67,22 @@ or surviving the sector timer.
 | Left mouse button or F | Fire |
 | Space | Dash |
 | Q / E | Previous / next weapon |
+| 1 / 2 / 3 | Select offensive slot |
 | I | Inventory |
-| R | Pending rewards |
+| R | Activate defense once |
 | Escape | Pause |
 
 Keyboard and controller bindings, movement and firing modes, audio, and visual
 options are available in **Settings**. The in-game control reference reflects
 your current bindings. Controllers use the left stick to move and the right
 stick to aim, with configurable buttons for other actions.
+By default, bumpers cycle weapons, D-pad left/up/right selects a slot, and X
+activates defense. Release a defensive button before pressing it again.
+
+Checkpoints and saved ships from the old choice-based progression are
+incompatible. The game offers to export the affected original data before
+removal, or explicitly remove it without export. Settings and profile data are
+preserved; old earned builds are not silently converted or trimmed.
 
 Saves and settings stay in this browser. Continue in the same browser profile
 and at the same address, including port. Clearing site data can remove progress.

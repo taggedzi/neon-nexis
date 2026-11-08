@@ -20,7 +20,7 @@ for (const count of [3, 4]) {
           await page.evaluate(() => {
             const N = window.NEON, G = N.Game;
             G.newRun(); G.pauseGame();
-            G.player.weapons[0].level = 3;
+            G.player.progression.offensive[0].level = 3;
             const saved = N.Loadouts.save('Optional veteran');
             if (!saved.ok) {throw new Error(saved.error);}
             G.completeToMenu();
@@ -64,6 +64,12 @@ for (const count of [3, 4]) {
         await expect.poll(() => host.evaluate(() => !!window.NEON.Coop.lobby.members.find(member => member.seat === 1).profile.loadout)).toBe(true);
       }
       const revision = await host.evaluate(() => window.NEON.Coop.lobby.revision);
+      // This lifecycle/attribution fixture creates its controlled encounters
+      // below. Prevent incidental hits while other seats finish launch checks.
+      await host.evaluate(()=>{
+        const G=window.NEON.Game;
+        G.spawnInitialEnemies=G.updateSpawning=G.updateAnchors=()=>{};
+      });
       for (const page of pages) {
         await expect.poll(() => page.evaluate(() => window.NEON.Coop.lobby?.members.length)).toBe(count);
         await expect.poll(() => page.evaluate(() => window.NEON.Coop.lobby.revision)).toBe(revision);
@@ -96,17 +102,16 @@ for (const count of [3, 4]) {
       });
       // Every guest's fire and confirmed kills must stay attached to that seat.
       await host.evaluate(() => {
-        const C = window.NEON.Coop, original = C.fireForPlayer;
+        const G = window.NEON.Game, original = G.spawnBullet;
         window.__firedSeats = [];
-        C.fireForPlayer = function (player, ...args) {
-          window.__firedSeats.push(player.seat);
-          return original(player, ...args);
+        G.spawnBullet = function (bullet) {
+          window.__firedSeats.push(bullet.coopPlayer?.seat);
+          return original(bullet);
         };
       });
       for (let seat = 1; seat < count; seat++) {
         await pages[seat].evaluate(() => {
-          const G = window.NEON.Game;
-          G.fireWeapon(G.player.weapons[G.player.activeWeapon]);
+          window.NEON.Coop.sendProgressionIntent({fire:true});
         });
         await expect.poll(() => host.evaluate(value => window.__firedSeats.includes(value), seat)).toBe(true);
         await host.evaluate(value => {
@@ -129,6 +134,7 @@ for (const count of [3, 4]) {
       await last.evaluate(() => { window.NEON.Game.player.invuln = 0; });
       await host.evaluate(() => {
         const C = window.NEON.Coop, player = C.remotePlayers.reduce((a, b) => a.seat > b.seat ? a : b);
+        player.invuln = 0;
         C.sendHit(player, 1, player.x, player.y, false);
       });
       await expect.poll(() => last.evaluate(() => window.NEON.PlayerStats.match.hitsTaken)).toBe(1);
@@ -146,11 +152,13 @@ for (const count of [3, 4]) {
       await last.evaluate(() => window.NEON.Coop.sendReady());
       for (const page of pages) {await expect.poll(() => page.evaluate(() => window.NEON.Game.mode), { timeout: 15000 }).toBe('playing');}
       const revivalStarted = await host.evaluate(() => window.NEON.Game.level.elapsed);
-      await last.evaluate(() => {
-        window.NEON.Game.player.weapons[0].level = 3;
-        window.NEON.Game.gameOver();
+      await host.evaluate(() => {
+        const N=window.NEON, player=N.Coop.remotePlayers.reduce((a,b)=>a.seat>b.seat?a:b);
+        player.progression.offensive[0].level=3;
+        player.hp=1;player.shield=0;player.invuln=0;
+        N.Coop.sendHit(player,1000,player.x,player.y,false);
       });
-      expect(await last.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
+      await expect.poll(() => last.evaluate(() => window.NEON.Game.player.dead)).toBe(true);
       await expectRevival(host, last, revivalStarted);
       expect(await last.evaluate(() => window.NEON.Game.player.weapons[0].level)).toBe(3);
       expect(await host.evaluate(() => window.NEON.Coop.remainingRespawns)).toBe(3);

@@ -25,7 +25,7 @@
     for (const ship of found.data.ships) {
       const row = document.createElement('div'); row.className = 'settings-section';
       const text = document.createElement('p');
-      text.textContent = ship.name + ' // PILOT ' + ship.player.level + ' // SECTOR ' + ship.highestSector + (L.validateShip(ship) ? '' : ' // INCOMPATIBLE EQUIPMENT: CANNOT LAUNCH');
+      text.textContent = ship.name + ' // PILOT ' + (ship.player.progression?.level??ship.player.level) + ' // SECTOR ' + ship.highestSector + (L.validateShip(ship) ? '' : ' // INCOMPATIBLE EQUIPMENT: CANNOT LAUNCH');
       row.append(text, button('RENAME', () => {
         renameFrom = ship.name; $('loadout-name').value = ship.name; render(); $('loadout-name').focus();
       }), button('UPDATE FROM CURRENT PILOT', () => {
@@ -54,7 +54,7 @@
     if (found.ok) {
       if (chosen && !found.data.ships.some(ship => ship.name === chosen)) { chosen = null; sector = 1; }
       for (const ship of found.data.ships) {
-        const el = button(ship.name+' // LV '+ship.player.level, () => { chosen = ship.name; sector = 1; V.buildSolo(); });
+        const el = button(ship.name+' // LV '+(ship.player.progression?.level??ship.player.level), () => { chosen = ship.name; sector = 1; V.buildSolo(); });
         el.disabled = G.settings.skill === 'hardcore' || !L.validateShip(ship);
         el.setAttribute('aria-pressed', String(chosen === ship.name)); box.append(el);
       }
@@ -104,7 +104,7 @@
     fresh.disabled=!editable;fresh.setAttribute('aria-pressed',String(!selected));box.append(fresh);
     if(found.ok){
       for(const ship of found.data.ships){
-        const el=button(ship.name+' // LV '+ship.player.level,()=>choose(ship));
+        const el=button(ship.name+' // LV '+(ship.player.progression?.level??ship.player.level),()=>choose(ship));
         el.disabled=!editable||!lobby.allowLoadouts||lobby.skill==='hardcore'||!L.validateShip(ship);
         el.setAttribute('aria-pressed',String(selected?.name===ship.name));box.append(el);
       }

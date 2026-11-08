@@ -22,6 +22,8 @@ vm.createContext(box);
 for (const file of ['util', 'content', 'game', 'save-policy', 'loadouts', 'profile', 'save-transfer']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), box);
 }
+// Keep historical formats under their original pre-cutover compatibility rules.
+box.window.NEON.PROGRESSION_ENABLED = false;
 const N = box.window.NEON;
 const G = N.Game;
 N.Storage.init();
@@ -68,7 +70,7 @@ G.mode = 'menu';
 
 const built = N.SaveTransfer.build();
 assert.equal(built.ok, true);
-assert.equal(built.file.fileVersion, 4);
+assert.equal(built.file.fileVersion, 5);
 assert.equal(built.file.release, 'development');
 same(built.file.checkpoint, checkpoint);
 assert.equal(built.file.settings.deadzone, 0.31);

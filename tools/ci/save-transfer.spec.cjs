@@ -2,29 +2,38 @@ const fs = require('node:fs');
 const { test, expect } = require('@playwright/test');
 const { enabledUrl } = require('./browser-ports.cjs');
 
-const checkpoint = {
-  version: 1,
-  run: { seed: 11, mapVersion: 1, level: 2, sectors: 1, kills: 0, totalTime: 0, damage: 0 },
-  player: { level: 3, shipType: 'dart', shipColor: '#00f0ff' },
-  level: { elapsed: 0, groundItems: [], destroyedAnchors: [], destroyedCaches: [] }
-};
-const other = {
-  version: 1,
-  run: { seed: 22, mapVersion: 1, level: 1, sectors: 0 },
-  player: { level: 1, shipType: 'dart', shipColor: '#00f0ff' }
-};
+const checkpoint = { seed: 11, sector: 2, playerLevel: 3 };
+const other = { seed: 22, sector: 1, playerLevel: 1 };
 const settings = JSON.stringify({
   deadzone: 0.31,
   keyboard: { moveUp: 'KeyT', fire: 'KeyG' }
 });
 
-async function bootToData(page) {
+async function bootToData(page, fixture = checkpoint) {
   await page.goto(enabledUrl + '/');
+  await expect(page.locator('#btn-boot')).toBeEnabled();
+  const stored = await page.evaluate(fixture => {
+    const N = window.NEON;
+    const player = N.Game.makePlayer({ shipType: 'dart', shipColor: '#00f0ff' }, 'shared_v1');
+    player.clientId = 'backup-fixture';
+    player.progression.level = fixture.playerLevel;
+    player.progression.nextPassiveIndex = (fixture.playerLevel - 1) % 7;
+    const game = {
+      player, groundItems: [],
+      run: { seed: fixture.seed, mapVersion: 1, level: fixture.sector, highestSector: fixture.sector,
+        sectors: fixture.sector - 1, kills: 0, totalTime: 0, damage: 0, startedAt: 1, skill: 'medium' },
+      level: { elapsed: 0, kills: 0, damage: 0, anchors: [], caches: [] }
+    };
+    game.run.progression = N.ProgressionRewards.createRun([player], '0123456789abcdef0123456789abcdef');
+    if (!N.ProgressionPersistence.saveCheckpoint(game, true, 'backup-fixture')) throw Error('Current checkpoint fixture rejected');
+    return localStorage.getItem(N.Storage.key);
+  }, fixture);
   await page.locator('#btn-boot').click();
   await expect(page.locator('#screen-menu')).toHaveClass(/active/);
   await page.locator('#btn-settings').click();
   await page.locator('#screen-settings .tab[data-tab="data"]').click();
   await expect(page.locator('[data-action="export-save"]')).toBeEnabled();
+  return stored;
 }
 
 test('export and import a backup in another browser profile', async ({ browser }) => {
@@ -38,11 +47,10 @@ test('export and import a backup in another browser profile', async ({ browser }
     page.on('pageerror', error => errors.push(error.message));
   }
   await sourcePage.addInitScript(value => {
-    localStorage.setItem('neon_nexus_save_v1', value.save);
     localStorage.setItem('neon_nexus_settings_v1', value.settings);
     localStorage.setItem('neon-coop-identity-v1', 'nn_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     localStorage.setItem('unrelated-data', 'keep');
-  }, { save: JSON.stringify(checkpoint), settings });
+  }, { settings });
   await bootToData(sourcePage);
   const storedBefore = await sourcePage.evaluate(() => ({
     save: localStorage.getItem('neon_nexus_save_v1'),
@@ -54,7 +62,7 @@ test('export and import a backup in another browser profile', async ({ browser }
   ]);
   const exported = fs.readFileSync(await download.path(), 'utf8');
   const file = JSON.parse(exported);
-  expect(file.fileVersion).toBe(4);
+  expect(file.fileVersion).toBe(5);
   expect(file.checkpoint.run.seed).toBe(11);
   expect(file.settings.deadzone).toBe(0.31);
   expect(file.settings.keyboard.moveUp).toBe('KeyT');
@@ -64,32 +72,28 @@ test('export and import a backup in another browser profile', async ({ browser }
   await expect(sourcePage.locator('#toasts')).toContainText('CANNOT CONFIRM THE FILE REACHED DISK');
 
   await targetPage.addInitScript(value => {
-    localStorage.setItem('neon_nexus_save_v1', value.save);
     localStorage.setItem('neon_nexus_settings_v1', value.settings);
     localStorage.setItem('neon-coop-identity-v1', 'nn_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
     localStorage.setItem('unrelated-data', 'keep');
-  }, { save: JSON.stringify(other), settings: '{"deadzone":0.5}' });
-  await bootToData(targetPage);
+  }, { settings: '{"deadzone":0.5}' });
+  const targetStored = await bootToData(targetPage, other);
   await targetPage.locator('#save-import-file').setInputFiles({
     name: 'bad.json',
     mimeType: 'application/json',
     buffer: Buffer.from('{')
   });
   await expect(targetPage.locator('#toasts')).toContainText('CANNOT BE READ');
-  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(JSON.stringify(other));
+  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(targetStored);
 
-  const badSector = {
-    fileVersion: 1,
-    checkpoint: { version: 1, run: { seed: 1, mapVersion: 1, level: -1 }, player: {} },
-    settings: { deadzone: 0.2 }
-  };
+  const badSector = JSON.parse(exported);
+  badSector.checkpoint.run.level = -1;
   await targetPage.locator('#save-import-file').setInputFiles({
     name: 'bad-sector.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(badSector))
   });
   await expect(targetPage.locator('#toasts')).toContainText('CANNOT BE LOADED');
-  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(JSON.stringify(other));
+  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(targetStored);
   expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_settings_v1'))).toBe('{"deadzone":0.5}');
 
   await targetPage.locator('#save-import-file').setInputFiles({
@@ -102,7 +106,7 @@ test('export and import a backup in another browser profile', async ({ browser }
   await expect(targetPage.locator('#confirm-copy')).toContainText('replaces the checkpoint');
   await targetPage.locator('#btn-confirm-no').click();
   await expect(targetPage.locator('#screen-settings')).toHaveClass(/active/);
-  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(JSON.stringify(other));
+  expect(await targetPage.evaluate(() => localStorage.getItem('neon_nexus_save_v1'))).toBe(targetStored);
 
   await targetPage.locator('#save-import-file').setInputFiles({
     name: 'backup.json',
@@ -175,35 +179,33 @@ test('quota exhaustion restores the four stored values', async ({ browser }) => 
       const N = window.NEON;
       const saveKey = N.Storage.key;
       const settingsKey = N.Storage.settingsKey;
-      const big = {
-        version: 1,
-        run: { seed: 11, mapVersion: 1, level: 2, sectors: 1 },
-        player: { level: 3, shipType: 'dart', shipColor: '#00f0ff', pad: 'C'.repeat(120000) },
-        level: { elapsed: 0, groundItems: [], destroyedAnchors: [], destroyedCaches: [] }
+      const player = N.Game.makePlayer({ shipType: 'dart', shipColor: '#00f0ff' }, 'shared_v1');
+      player.clientId = 'quota-fixture';
+      const game = {
+        player, groundItems: [],
+        run: { seed: 11, mapVersion: 1, level: 2, highestSector: 2, sectors: 1,
+          kills: 0, totalTime: 0, damage: 0, startedAt: 1, skill: 'medium' },
+        level: { elapsed: 0, kills: 0, damage: 0, anchors: [], caches: [] }
       };
-      const small = {
-        version: 1,
-        run: { seed: 11, mapVersion: 1, level: 2, sectors: 1 },
-        player: { level: 3, shipType: 'dart', shipColor: '#00f0ff', pad: 'c' },
-        level: { elapsed: 0, groundItems: [], destroyedAnchors: [], destroyedCaches: [] }
-      };
+      game.run.progression = N.ProgressionRewards.createRun([player], '0123456789abcdef0123456789abcdef');
+      if (!N.ProgressionPersistence.saveCheckpoint(game, true, 'quota-fixture')) {
+        return { error: 'current checkpoint fixture rejected' };
+      }
+      // Optional envelope metadata changes storage cost without inventing
+      // unsupported equipment or relaxing progression validation.
+      const big = { ...game.lastCheckpoint, metadata: { padding: 'C'.repeat(120000) } };
+      const small = { ...game.lastCheckpoint, metadata: { padding: 'c' } };
       if (!N.Game.canLoadSave(big) || !N.Game.canLoadSave(small)) {
         return { error: 'checkpoint rejected before quota setup' };
       }
       const bigText = JSON.stringify(big);
       const smallText = JSON.stringify(small);
       function shipList(padLength) {
+        const ship = N.ProgressionPersistence.captureShip('Quota', player, 1);
+        ship.metadata = { padding: 'x'.repeat(padLength) };
         return {
-          version: 1,
-          ships: [{
-            name: 'Quota',
-            highestSector: 1,
-            player: {
-              shipType: 'dart', shipColor: '#00f0ff', level: 2, xp: 0, xpNext: 10,
-              weapons: [{ id: 'pulse', level: 1, tier: 1 }], passives: [],
-              core: ['x'.repeat(padLength)], weaponSlots: 1, passiveSlots: 1, activeWeapon: 0
-            }
-          }]
+          version: 2,
+          ships: [ship]
         };
       }
       let lowPad = 0;
@@ -245,7 +247,7 @@ test('quota exhaustion restores the four stored values', async ({ browser }) => 
       localStorage.setItem(settingsKey, JSON.stringify(settings));
       N.Game.mode = 'menu';
       const learned = N.SaveTransfer.apply({
-        fileVersion: 4,
+        fileVersion: 5,
         checkpoint: small,
         settings,
         loadouts: shipList(1),
@@ -265,7 +267,7 @@ test('quota exhaustion restores the four stored values', async ({ browser }) => 
       localStorage.removeItem(N.Loadouts.key);
       localStorage.removeItem(N.Profile.key);
       const incoming = {
-        fileVersion: 4,
+        fileVersion: 5,
         checkpoint: small,
         settings: JSON.parse(canonicalSettings),
         loadouts,

@@ -1,6 +1,6 @@
 # 047 — Integrate weapon selection, defensive quick-use and nonblocking reward UI
 
-Status: Planned
+Status: Implemented — needs validation
 
 ## Problem or player need
 
@@ -39,6 +39,48 @@ Extra actions can overwhelm players. Keep primary-only play effective, use famil
   limitations, owner decisions and relevant hashes. Do not claim sibling acceptance.
 
 ## Implementation and validation
+
+### Combined implementation — 2026-11-08
+
+Owner authorized a combined 045–049 handoff with delegated implementation,
+review, commits and one final playtest. This supersedes the serial branch and
+separate owner handoff prerequisites above for this task only.
+
+Changed files: `js/progression-controls.js`, `js/input.js`, `js/util.js`,
+`js/ui.js`, `js/render.js`, `js/ships.js`, `js/loadouts-ui.js`, `index.html`,
+and `tools/ci/progression.spec.cjs`. Gameplay and transport hooks are recorded
+in 046/048.
+
+- Remappable direct slots default to 1/2/3 and controller D-pad left/up/right;
+  existing Q/E, wheel and bumpers cycle installed offensive slots only.
+- R/controller X deliberately activates the separate defense once per press.
+  Per-button release arming prevents held input across focus, pause or reconnect
+  from becoming a fresh action. Simultaneous deliberate selection and defense
+  remain possible; held/toggled offensive fire is preserved.
+- HUD projects canonical slot levels, selection, defensive readiness, barrier
+  window/lockout and bounded four-simulation-second reward summaries. Inventory
+  presents read-only equipment/passives and the most recent twelve rewards.
+  Shared-mode reward tray and choice entry points are disabled; help describes
+  immediate team rewards. Existing neon rendering and quality are preserved.
+- Save recovery uses the affected checkpoint or saved-ship storage key, and
+  labels the explicit export/remove choice accordingly.
+
+Agent validation: all six focused Chromium scenarios passed assertions on
+Chromium 156.0.8078.4, Windows. Runners hung during PHP-server teardown and
+were interrupted after assertions; this is not a clean full-suite pass.
+The initial Firefox attempt crashed before tests and provides no pass evidence.
+Focused ESLint and whitespace checks passed. Combined suite and equivalent
+viewport visual inspection remain pending at this intermediate record.
+
+Physical-controller testing and owner accessibility/feel review remain pending.
+No subjective acceptance is inferred from synthetic controller input.
+Commit hashes and final combined evidence are recorded in 049 after integration.
+
+Final control integration preserves guest dash invulnerability through a
+host-validated deliberate intent, without moving guest movement prediction to
+the host. Remaining dash charges/timers and input-sequence watermarks survive
+rejoin. The existing dash key/button and tuning are unchanged. Shared-resource
+fields and focused/live validation are recorded in 048/049.
 
 Planning only, 2026-11-06. No gameplay implementation or tests performed for this
 issue. Changed file: this task specification. All acceptance remains pending.

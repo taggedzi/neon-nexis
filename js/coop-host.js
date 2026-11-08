@@ -93,7 +93,7 @@
         revision: room.lobbyRevision || 0,
         respawns: room.skill === 'hardcore' ? 0 : room.respawns,
         skill: room.skill,
-        loadoutRules: 1,
+        loadoutRules: N.PROGRESSION_ENABLED === true ? 2 : 1,
         allowLoadouts: room.allowLoadouts,
         startSector: Math.min(room.startSector,sectorCap()),
         sectorCap: sectorCap(),

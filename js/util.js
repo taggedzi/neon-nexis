@@ -4,6 +4,8 @@
 const N = window.NEON = window.NEON || {};
 
 N.VERSION = 1;
+// One cutover switch covers construction, persistence and peer compatibility.
+N.PROGRESSION_ENABLED = true;
 N.RELEASE_VERSION = 'development';
 N.TAU = Math.PI * 2;
 N.clamp = (v,a,b)=>v<a?a:v>b?b:v;
@@ -186,9 +188,10 @@ N.SETTINGS_DEFAULT = {
   version:1,
   keyboard:{
     moveUp:'KeyW', moveDown:'KeyS', moveLeft:'KeyA', moveRight:'KeyD',
-    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI',rewards:'KeyR',fire:'KeyF'
+    dash:'Space', pause:'Escape', weaponNext:'KeyE', weaponPrev:'KeyQ', inventory:'KeyI',rewards:'KeyR',fire:'KeyF',
+    offensive1:'Digit1',offensive2:'Digit2',offensive3:'Digit3',defense:'KeyR'
   },
-  gamepad:{fire:7,dash:0,pause:9,weaponNext:5,weaponPrev:4,inventory:3,rewards:2},
+  gamepad:{fire:7,dash:0,pause:9,weaponNext:5,weaponPrev:4,inventory:3,rewards:2,offensive1:14,offensive2:12,offensive3:15,defense:2},
   audio:{master:.7,music:.38,sfx:.75,muted:false},
   graphics:{quality:'high',shake:true,scanlines:true,glitch:true,particles:1,showFps:false},
   accessibility:{reducedFlash:false,aimAssist:0},
@@ -199,11 +202,14 @@ N.SETTINGS_DEFAULT = {
 N.KEY_ACTIONS = [
   ['fire','FIRE'],
   ['moveUp','MOVE UP'],['moveDown','MOVE DOWN'],['moveLeft','MOVE LEFT'],['moveRight','MOVE RIGHT'],
-  ['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS']
+  ['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],
+  ['offensive1','OFFENSIVE SLOT 1'],['offensive2','OFFENSIVE SLOT 2'],['offensive3','OFFENSIVE SLOT 3'],['defense','DEFENSIVE QUICK USE'],
+  ['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS (LEGACY)']
 ];
 N.PAD_ACTIONS = [
   ['fire','FIRE / AIM'],['dash','DASH'],['weaponNext','NEXT WEAPON'],['weaponPrev','PREV WEAPON'],
-  ['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS']
+  ['offensive1','OFFENSIVE SLOT 1'],['offensive2','OFFENSIVE SLOT 2'],['offensive3','OFFENSIVE SLOT 3'],['defense','DEFENSIVE QUICK USE'],
+  ['pause','PAUSE'],['inventory','INVENTORY'],['rewards','PENDING REWARDS (LEGACY)']
 ];
 N.KEY_LABELS = {
   Space:'SPACE', Escape:'ESC', Tab:'TAB', ShiftLeft:'L-SHIFT', ShiftRight:'R-SHIFT',
@@ -258,12 +264,26 @@ N.normalizeSettings = function(raw){
   }
   // New reward controls must not steal an existing player's custom binding.
   if(raw?.keyboard&&raw.keyboard.rewards===undefined){
-    const used=new Set(Object.entries(s.keyboard).filter(([action])=>action!=='rewards').map(([,code])=>code));
+    const used=new Set(Object.entries(s.keyboard).filter(([action])=>!['rewards','offensive1','offensive2','offensive3','defense'].includes(action)).map(([,code])=>code));
     s.keyboard.rewards=['KeyR','KeyT','KeyB'].find(code=>!used.has(code))||null;
   }
   if(raw?.gamepad&&raw.gamepad.rewards===undefined){
-    const used=new Set(Object.entries(s.gamepad).filter(([action])=>action!=='rewards').map(([,button])=>button));
+    const used=new Set(Object.entries(s.gamepad).filter(([action])=>!['rewards','offensive1','offensive2','offensive3','defense'].includes(action)).map(([,button])=>button));
     s.gamepad.rewards=[2,8,10,11].find(button=>!used.has(button))??null;
+  }
+  // New actions use spare bindings; preserve every explicit older remap.
+  for(const [group,candidates] of Object.entries({
+    keyboard:{offensive1:['Digit1','Digit4','Digit7'],offensive2:['Digit2','Digit5','Digit8'],offensive3:['Digit3','Digit6','Digit9'],defense:['KeyR','KeyT','KeyB','KeyC']},
+    gamepad:{offensive1:[14,13,10,8],offensive2:[12,11,6,8],offensive3:[15,13,10,8],defense:[2,1,8,10,11]}
+  })){
+    if(!raw?.[group]||typeof raw[group]!=='object')continue;
+    const pending=Object.keys(candidates).filter(action=>raw[group][action]===undefined);
+    const used=new Set(Object.entries(s[group]).filter(([action])=>action!=='rewards'&&!pending.includes(action)).map(([,binding])=>binding));
+    for(const action of pending){
+      const binding=candidates[action].find(value=>!used.has(value))??null;
+      s[group][action]=binding;
+      if(binding!==null)used.add(binding);
+    }
   }
   return s;
 };

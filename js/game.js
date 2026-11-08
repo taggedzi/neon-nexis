@@ -152,6 +152,16 @@ function applyEffects(stats,effects){
   }
 }
 G.rebuildStats=function(p,initial=false){
+  if (p.progressionMode === 'shared_v1') {
+    p.stats = N.ProgressionStats.derive(p.shipType, p.progression);
+    p.maxDashCharges = p.stats.dashCharges;
+    if (initial) {
+      p.hp = p.stats.maxHp;
+      p.shield = p.stats.maxShield;
+      p.dashCharges = p.maxDashCharges;
+    }
+    return p.stats;
+  }
   const oldHpMax=p.stats?p.stats.maxHp:null;
   const oldShMax=p.stats?p.stats.maxShield:null;
   const oldDashMax=p.maxDashCharges||null;
@@ -247,7 +257,13 @@ function makePlayer(selection,progressionMode='legacy'){
     Object.defineProperties(p,{
       level:{enumerable:true,get:()=>p.progression.level},
       xp:{enumerable:true,get:()=>p.progression.xp},
-      xpNext:{enumerable:true,get:()=>G.xpForLevel(p.progression.level)}
+      xpNext:{enumerable:true,get:()=>G.xpForLevel(p.progression.level)},
+      weapons:{get:()=>p.progression.offensive.filter(Boolean).map(slot => ({...slot, cooldown:slot.cooldownSeconds}))},
+      passives:{get:()=>Object.entries(p.progression.passives).map(([id, stacks]) => ({id, stacks}))},
+      core:{get:()=>[]},
+      activeWeapon:{get:()=>p.progression.selectedOffensiveSlot},
+      weaponSlots:{get:()=>3},
+      passiveSlots:{get:()=>7}
     });
   }else{
     p.level=1;
@@ -375,15 +391,19 @@ function hydrateGroundItem(it){
   };
 }
 function lootItemToGround(loot,x,y,label){
+  const progression = G.run?.progression;
+  const pickupId = G.player?.progressionMode === 'shared_v1' && progression ?
+    'loot_' + progression.runToken + '_' + progression.nextSourceSequence++ : id('loot');
   return {
-    id:id('loot'),kind:loot.kind,itemId:loot.id||loot.itemId,x,y,tier:loot.tier||1,
+    id:pickupId,kind:loot.kind,itemId:loot.id||loot.itemId,x,y,tier:loot.tier||1,
     color:loot.color||'#00f0ff',angle:Math.random()*TAU,phase:Math.random()*TAU,pickupDelay:0,label:label||null
   };
 }
 function getLootName(it){
   if(!it) return 'UNKNOWN';
-  if(it.kind==='weapon'){const w=N.WEAPON_BY_ID[it.itemId]||N.WEAPON_BY_ID[it.weaponId];return w?w.name:'WEAPON';}
-  if(it.kind==='mod'){const m=N.MOD_BY_ID[it.itemId]||N.MOD_BY_ID[it.modId];return m?m.name:'MODULE';}
+  if (it.kind === 'equipment') return (it.itemId || it.id).toUpperCase() + ' MODULE';
+  if(it.kind==='weapon'){const key=it.itemId||it.weaponId;const w=N.ProgressionContent.primary(key)||N.ProgressionContent.additional(key)||N.WEAPON_BY_ID[key];return w?w.name:'WEAPON';}
+  if(it.kind==='mod'){const key=it.itemId||it.modId;const m=N.ProgressionContent.passive(key)||N.MOD_BY_ID[key];return m?m.name:'MODULE';}
   if(it.kind==='consumable'){const c=N.CONSUMABLES[it.itemId||it.consumableId];return c?c.name:'CONSUMABLE';}
   return 'SIGNAL';
 }
@@ -392,6 +412,7 @@ G.getLootName=getLootName;
 // ——— run lifecycle ———
 G.newRun=function(selection,options){
   options=options||{};
+  const progressionMode = options.progressionMode || (N.PROGRESSION_ENABLED === true ? 'shared_v1' : 'legacy');
   N.Input.resetMovement();
   N.Input.resetFire();
   const seed=Number.isFinite(options.seed)?options.seed>>>0:(Math.random()*0xFFFFFFFF)>>>0;
@@ -410,9 +431,10 @@ G.newRun=function(selection,options){
   G.coopRun=!!options.coop;
   G.progressionAuthority=null;
   G.run={skill,highestSector:loadout?.highestSector||1,seed,mapVersion:1,level:sector,sectors:0,kills:0,totalTime:0,damage:0,startedAt:Date.now(),lastCheckpointAt:0,checkpointLevel:0};
-  G.player=makePlayer(selection);
+  G.player=makePlayer(selection, progressionMode);
   if(loadout) N.Loadouts.apply(G.player,loadout);
   G.player.name=options.name||'PLAYER 1';
+  if (progressionMode === 'shared_v1') N.ProgressionRuntime.initialize(G);
   G.level=generateLevel(sector,null);
   G.player.x=G.level.layout?.spawn.x||G.level.cx;G.player.y=G.level.layout?.spawn.y||G.level.cy;
   G.camera.x=G.player.x;G.camera.y=G.player.y;
@@ -420,7 +442,7 @@ G.newRun=function(selection,options){
   G.resetEntityArrays();
   G.mode='playing';
   G.time=0;G.glitch=0;G.checkpointTimer=60;G.nextSurge=60;G.nextWarden=120;G.nextBoss=210;
-  G.pendingLevelUps=Math.max(0,G.player.level-1-G.player.core.length);G.overflow=null;G.lastSummary=null;
+  G.pendingLevelUps=progressionMode === 'shared_v1' ? 0 : Math.max(0,G.player.level-1-G.player.core.length);G.overflow=null;G.lastSummary=null;
   N.Rewards.reset();
   G.spawnInitialEnemies();
   G.setMode('playing');
@@ -519,14 +541,15 @@ G.getSaveInfo=function(){
   const elapsed=+(save.level&&save.level.elapsed)||0;
   return {
     level:r.level||1,sectors:r.sectors||0,time:r.totalTime?r.totalTime+elapsed:elapsed,
-    playerLevel:save.player.level||1,kills:r.kills||0,savedAt:save.savedAt||0,elapsed,
-    weapons:(save.player.weapons||[]).length
+    playerLevel:save.player.snapshot?.progression.level||save.player.level||1,kills:r.kills||0,savedAt:save.savedAt||0,elapsed,
+    weapons:save.player.snapshot ? save.player.snapshot.progression.offensive.filter(Boolean).length : (save.player.weapons||[]).length
   };
 };
 G.saveCheckpoint=function(silent=false,reason='checkpoint'){
   if(N.Coop&&N.Coop.isActive()) return false;
   if(N.SavePolicy && N.SavePolicy.inspect().incompatible) return false;
   if(!G.run||!G.player||!G.level||G.player.dead) return false;
+  if(G.player.progressionMode==='shared_v1')return N.ProgressionPersistence.saveCheckpoint(G,silent,reason);
   const p=G.player;
   const data={
     version:SAVE_VERSION,savedAt:Date.now(),
@@ -574,7 +597,7 @@ G.restoreCheckpoint=function(){
   }
   if(N.Coop&&N.Coop.isGuest()){G.notify('CO-OP SESSIONS DO NOT USE LOCAL CHECKPOINTS','warn');return false;}
   let save=N.readSave();
-  if(!save||save.version!==SAVE_VERSION) save=G.lastCheckpoint;
+  if(!G.canLoadSave(save)) save=G.lastCheckpoint;
   if(!save){G.notify('NO CHECKPOINT SIGNAL FOUND','danger');return false;}
   return G.loadFromSave(save,true);
 };
@@ -593,6 +616,8 @@ function weaponIndex(value,count){
   return clamp(index,0,last);
 }
 G.canLoadSave=function(save){
+  if(save?.version===2)return !!N.ProgressionPersistence?.validate(save).ok;
+  if(N.PROGRESSION_ENABLED===true)return false;
   if(!save || save.version!==SAVE_VERSION || !save.run || typeof save.run!=='object' || Array.isArray(save.run)) return false;
   if(!save.player || typeof save.player!=='object' || Array.isArray(save.player)) return false;
   const run=save.run, player=save.player;
@@ -629,6 +654,7 @@ G.canLoadSave=function(save){
 };
 G.loadFromSave=function(save,fromDeath=false){
   if(!G.canLoadSave(save) || (fromDeath && save.run.skill==='hardcore')) return false;
+  if(save.version===2)return N.ProgressionPersistence.restoreCheckpoint(G,save);
   try{
     N.Input.resetMovement();
     N.Input.resetFire();
@@ -721,9 +747,9 @@ G.getPauseData=function(){
   return {
     sector:G.run?.level||1,time:G.level?.elapsed||0,timeLeft:Math.max(0,DURATION-(G.level?.elapsed||0)),
     kills:G.level?.kills||0,totalKills:G.run?.kills||0,level:p.level,hp:p.hp,maxHp:p.stats.maxHp,
-    shield:p.shield,maxShield:p.stats.maxShield,weapons:p.weapons.map(w=>N.WEAPON_BY_ID[w.id]?.name||w.id),
+    shield:p.shield,maxShield:p.stats.maxShield,weapons:p.weapons.map(w=>getLootName({kind:'weapon',itemId:w.id})),
     anchorsLeft:G.level?G.level.anchors.filter(a=>a.alive).length:0,anchorsTotal:G.level?G.level.anchors.length:0,
-    xp:p.xp,xpNext:p.xpNext,passives:p.passives.map(m=>N.MOD_BY_ID[m.id]?.name||m.id)
+    xp:p.xp,xpNext:p.xpNext,passives:p.passives.map(m=>getLootName({kind:'mod',itemId:m.id}))
   };
 };
 G.getGameOverData=function(){
@@ -733,7 +759,7 @@ G.getGameOverData=function(){
     sector:G.run?.level||1,level:p.level,kills:G.run?.kills||0,sectorKills:G.level?.kills||0,
     time:(G.run?.totalTime||0)+(G.level?.elapsed||0),sectorTime:G.level?.elapsed||0,
     anchors:G.level?G.level.anchors.filter(a=>a.alive).length:0,anchorsTotal:G.level?G.level.anchors.length:0,
-    weapons:p.weapons.map(w=>N.WEAPON_BY_ID[w.id]?.name||w.id),damage:Math.round(G.run?.damage||0),
+    weapons:p.weapons.map(w=>getLootName({kind:'weapon',itemId:w.id})),damage:Math.round(G.run?.damage||0),
     sectors:G.run?.sectors||0,hasCheckpoint:G.run?.skill!=='hardcore'&&!!(N.readSave()||G.lastCheckpoint)
   };
 };
@@ -742,7 +768,8 @@ G.getCompleteData=function(){
 };
 G.getStats=function(){return G.player?G.player.stats:null;};
 
-G.addXp=function(amount){
+G.addXp=function(amount, source){
+  if (G.player?.progressionMode === 'shared_v1') return N.ProgressionRuntime.addXp(G, amount, source);
   const p=G.player;if(!p||p.dead)return;
   const gained=Math.max(0,amount*p.stats.xpMul);
   p.xp+=gained;
@@ -784,6 +811,7 @@ G.rollProtocols=function(){
   return out;
 };
 G.openLevelUp=function(){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   if(G.mode!=='playing') return;
   G.setMode('levelup');
   N.Input.resetFire();
@@ -794,6 +822,7 @@ G.openLevelUp=function(){
   if(N.UI) N.UI.showLevelUp(G.player,G.levelUpChoices,N.SLOT_MILESTONES[G.player.level]||null);
 };
 G.applyProtocol=function(pid){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   const p=G.player;const def=N.PROTOCOL_BY_ID[pid];
   if(!p||!def){G.resumeGame();return;}
   p.core.push(pid);
@@ -812,6 +841,7 @@ G.applyProtocol=function(pid){
   G.notify('PROTOCOL INSTALLED // '+def.name,'loot',1600);
 };
 G.beginOverflow=function(item,kind,def){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   G.overflow={item,kind,def};
   G.setMode('overflow');
   N.Input.resetFire();
@@ -844,6 +874,7 @@ G.leaveOverflow=function(){
   G.saveCheckpoint(true,'discard');
 };
 G.swapOverflow=function(type,index){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   const o=G.overflow;if(!o||!G.player)return;
   const p=G.player;
   if(type==='weapon'){
@@ -866,6 +897,7 @@ G.swapOverflow=function(type,index){
   G.saveCheckpoint(true,'overflow');
 };
 G.dropItem=function(type,index){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   const p=G.player;if(!p)return false;
   if(type==='weapon'){
     if(p.weapons.length<=1){G.notify('CANNOT DISCARD LAST WEAPON','danger');N.Audio.ui('error');return false;}
@@ -891,6 +923,7 @@ G.dropItem=function(type,index){
 // ——— collect items ———
 G.collectGroundItem=function(it,quiet=false,reviewed=false){
   if(!it||it.collected)return;
+  if (G.player?.progressionMode === 'shared_v1') return N.ProgressionRuntime.collect(G, it);
   const p=G.player;
   const autoAttach=it.kind==='weapon'&&p.weapons.length<p.weaponSlots;
   if(N.Rewards.isEquipment(it)&&!reviewed&&!autoAttach){N.Rewards.bank(it);return;}
@@ -1011,7 +1044,9 @@ G.explode=function(x,y,radius,damage,color,owner='player',opts={}){
   }
 };
 G.spawnGroundLoot=function(loot,x,y,label,bossReward=false){
-  const paced=N.Rewards.paceLoot(loot,bossReward);
+  const shared = G.player?.progressionMode === 'shared_v1';
+  if (shared && (loot.kind === 'weapon' || loot.kind === 'mod')) return N.ProgressionRuntime.spawnEquipment(G, x, y);
+  const paced=shared ? loot : N.Rewards.paceLoot(loot,bossReward);
   if(!paced)return null;
   loot=paced;
   if(G.level?.layout){const point=N.World.findFree(G.level.layout,x,y,12);x=point.x;y=point.y;}
@@ -1134,6 +1169,7 @@ R.bank=function(item){
 };
 R.count=()=>R.state().pending.length+G.pendingLevelUps;
 G.openRewards=function(){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   if((G.mode!=='playing'&&G.mode!=='paused')||!G.player||G.player.dead)return false;
   G.rewardsFromPause = G.mode === 'paused';
   G.setMode('rewards');N.Input.resetFire();N.Audio.setScene('paused');
@@ -1150,6 +1186,7 @@ G.closeRewards=function(){
   G.resumeGame();
 };
 G.takeReward=function(index){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   if(G.mode!=='rewards')return;
   const pending=R.state().pending;
   if(!Number.isInteger(index)||index<0||index>=pending.length)return;
@@ -1159,6 +1196,7 @@ G.takeReward=function(index){
   if(G.mode==='rewards')N.UI.showRewards();
 };
 G.discardReward=function(index){
+  if (G.player?.progressionMode === 'shared_v1') return false;
   if(G.mode!=='rewards'||!Number.isInteger(index)||index<0||index>=R.state().pending.length)return;
   R.state().pending.splice(index,1);G.saveCheckpoint(true,'discard');N.UI.showRewards();
 };

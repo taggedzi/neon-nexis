@@ -27,7 +27,8 @@ N.Ships={types,palette,get,
   },
   description(id) {
     const hull = N.HULL_STATS[get(id).id];
-    return `${hull.role} // HEALTH ${hull.maxHp} · SHIELD ${hull.maxShield} · SPEED ${Math.round(hull.speed*100)}% · DAMAGE ${Math.round(hull.damageMul*100)}%`;
+    const primary=N.ProgressionContent?.primary(N.ProgressionContent.primaryForHull(get(id).id));
+    return `${hull.role}${primary?' · '+primary.name:''} // HEALTH ${hull.maxHp} · SHIELD ${hull.maxShield} · SPEED ${Math.round(hull.speed*100)}% · DAMAGE ${Math.round(hull.damageMul*100)}%`;
   },
   selection(value){
     return {shipType:get(value?.shipType).id,shipColor:palette.some(p=>p.color===value?.shipColor)||value?.shipColor==='#00f0ff'?value.shipColor:'#00f0ff'};

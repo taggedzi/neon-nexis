@@ -14,6 +14,8 @@ for(const file of ['util','content','game','ships','loadouts']){
   vm.runInContext(fs.readFileSync(path.join(__dirname,'..','js',file+'.js'),'utf8'),sandbox);
 }
 vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'coop-host.js'), 'utf8'), sandbox, { filename: 'js/coop-host.js' });
+// This retained lobby-policy fixture supplies legacy named ships deliberately.
+sandbox.NEON.PROGRESSION_ENABLED = false;
 
 const CoopHost = sandbox.NEON.CoopHost;
 assert.equal(typeof CoopHost.createAuthority, 'function');

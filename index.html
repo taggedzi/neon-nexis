@@ -74,7 +74,7 @@
               </div>
               <div class="holo-stats">
                 <div><b>PROTOCOL</b><span>ENDLESS</span></div>
-                <div><b>WEAPONS</b><span>16 CLASSES</span></div>
+                <div><b>WEAPONS</b><span>8 OFFENSIVE TYPES</span></div>
                 <div><b>HOSTILES</b><span>32 MORPHS</span></div>
                 <div><b>UPLINK</b><span>LOCAL SAVE</span></div>
               </div>
@@ -255,7 +255,7 @@
               <div class="coop-label">HULL</div>
               <div class="ship-choices" id="coop-ship-types" aria-label="Co-op ship type"></div>
               <p class="micro" id="coop-ship-stats"></p>
-              <p class="micro">BASE STATS BEFORE UPGRADES · SPEED AND DAMAGE RELATIVE TO THE SHARED BASE. COLORS ARE COSMETIC. WEAPONS AND UPGRADES ARE SHARED. HITBOXES FOLLOW EACH HULL'S OUTLINE.</p>
+              <p class="micro">BASE STATS BEFORE UPGRADES · SPEED AND DAMAGE RELATIVE TO THE SHARED BASE. COLORS ARE COSMETIC. TEAM PICKUPS APPLY IMMEDIATELY; ADDITIONAL WEAPONS ROLL PER PILOT. HITBOXES FOLLOW EACH HULL'S OUTLINE.</p>
               <div class="coop-label">COLOR</div>
               <div class="ship-choices" id="coop-ship-colors" aria-label="Co-op ship color"></div>
               <p class="micro">CALLSIGNS ARE ASSIGNED BY THE LINK. PLAYER 1 HOSTS; UP TO THREE GUESTS JOIN WITH THE CODE. SHARE IT ONLY WITH YOUR INVITED PLAYERS.</p>
@@ -376,7 +376,7 @@
             </div>
             <div class="howto-card">
               <h3>04 // LOOT</h3>
-              <p>Destroy data caches and hostile morphs for weapons, passive modules, repairs and corrupt caches. Bays are limited. Weapon pickups automatically attach while weapon bays are available; duplicates integrate into their equipped copy. When weapon bays are full, weapons wait in your reward tray, including duplicate upgrades. Passive modules always wait in the tray. Open REWARDS when ready; combat pauses while you choose. With full weapon bays and a full tray, weapons stay on the ground; a full tray also leaves modules on the ground. Protocol choices also wait for you. Ordinary equipment is paced by combat time and kills; boss loot is a bonus.</p>
+              <p>Equipment pickups immediately reward every original teammate. Your hull keeps its primary and two additional offensive slots. Additional weapons are rolled separately for each player; full slots upgrade the lowest eligible level. Defense has its own reusable slot. Passives stack automatically. No reward menus interrupt combat.</p>
             </div>
             <div class="howto-card">
               <h3>05 // SECTORS</h3>
@@ -384,13 +384,13 @@
             </div>
             <div class="howto-card">
               <h3>06 // SYNC</h3>
-              <p>Eliminating hostiles grants data XP. Every level-up offers a permanent protocol choice. Slot milestones expand your loadout. Progress auto-saves at checkpoints.</p>
+              <p>Eliminating hostiles grants equal base XP to the team. Levels automatically follow a visible repeating passive sequence. Downed or temporarily disconnected teammates retain earned progression. Checkpoints preserve your run; saved ships launch a new run with earned equipment.</p>
             </div>
           </div>
           <div class="keymap-strip">
-            <span><kbd>W A S D</kbd> MOVE</span><span><kbd>MOUSE</kbd> AIM</span><span><kbd>LMB</kbd> FIRE</span><span><kbd>SPACE</kbd> DASH</span><span><kbd>Q / E</kbd> WEAPON</span><span><kbd>ESC</kbd> PAUSE</span>
+            <span><kbd>W A S D</kbd> MOVE</span><span><kbd>MOUSE</kbd> AIM</span><span><kbd>LMB</kbd> FIRE</span><span><kbd>SPACE</kbd> DASH</span><span><kbd>Q / E</kbd> CYCLE</span><span><kbd>1 / 2 / 3</kbd> SLOT</span><span><kbd>R</kbd> DEFENSE</span><span><kbd>ESC</kbd> PAUSE</span>
           </div>
-          <div class="panel-footer"><div class="micro">GAMEPAD: LEFT STICK MOVE · RIGHT STICK AIM/FIRE · BUMPERS SWAP WEAPON · START PAUSE</div><button class="neon-btn primary" id="btn-howto-done" type="button">UNDERSTOOD</button></div>
+          <div class="panel-footer"><div class="micro">GAMEPAD: LEFT STICK MOVE · RIGHT STICK AIM/FIRE · BUMPERS CYCLE · D-PAD LEFT/UP/RIGHT SELECT · X DEFENSE · START PAUSE. ALL GAMEPLAY ACTIONS CAN BE REMAPPED.</div><button class="neon-btn primary" id="btn-howto-done" type="button">UNDERSTOOD</button></div>
         </div>
       </section>
 
@@ -434,8 +434,8 @@
       <section class="screen" id="screen-oldsave">
         <div class="panel confirm-panel">
           <h2>INCOMPATIBLE SAVE</h2>
-          <p>This checkpoint uses an unsupported format or cannot be read. Export a copy before removing it?</p>
-          <p>Export starts a download, then removes this browser's checkpoint. Check that your browser allows the download. Settings are kept.</p>
+          <p id="old-save-description">This checkpoint uses an unsupported format or cannot be read. Export a copy before removing it?</p>
+          <p id="old-save-consequence">Export starts a download, then removes this browser's checkpoint. Check that your browser allows the download. Settings are kept.</p>
           <div class="menu-buttons compact">
             <button class="neon-btn" id="btn-old-save-export" type="button">EXPORT AND REMOVE</button>
             <button class="neon-btn danger" id="btn-old-save-remove" type="button">REMOVE WITHOUT EXPORT</button>
@@ -470,9 +470,13 @@
   <script src="js/assets.js"></script>
   <script src="js/content.js"></script>
   <script src="js/progression-content.js"></script>
+  <script src="js/progression-stats.js"></script>
   <script src="js/progression-offense.js"></script>
   <script src="js/progression-defense.js"></script>
   <script src="js/progression-equipment.js"></script>
+  <script src="js/progression-controls.js"></script>
+  <script src="js/progression-rewards.js"></script>
+  <script src="js/progression-persistence.js"></script>
   <script src="js/firing.js"></script>
   <script src="js/input.js"></script>
   <script src="js/game.js"></script>
@@ -491,10 +495,12 @@
   <script src="js/coop-wire.js"></script>
   <script src="js/coop.js"></script>
   <script src="js/coop-session.js"></script>
+  <script src="js/coop-progression.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/loadouts-ui.js"></script>
   <script src="js/player-stats.js"></script>
+  <script src="js/progression-runtime.js"></script>
   <script src="js/stats-ui.js"></script>
   <script src="js/logbook.js"></script>
   <script src="js/logbook-ui.js"></script>

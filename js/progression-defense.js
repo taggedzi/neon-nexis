@@ -97,6 +97,10 @@ function prepareResource(player,identity){
     (player.clientId&&player.clientId!==identity.participantId)||
     !Number.isSafeInteger(revision)||revision<0||revision>=Number.MAX_SAFE_INTEGER||
     !Number.isSafeInteger(sequence)||sequence<0||!buffs||
+    !Number.isInteger(player.maxDashCharges)||player.maxDashCharges!==1||
+    !Number.isInteger(player.dashCharges)||player.dashCharges<0||player.dashCharges>player.maxDashCharges||
+    !Number.isFinite(player.dashTimer)||player.dashTimer<0||player.dashTimer>2.7||
+    !Number.isFinite(player.dashTime)||player.dashTime<0||player.dashTime>.17||!Number.isFinite(player.dashDir)||
     ![player.hp,player.shield,player.invuln,player.shieldDelay,buffs.overclock,buffs.speed,buffs.magnet]
       .every(value=>Number.isFinite(value)&&value>=0))return {ok:false,reason:'invalid-resource-state'};
   const barrier=snapshotBarrier(player);
@@ -107,7 +111,9 @@ function prepareResource(player,identity){
     resourceRevision:revision+1,progressionSequence:sequence,
     hp:player.hp,shield:player.shield,dead:!!player.dead,
     buffs:{overclock:buffs.overclock,speed:buffs.speed,magnet:buffs.magnet},
-    invuln:player.invuln,shieldDelay:player.shieldDelay,barrier
+    invuln:player.invuln,shieldDelay:player.shieldDelay,barrier,
+    dashCharges:player.dashCharges,maxDashCharges:player.maxDashCharges,dashTimer:player.dashTimer,
+    dashTime:player.dashTime,dashDir:player.dashDir
   }};
 }
 

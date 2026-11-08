@@ -482,9 +482,14 @@ G.killEnemy=function(e,opts={}){
   const killer=opts.player||G.player;
   const guestKill=!!(N.Coop&&N.Coop.isHost()&&killer!==G.player);
   G.run.kills=(G.run.kills||0)+1;G.level.kills=(G.level.kills||0)+1;
-  N.Rewards.onKill();
-  if(!guestKill)G.addXp(e.xp||1);
-  if(N.Coop&&N.Coop.isHost()){N.Coop.onHostKill(e.xp||0,killer);}
+  const shared = G.player.progressionMode === 'shared_v1';
+  if (shared) {
+    N.ProgressionRuntime.enemyReward(G, e);
+  } else {
+    N.Rewards.onKill();
+    if(!guestKill)G.addXp(e.xp||1);
+    if(N.Coop&&N.Coop.isHost()){N.Coop.onHostKill(e.xp||0,killer);}
+  }
   G.addParticles(e.x,e.y,e.color,e.elite?32:12,{speed:e.elite?260:160,life:.7,size:e.elite?2.4:1.7,glow:true});
   G.addRing(e.x,e.y,e.r*2.2,e.color,e.elite?.55:.32,e.elite?3:1.5);
   G.addText(e.x,e.y-e.r-10,'+'+Math.round(e.xp||0)+' DATA','#6ad7ff',9);
@@ -503,7 +508,13 @@ G.killEnemy=function(e,opts={}){
   const role=N.ROLES[e.role]||N.ROLES.rusher;
   const chance=Math.min(.98,(role.dropChance||0)*(killer?killer.stats.luck:1));
   if(e.elite||e.boss||Math.random()<chance){
-    G.dropForEnemy(e);
+    if (!shared) {
+      G.dropForEnemy(e);
+    } else {
+      const consumables = {speed:'speed', shield:'shield', repair:'repair', data:'data'};
+      const id = e.boss ? (Math.random() < .5 ? 'repair' : 'shield') : consumables[role.drop];
+      if (id) G.spawnGroundLoot({kind:'consumable', id, color:N.CONSUMABLES[id].color}, e.x, e.y);
+    }
   }
   if(e.boss){
     G.level.activeBoss=null;

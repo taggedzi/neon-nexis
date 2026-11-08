@@ -15,7 +15,7 @@ function setup(heavy){
   // The browser context must be separate from the owner's profile. Never clear saves.
   G.saveCheckpoint=()=>false;
   G.newRun();G.player.invuln=1e9;
-  if(heavy){for(let i=G.enemies.length;i<120;i++){const a=i/120*N.TAU;G.spawnEnemy(G.pickStyle(),G.player.x+Math.cos(a)*(200+i%5*65),G.player.y+Math.sin(a)*(200+i%5*65));}}
+  if(heavy){for(let i=G.enemies.length;i<120;i++){const a=i/120*N.TAU;G.spawnEnemy(G.pickStyle(),G.player.x+Math.cos(a)*(200+i%5*65),G.player.y+Math.sin(a)*(200+i%5*65),{requiredEncounter:true});}}
   N.Input.getMove=()=>({x:Math.cos(G.time*.17),y:Math.sin(G.time*.17),len:1});
   N.Input.getAim=p=>{let target=null,d=Infinity;for(const e of G.enemies){const dd=N.dist2(p.x,p.y,e.x,e.y);if(!e.dead&&dd<d){d=dd;target=e;}}const angle=target?Math.atan2(target.y-p.y,target.x-p.x):G.time;return {angle,fire:true,source:'pad',point:{x:p.x+Math.cos(angle)*280,y:p.y+Math.sin(angle)*280}};};
   Math.random=originalRandom;

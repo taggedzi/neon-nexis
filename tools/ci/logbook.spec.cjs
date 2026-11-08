@@ -83,7 +83,7 @@ test('026 backup migration and corrupt optional books preserve checkpoints and s
     G.pauseGame();N.LogbookUI.open('pause');
     return {version:file.fileVersion,legacy,restored,accepted,clean,sameStats,loaded};
   });
-  expect(result).toEqual({version:4,legacy:true,restored:true,accepted:true,clean:true,sameStats:true,loaded:true});
+  expect(result).toEqual({version:5,legacy:true,restored:true,accepted:true,clean:true,sameStats:true,loaded:true});
   await expect(page.locator('#screen-logbook')).toBeVisible();
   await page.locator('#logbook-close').click();
   await expect(page.locator('#screen-pause')).toBeVisible();

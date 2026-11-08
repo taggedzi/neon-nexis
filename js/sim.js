@@ -123,10 +123,15 @@ G.updatePlayer=function(dt){
   p.shieldRegenFx=Math.max(0,(p.shieldRegenFx||0)-dt*2);
   p.dashTime=Math.max(0,p.dashTime-dt);
   for(const k in p.buffs){if(p.buffs[k]>0)p.buffs[k]=Math.max(0,p.buffs[k]-dt);}
-  for(const w of p.weapons){if(w.cooldown>0)w.cooldown=Math.max(0,w.cooldown-dt);}
+  if (p.progressionMode === 'shared_v1') {
+    N.Equipment.tick(p.progression, dt);
+  } else {
+    for(const w of p.weapons){if(w.cooldown>0)w.cooldown=Math.max(0,w.cooldown-dt);}
+  }
   if(p.shieldDelay>0)p.shieldDelay=Math.max(0,p.shieldDelay-dt);
-  if(p.hp<p.stats.maxHp)p.hp=Math.min(p.stats.maxHp,p.hp+p.stats.regen*dt);
-  if(p.stats.maxShield>0 && p.shieldDelay<=0 && p.shield<p.stats.maxShield){
+  const ownsResources = p.progressionMode !== 'shared_v1' || !N.Coop?.isGuest();
+  if(ownsResources && p.hp<p.stats.maxHp)p.hp=Math.min(p.stats.maxHp,p.hp+p.stats.regen*dt);
+  if(ownsResources && p.stats.maxShield>0 && p.shieldDelay<=0 && p.shield<p.stats.maxShield){
     p.shield=Math.min(p.stats.maxShield,p.shield+(12*p.stats.shieldRegenMul)*dt);
     p.shieldRegenFx=Math.max(p.shieldRegenFx,.3);
   }
@@ -147,6 +152,7 @@ G.updatePlayer=function(dt){
     if(p.dashCharges===p.maxDashCharges-1)p.dashTimer=p.stats.dashRecharge;
     p.dashTime=.17;p.dashDir=dir;
     p.invuln=Math.max(p.invuln,.34);
+    if (p.progressionMode === 'shared_v1') N.Coop?.onProgressionDash?.(p, dir);
     p.vx=Math.cos(dir)*980;p.vy=Math.sin(dir)*980;
     G.addParticles(p.x,p.y,p.stats.maxShield>0?'#00f0ff':'#b6ff2b',16,{angle:dir,spread:2.4,speed:240,life:.55,size:2.2,glow:true});
     G.addRing(p.x,p.y,42,'#00f0ff',.35,1.6);
@@ -178,6 +184,16 @@ G.updatePlayer=function(dt){
   // Aim through the camera used to draw this frame, including its shake offset.
   aim=inp.getAim(p,G.screenToWorld(mouse.x,mouse.y));
   G.aim=aim;G.aimAngle=aim.angle;G.aimPoint=aim.point;
+  if (p.progressionMode === 'shared_v1') {
+    N.ProgressionControls.update(G);
+    if (aim.fire && !N.Coop?.isGuest()) {
+      N.Equipment.tryFire({game:G, player:p, participantId:p.clientId,
+        activationId:p.clientId + ':' + (G.activationSequence = (G.activationSequence || 0) + 1)}, {aimAngle:aim.angle});
+    } else if (aim.fire && N.Coop?.isGuest()) {
+      N.Coop.onLocalFire();
+    }
+    return;
+  }
   const sw=inp.getWeaponSwitch();
   if(sw&&p.weapons.length>1){
     p.activeWeapon=(p.activeWeapon+(sw>0?1:-1)+p.weapons.length)%p.weapons.length;
@@ -387,7 +403,7 @@ G.damagePlayer=function(amount,x,y,contact=false){
     if(N.Coop?.isGuest())return false;
     const authority=G.progressionAuthority;
     let identity=null;
-    if(N.Coop?.isHost()){
+    if(N.Coop?.isHost() || authority){
       if(!authority||typeof authority.identityFor!=='function'||typeof authority.publishResource!=='function')return false;
       identity=authority.identityFor(p);
       if(!N.ProgressionDefense.canCommitResources(p,identity))return false;
@@ -819,6 +835,16 @@ G.updateGroundItems=function(dt){
       N.World.move(it,oldX,oldY,12);
     }
     if(collector&&d<collectorRadius&&N.World.clear(collector.x,collector.y,it.x,it.y)){
+      if (p.progressionMode === 'shared_v1') {
+        if (collector === p) {
+          G.collectGroundItem(it, false);
+        } else {
+          const result = N.ProgressionRuntime.collect(G, it, collector);
+          if (result.ok) N.PlayerStats?.credit('itemsPickedUp', collector);
+        }
+        if (it.collected) G.groundItems.splice(i, 1);
+        continue;
+      }
       if(collector===p){
         G.collectGroundItem(it,false);
         // Banked/consumed items leave the floor; a full reward tray retains gear.
@@ -866,18 +892,20 @@ G.completeLevel=function(reason){
     sector:G.run.level,reason:reason||'anchors',time:G.level.elapsed,kills:G.level.kills,
     totalKills:G.run.kills,sectors:G.run.sectors,level:p.level,hp:p.hp,maxHp:p.stats.maxHp,
     anchors:G.level.anchors.filter(a=>a.alive).length,anchorsTotal:G.level.anchors.length,
-    weapons:p.weapons.map(w=>N.WEAPON_BY_ID[w.id]?.name||w.id),
-    passives:p.passives.map(m=>N.MOD_BY_ID[m.id]?.name||m.id),
+    weapons:p.weapons.map(w=>G.getLootName({kind:'weapon',itemId:w.id})),
+    passives:p.passives.map(m=>G.getLootName({kind:'mod',itemId:m.id})),
     damage:Math.round(G.level.damage),nextLevel:G.run.level+1
   };
   G.lastSummary=summary;
   G.run.totalTime=(G.run.totalTime||0)+G.level.elapsed;
   G.run.sectors=(G.run.sectors||0)+1;
   G.run.level++;
-  p.hp=Math.min(p.stats.maxHp,p.hp+p.stats.maxHp*.35);
-  p.shield=p.stats.maxShield;
-  p.shieldDelay=0;
-  p.dashCharges=p.maxDashCharges;
+  if (!p.dead) {
+    p.hp=Math.min(p.stats.maxHp,p.hp+p.stats.maxHp*.35);
+    p.shield=p.stats.maxShield;
+    p.shieldDelay=0;
+    p.dashCharges=p.maxDashCharges;
+  }
   if (!p.dead || !G.coopRun) { p.buffs.overclock=0;p.buffs.speed=0;p.buffs.magnet=0; }
   G.overflow=null;
   G.level=G.generateLevel(G.run.level,null);
@@ -919,12 +947,13 @@ G.update=function(dt){
   if(!G.player||(G.player.dead&&!(N.Coop&&N.Coop.isActive())))return;
   if(N.Input.actionPressed('pause')||N.Input.padActionPressed('pause')){G.pauseGame();return;}
   if(N.Input.actionPressed('inventory')||N.Input.padActionPressed('inventory')){G.openInventory();return;}
-  if(N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards')){G.openRewards();return;}
+  if(G.player.progressionMode !== 'shared_v1' && (N.Input.actionPressed('rewards')||N.Input.padActionPressed('rewards'))){G.openRewards();return;}
   if(N.Coop) N.Coop.preUpdate(dt);
-  N.Rewards.tick(dt);
+  if (G.player.progressionMode === 'shared_v1') N.ProgressionRuntime.tick(G, dt);
+  else N.Rewards.tick(dt);
   if(!(N.Coop&&N.Coop.isGuest())){
     const players=N.Coop?.isHost()?N.Coop.players():[G.player];
-    N.ProgressionDefense.tickWorld(players.filter(player=>player?.progressionMode==='shared_v1'),dt);
+    if (G.player.progressionMode !== 'shared_v1') N.ProgressionDefense.tickWorld(players.filter(player=>player?.progressionMode==='shared_v1'),dt);
     N.ProgressionDefense.tickEffects(G.level,dt);
   }
   const prevElapsed=G.level.elapsed;
