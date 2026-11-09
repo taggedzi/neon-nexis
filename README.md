@@ -1,5 +1,12 @@
 # NEON NEXUS
 
+[![Play solo on GitHub Pages](https://img.shields.io/badge/play-solo%20on%20GitHub%20Pages-087ea4?logo=github)](https://taggedzi.github.io/neon-nexis/)
+[![Latest GitHub release](https://img.shields.io/github/v/release/taggedzi/neon-nexis?logo=github)](https://github.com/taggedzi/neon-nexis/releases/latest)
+[![Publish game workflow status on main](https://github.com/taggedzi/neon-nexis/actions/workflows/release.yml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/taggedzi/neon-nexis/actions/workflows/release.yml?query=branch%3Amain)
+[![Open GitHub issues](https://img.shields.io/github/issues/taggedzi/neon-nexis?label=GitHub%20issues)](https://github.com/taggedzi/neon-nexis/issues)
+[![Project backlog](https://img.shields.io/badge/project-backlog-7653a6)](docs/work-to-be-done/README.md)
+[![MIT license](https://img.shields.io/badge/license-MIT-357a38)](LICENSE)
+
 A browser-based, top-down survival shooter with neon wireframe visuals,
 procedural sectors, and synthesized audio. Survive enemy waves, collect equipment,
 gain automatic upgrades, and push into increasingly difficult sectors.
@@ -28,7 +35,8 @@ python3 -m http.server --bind 127.0.0.1 8000
 Open [localhost:8000](http://localhost:8000/), click **Engage**, and choose
 **New Run**. Stop the server with Ctrl+C. If port 8000 is occupied, choose another
 port and use it in the browser URL. No package installation or build step is
-required. Graphics and audio are generated locally; there is no game backend.
+required for solo play. Graphics and audio are generated locally. For co-op
+setup, see the [PHP introduction guide](docs/work-to-be-done/015-php-coop-introduction.md).
 
 Optional recorded music can be prepared for a local website build; see the
 [soundtrack guide](docs/music.md). The repository and GitHub release packages
@@ -97,36 +105,43 @@ includes both the checkpoint and settings.
 
 ## Development and releases
 
-Run `npm ci --ignore-scripts`, then `node tools/ci/install-hooks.cjs`, install
-the Playwright browsers, and use `npm run check` for syntax, lint, regression
-and browser smoke tests. These are development tools; playing locally still
-requires no package installation. A later push runs that same suite on this
-machine and is rejected if it fails. Documentation-only branch pushes can skip
-the suite after the branch-sync checks; see the
-[development guide](docs/development-and-releases.md#local-checks) for the rules.
+Use Node.js 24 or newer for development checks. From the repository root, run:
 
-GitHub Actions does not run those checks on pull requests or on main. The
-**Publish game** workflow publishes to GitHub Pages only when manually run on
-main, and it runs the checks against the staged site first. Its **Minify** checkbox
-defaults on; clear it to publish an unminified copy. After Pages succeeds, the
-same dispatch publishes both staged-game ZIPs on a matching GitHub Release.
-Local play still needs no
-build. Versions use `YYYY.MM.DD.####` (New York date and a four-digit workflow run number). Hosted
-deployment and both public downloads were verified with
-[2026.11.03.0004](https://github.com/taggedzi/neon-nexis/releases/tag/2026.11.03.0004). See the
-[development and release guide](docs/development-and-releases.md) for setup,
-save policy, limitations and deferred work. There is no rollback procedure during
-this development phase.
+```sh
+npm ci --ignore-scripts
+node tools/ci/install-hooks.cjs
+npx playwright install chromium firefox
+npm run check
+```
+
+The suite covers syntax, lint, Node regression tests, and Playwright checks in
+Chromium and Firefox. The local pre-push hook checks that the task branch contains
+current `origin/main` and adds no merge commits, then runs the suite. Eligible
+documentation-only pushes skip the suite after the branch checks. See the
+[local check rules](docs/development-and-releases.md#local-checks).
+
+Start task branches from freshly updated `main`, keep one pull request open at
+a time, and rebase onto `origin/main` before pushing when `main` has advanced.
+Pull requests land by rebase. See the
+[branch process](docs/development-and-releases.md#one-branch-current-with-main).
+
+Publishing requires a manual **Publish game** dispatch on `main`. The workflow
+checks both staged variants before deploying the selected one to GitHub Pages.
+**Minify** defaults on. After Pages succeeds, the same run publishes both ZIPs
+on a matching GitHub Release. Versions use `YYYY.MM.DD.####` with the New York
+date and a four-digit workflow run number. See the
+[release guide](docs/development-and-releases.md#publish-a-release).
+
+The **Publish game** badge reports the manual workflow result on `main`.
+Routine pushes and pull requests rely on local checks. The **Play** badge opens
+the hosted game, and the **Latest release** badge opens the downloads.
 
 ## Project status and contributions
 
-The game is under active hobby development. Some implemented features still
-need player, controller, or performance validation. See the
-[local backlog](docs/work-to-be-done/README.md) for current status and known work.
-
-Release versions use the date convention described above. The first public
-deployment is verified. Changelog setup still requires separately approved work; see
-[issue 013](docs/work-to-be-done/013-deployment-and-changelog.md).
+The [local backlog](docs/work-to-be-done/README.md) tracks implementation status
+and validation evidence. The **GitHub issues** badge counts open GitHub issues.
+Live multiplayer progression validation is waiting for other players and the
+required devices and environments. See [GitHub issue #75](https://github.com/taggedzi/neon-nexis/issues/75).
 
 Bug reports, focused improvements, and documentation fixes are welcome. Read
 [Contributing](CONTRIBUTING.md) before opening a pull request and follow the
