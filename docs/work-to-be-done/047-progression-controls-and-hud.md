@@ -1,6 +1,9 @@
 # 047 — Integrate weapon selection, defensive quick-use and nonblocking reward UI
 
-Status: Implemented — needs validation
+Status: Done (remaining validation transferred to 050 / GitHub #75)
+
+Current disposition follows the owner-authorized scope transfer to
+[050](050-live-multiplayer-validation.md), recorded below.
 
 ## Problem or player need
 
@@ -105,6 +108,48 @@ performed. See [049](049-progression-integration-validation.md) for the combined
 handoff and remaining validation.
 
 The final browser suite covers keyboard/mouse, synthetic controller selection/cycling/defense, remapping, release/focus/pause/disconnect, reward summaries and guest dash authority. Quick-use preserves offensive selection and reward feedback does not take focus. Desktop and compact HUD captures were inspected as described in 049. Equivalent paired world-scene comparison, physical-controller usability and owner accessibility/feel remain pending; this issue stays Implemented — needs validation.
+
+### Owner-deferred validation — 2026-11-09
+
+The owner explicitly deferred all remaining validation for GitHub #57, #64 and
+#66 until the game is live and other players are available. Implementation is
+merged in [PR #74](https://github.com/taggedzi/neon-nexis/pull/74). Completed
+automated checks, owner playtesting and solo performance evidence remain recorded
+in [049](049-progression-integration-validation.md).
+
+Status is Blocked because the remaining checks depend on access to live players
+and the required devices/environments. The issues stay open for later follow-up.
+Outstanding acceptance boxes remain unchecked. Resume when the owner has live
+players available, inventory the pending cases in 049 and the progression
+contract, and record each result before completing the relevant criteria.
+This deferral covers multiplayer/WAN, four-player performance/readability,
+disconnect/rejoin retention, physical-device/accessibility review and any other
+still-unverified gameplay/browser/retention criteria. No completion date is set.
+
+Approval source is the owner's explicit instruction on 2026-11-09. This decision
+supersedes immediate follow-up requests for the remaining validation. See the
+[decision log](../decisions.md#2026-11-09---defer-remaining-progression-validation).
+Validation for this documentation update is `git diff --check`. Gameplay code
+is unchanged, so application tests were not rerun.
+
+### Validation transferred to follow-up — 2026-11-09
+
+The owner explicitly requested closing GitHub #57, #64 and #66 and creating a
+separate issue for validation when the game is live and other players are
+available. Implementation is merged through PR #74. The remaining scope now
+belongs to [050 — Live multiplayer validation](050-live-multiplayer-validation.md)
+([GitHub #75](https://github.com/taggedzi/neon-nexis/issues/75)).
+
+This tracker is Done for its delivered implementation and evidence handoff.
+Unchecked historical acceptance boxes are transferred to 050 and do not claim
+passing results. The follow-up preserves multiplayer/WAN, four-player effects,
+disconnect/rejoin retention, physical-device/accessibility review and the other
+still-unverified gameplay/browser/retention cases. This supersedes the earlier
+instruction to keep the original issues open. Completed evidence is preserved.
+
+Documentation-only update. `git diff --check` passed. Application tests were
+not rerun because application code was unchanged. Validation notes remain on
+`docs/066-firefox-performance-validation` pending commit/delivery.
 
 ## GitHub coordination
 

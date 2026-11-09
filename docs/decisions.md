@@ -752,3 +752,32 @@ See [issue 013](work-to-be-done/013-deployment-and-changelog.md) and the
   retain existing objective collision/area damage. No save/wire format change.
 - Supersedes: Enemy-only acquisition in 041 D7 and the targeting contract only.
   See [043](work-to-be-done/043-offensive-area-weapons.md) for verification.
+
+## 2026-11-09 - Defer remaining progression validation
+
+- Decision. Defer all remaining validation for GitHub #57, #64 and #66 until
+  the game is live and the owner has other players available. Track these local
+  issues as Blocked and keep the GitHub issues open for later follow-up.
+- Rationale. The owner cannot currently perform the outstanding checks.
+- Approval. Explicit owner instruction in this chat on 2026-11-09.
+- Consequences. Preserve merged implementation, completed automated checks,
+  owner playtesting and solo performance evidence. Outstanding criteria stay
+  unchecked. Resume with the existing pending-case inventory when live players
+  are available. No completion date is set.
+- Supersedes. Immediate pursuit of the remaining validation for these three
+  issues. Detailed evidence and resume conditions are in
+  [049](work-to-be-done/049-progression-integration-validation.md#owner-deferred-validation--2026-11-09).
+
+## 2026-11-09 - Close delivered progression trackers and transfer validation
+
+- Decision. Close GitHub #57, #64 and #66. Mark their local implementation
+  records Done with remaining validation transferred to local 050 / GitHub #75.
+- Rationale. Implementation is merged. The owner wants later multiplayer
+  validation tracked independently until the game is live and players exist.
+- Approval. Explicit owner request in this chat on 2026-11-09.
+- Consequences. Keep outstanding criteria unchecked in historical records and
+  carry them into the Blocked follow-up. Preserve completed evidence and record
+  future measurements before completing the new issue. No date is scheduled.
+- Supersedes. The same-day decision to keep #57, #64 and #66 open as Blocked.
+  The deferral itself continues under
+  [050](work-to-be-done/050-live-multiplayer-validation.md).

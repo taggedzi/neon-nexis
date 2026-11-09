@@ -1,6 +1,9 @@
 # 040 — Uninterrupted cooperative progression
 
-Status: Implemented — needs validation
+Status: Done (remaining validation transferred to 050 / GitHub #75)
+
+Current disposition follows the owner-authorized scope transfer to
+[050](050-live-multiplayer-validation.md), recorded below.
 
 ## Problem or player need
 
@@ -313,6 +316,48 @@ passed 220 browser tests plus syntax/lint/Node checks on Chromium and Firefox.
 owner/device/visual/performance gates. Controls are tested but the unqualified
 absence of every input exploit is not claimed. No GitHub issue was closed.
 
+### Owner-deferred validation — 2026-11-09
+
+The owner explicitly deferred all remaining validation for GitHub #57, #64 and
+#66 until the game is live and other players are available. Implementation is
+merged in [PR #74](https://github.com/taggedzi/neon-nexis/pull/74). Completed
+automated checks, owner playtesting and solo performance evidence remain recorded
+in [049](049-progression-integration-validation.md).
+
+Status is Blocked because the remaining checks depend on access to live players
+and the required devices/environments. The issues stay open for later follow-up.
+Outstanding acceptance boxes remain unchecked. Resume when the owner has live
+players available, inventory the pending cases in 049 and the progression
+contract, and record each result before completing the relevant criteria.
+This deferral covers multiplayer/WAN, four-player performance/readability,
+disconnect/rejoin retention, physical-device/accessibility review and any other
+still-unverified gameplay/browser/retention criteria. No completion date is set.
+
+Approval source is the owner's explicit instruction on 2026-11-09. This decision
+supersedes immediate follow-up requests for the remaining validation. See the
+[decision log](../decisions.md#2026-11-09---defer-remaining-progression-validation).
+Validation for this documentation update is `git diff --check`. Gameplay code
+is unchanged, so application tests were not rerun.
+
+### Validation transferred to follow-up — 2026-11-09
+
+The owner explicitly requested closing GitHub #57, #64 and #66 and creating a
+separate issue for validation when the game is live and other players are
+available. Implementation is merged through PR #74. The remaining scope now
+belongs to [050 — Live multiplayer validation](050-live-multiplayer-validation.md)
+([GitHub #75](https://github.com/taggedzi/neon-nexis/issues/75)).
+
+This tracker is Done for its delivered implementation and evidence handoff.
+Unchecked historical acceptance boxes are transferred to 050 and do not claim
+passing results. The follow-up preserves multiplayer/WAN, four-player effects,
+disconnect/rejoin retention, physical-device/accessibility review and the other
+still-unverified gameplay/browser/retention cases. This supersedes the earlier
+instruction to keep the original issues open. Completed evidence is preserved.
+
+Documentation-only update. `git diff --check` passed. Application tests were
+not rerun because application code was unchanged. Validation notes remain on
+`docs/066-firefox-performance-validation` pending commit/delivery.
+
 ## GitHub implementation checklist
 
 Parent: [GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57).
@@ -326,9 +371,9 @@ merged through [PR #67](https://github.com/taggedzi/neon-nexis/pull/67);
 - [x] [044 — Implement the separate defensive quick-use slot](044-defensive-quick-use.md) — [GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)
 - [x] [045 — Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) — [GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)
 - [x] [046 — Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) — [GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)
-- [ ] [047 — Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) — [GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)
+- [x] [047 — Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) — [GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64) — implementation delivered, remaining validation transferred to #75
 - [x] [048 — Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) — [GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)
-- [ ] [049 — Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) — [GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)
+- [x] [049 — Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) — [GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66) — implementation delivered, remaining validation transferred to #75
 
 The owner-authorized combined batch supersedes the original serial execution
 restriction. Checklist completion follows local issue evidence; owner review and

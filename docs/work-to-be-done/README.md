@@ -58,16 +58,17 @@ in [the decision log](../decisions.md).
 | 037 | [Mobile play investigation declined](037-mobile-play.md) | Done |
 | 038 | [Compact menu layouts and navigation](038-menu-ui-cleanup.md) | Implemented — needs validation |
 | 039 | [Faster push checks](039-faster-push-checks.md) | Done |
-| 040 | [Uninterrupted cooperative progression](040-uninterrupted-coop-progression.md) ([GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57)) | Implemented — needs validation |
+| 040 | [Uninterrupted cooperative progression](040-uninterrupted-coop-progression.md) ([GitHub #57](https://github.com/taggedzi/neon-nexis/issues/57)) | Done (remaining validation transferred to 050) |
 | 041 | [Approve progression rules and define integration contracts](041-progression-contracts.md) ([GitHub #58](https://github.com/taggedzi/neon-nexis/issues/58)) | Done |
 | 042 | [Implement hull primaries and three offensive weapon slots](042-hull-primaries-and-slots.md) ([GitHub #59](https://github.com/taggedzi/neon-nexis/issues/59)) | Done |
 | 043 | [Add missiles, lightning, bombs and area-denial weapons](043-offensive-area-weapons.md) ([GitHub #60](https://github.com/taggedzi/neon-nexis/issues/60)) | Done (remaining validation waived by owner) |
 | 044 | [Implement the separate defensive quick-use slot](044-defensive-quick-use.md) ([GitHub #61](https://github.com/taggedzi/neon-nexis/issues/61)) | Done |
 | 045 | [Implement stackable passives and predictable equipment upgrades](045-passives-and-upgrades.md) ([GitHub #62](https://github.com/taggedzi/neon-nexis/issues/62)) | Done |
 | 046 | [Implement immediate shared rewards, automatic levels and team pacing](046-immediate-shared-rewards.md) ([GitHub #63](https://github.com/taggedzi/neon-nexis/issues/63)) | Done |
-| 047 | [Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) ([GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)) | Implemented — needs validation |
+| 047 | [Integrate weapon selection, defensive quick-use and nonblocking reward UI](047-progression-controls-and-hud.md) ([GitHub #64](https://github.com/taggedzi/neon-nexis/issues/64)) | Done (remaining validation transferred to 050) |
 | 048 | [Preserve saved ships and version progression state and network compatibility](048-progression-save-compatibility.md) ([GitHub #65](https://github.com/taggedzi/neon-nexis/issues/65)) | Done |
-| 049 | [Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) ([GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)) | Implemented — needs validation |
+| 049 | [Activate and validate uninterrupted progression end to end](049-progression-integration-validation.md) ([GitHub #66](https://github.com/taggedzi/neon-nexis/issues/66)) | Done (remaining validation transferred to 050) |
+| 050 | [Validate live multiplayer progression with other players](050-live-multiplayer-validation.md) ([GitHub #75](https://github.com/taggedzi/neon-nexis/issues/75)) | Blocked |
 
 Publishing follow-up: PRs #53 and #54 add Linux audio output and select Ubuntu's
 main archive after slow Azure-mirror downloads. The hosted minified suite passed;
@@ -204,3 +205,56 @@ the committed combined branch. Issues #58–#60 are already merged; #61–#66's
 remaining implementation is contained in `feat/uninterrupted-progression-batch`,
 including the earlier defensive-slot commit. See [049](049-progression-integration-validation.md#owner-authorized-github-delivery--2026-11-08)
 for the delivery audit. Validation statuses above remain unchanged.
+
+Firefox owner-validation follow-up, 2026-11-09: the owner likes the local game's
+results and supplied a 34-second Firefox 159.0 recording at High quality in F11
+fullscreen. Short-run animation callback interval p95 was 15.7074 ms. See
+[049](049-progression-integration-validation.md#owner-firefox-playtest-and-short-capture--2026-11-09)
+for provenance, allocation counters, analysis limits and the remaining heavy-wave,
+extended-run and multiplayer/device validation. The implementation was merged in
+[PR #74](https://github.com/taggedzi/neon-nexis/pull/74). Issue statuses remain
+Implemented — needs validation for 040, 047 and 049.
+
+The owner's second busy-combat profile has callback interval p95 17.0350 ms,
+above the 16.7 ms budget. Its late recording segment requires confirmation of
+pause/game-over timing. [049](049-progression-integration-validation.md#owner-busy-combat-capture--2026-11-09)
+records the comparison, allocation samples and pending extended-run validation.
+
+The owner clarified that the busy Firefox recording includes two deaths. A
+subsequent invulnerable source scenario in Chromium 159.0.8153.0 yielded an active
+29-second presentation interval p95 of 13.386 ms. Its used-JavaScript-heap samples
+ranged from 3.63 to 8.47 MiB. [049](049-progression-integration-validation.md#chromium-invulnerable-normal-baseline--2026-11-09)
+records this short normal baseline separately from Firefox and the pending
+120-enemy, four-player and extended-run checks.
+
+Chromium's subsequent controlled 120-enemy capture retains 112–113 enemies in
+the selected active window and has presentation interval p95 13.367 ms. Its
+markers report a 1601×900 CSS viewport at DPR 1.2, approximately 1921×1080 pixels.
+[049](049-progression-integration-validation.md#chromium-120-enemy-capture--2026-11-09)
+records those conditions and the pending extended-run and broader validation.
+
+The owner supplied Chromium hardware-acceleration status. A local-only automatic
+twenty-minute solo recorder passed short isolated functional checks for download,
+focus interruption, sector advance, input restoration and storage preservation.
+The owner's full run remains pending. See
+[049](049-progression-integration-validation.md#extended-solo-recorder-preparation--2026-11-09)
+for workload choices and measurement limits.
+
+The owner completed the twenty-minute solo run. All twenty minute-level callback
+interval p95 values are 13.4 ms. The run reaches sector 3, repeatedly releases
+sampled transient fields/particles, and bounds its reward journal at 256 events.
+Heap repeatedly falls back near 9–10 MiB. The owner confirms F11 fullscreen after
+the first few seconds, while the helper records only initial window dimensions.
+[049](049-progression-integration-validation.md#owner-twenty-minute-solo-run--2026-11-09)
+records the artifact hash, counts and remaining multiplayer/retention gates.
+
+Owner decision, 2026-11-09. Issues 040/#57, 047/#64 and 049/#66 are Blocked.
+All remaining validation is deferred until the game is live and other players
+are available. Completed evidence is preserved, pending acceptance stays open,
+and no completion date is set. See
+[049](049-progression-integration-validation.md#owner-deferred-validation--2026-11-09).
+
+Owner scope transfer, 2026-11-09. Implementation trackers 040/#57, 047/#64
+and 049/#66 are closed at the owner's request. Their remaining unchecked
+validation moved to 050/#75, which is Blocked until live players and the required
+devices/environments are available. Completed evidence is retained.
