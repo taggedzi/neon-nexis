@@ -823,7 +823,10 @@ G.updateGroundItems=function(dt){
       for(const guest of N.Coop.remotePlayers){
         if(guest&&!guest.dead){
           const gd=N.dist(it.x,it.y,guest.x,guest.y);
-          const gr=(guest.pickupRadius||guest.stats.pickupRadius||95)*(guest.magnet?5.5:1);
+          const shared=guest.progressionMode==='shared_v1';
+          const guestMagnet=shared?guest.buffs.magnet>0:guest.magnet;
+          const baseRadius=shared?guest.stats.pickupRadius:(guest.pickupRadius||guest.stats.pickupRadius||95);
+          const gr=baseRadius*(guestMagnet?5.5:1);
           if(gd<gr&&gd<d){collector=guest;collectorRadius=gr;d=gd;}
         }
       }
