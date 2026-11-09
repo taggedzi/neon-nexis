@@ -75,7 +75,7 @@ function createIntroSession() {
   const connections = [];
   const hung = [];
   const peers = [];
-  const control = { mode: 'open' };
+  const control = { mode: 'open', roster: null };
   class Peer {
     constructor() { connections.push(this); }
     createDataChannel() { return { readyState: 'connecting', send() {}, close() {} }; }
@@ -112,6 +112,9 @@ function createIntroSession() {
       const action = request.action || 'status';
       counts[action] = (counts[action] || 0) + 1;
       const payload = payloadFor(request);
+      if (action === 'roster' && control.roster) {
+        return control.roster(request.roster, (kind, resolve) => hold(action, kind, resolve));
+      }
       if (control.mode === 'status-body' && action === 'status') {
         return Promise.resolve({ ok: true, json: () => new Promise(resolve => hold(action, 'body', resolve)) });
       }
@@ -224,6 +227,68 @@ async function stalledIntroduction(action) {
   session.Net.leave(true);
 }
 
+async function rosterRecovery() {
+  const session = createIntroSession();
+  const { Net, control, counts, hung, errors } = session;
+  const launches = [];
+  let lobby;
+  Net.onMessage = message => {
+    if (message.t === 'lobby_state') {lobby = message;}
+    if (message.t === 'launch') {launches.push(message.runId);}
+  };
+  const ready = () => Net.sendControl({ t: 'lobby_ready', revision: lobby.revision });
+  const ok = () => Promise.resolve({ json: async () => ({ ok: true }) });
+  try {
+    control.roster = (roster, hold) => Promise.resolve({ json: () => new Promise(resolve => hold('body', resolve)) });
+    Net.host({});
+    await waitUntil(() => hung.length === 1, 3000, 'initial unlock did not start');
+    control.roster = ok;
+    await waitUntil(() => counts.roster === 2, 12000, 'initial unlock was not retried');
+
+    control.roster = (roster, hold) => new Promise(resolve => hold('fetch', resolve));
+    ready();
+    await waitUntil(() => hung.length === 2, 5000, 'launch lock did not start');
+    assert.deepEqual(launches, []);
+    control.roster = ok;
+    await waitUntil(() => launches.length === 1, 12000, 'launch lock did not recover');
+    for (const entry of hung.splice(0)) {
+      entry.release(entry.kind === 'body' ? { ok: false } : { json: async () => ({ ok: false }) });
+    }
+    Net.sendControl({ t: 'return_lobby', runId: lobby.runId });
+    control.roster = roster => roster === null ? ok() : Promise.resolve({ json: async () => ({ ok: false }) });
+    ready();
+    await waitUntil(() => errors.length === 1, 5000, 'rejected lock did not report failure');
+    assert.equal(lobby.phase, 'lobby');
+    assert.equal(lobby.ready.length, 0);
+    assert.deepEqual(launches, [1]);
+    assert.match(errors[0], /READY AGAIN/);
+
+    control.roster = ok;
+    ready();
+    await waitUntil(() => launches.length === 2, 5000, 'same room did not launch after a rejected lock');
+    assert.deepEqual(launches, [1, 3]);
+    const beforeUnlock = counts.roster;
+    Net.sendControl({ t: 'return_lobby', runId: lobby.runId });
+    assert.equal(lobby.phase, 'lobby');
+    await waitUntil(() => counts.roster > beforeUnlock, 3000, 'did not send subsequent unlock');
+    control.roster = (roster, hold) => new Promise(resolve => hold('fetch', resolve));
+    ready();
+    await waitUntil(() => hung.length === 1, 5000, 'next lock did not start');
+    Net.leave(true);
+    control.roster = ok;
+    const before = counts.roster;
+    Net.host({});
+    await waitUntil(() => counts.roster > before, 3000, 'new session did not synchronize');
+    hung.pop().release({ json: async () => ({ ok: true }) });
+    ready();
+    await waitUntil(() => launches.length === 3, 5000, 'new session did not launch');
+    assert.deepEqual(launches, [1, 3, 1]);
+    assert.equal(errors.length, 1);
+  } finally {
+    Net.leave(true);
+  }
+}
+
 (async () => {
   try {
     await Promise.all([
@@ -231,9 +296,11 @@ async function stalledIntroduction(action) {
       stalledPoll('fetch'),
       stalledIntroduction('status'),
       stalledIntroduction('host'),
-      stalledIntroduction('join')
+      stalledIntroduction('join'),
+      rosterRecovery()
     ]);
     console.log('Introduction stalls: poll retry, live peer, leave/rehost, late completion, and bounded status/host/join passed.');
+    console.log('Roster recovery: initial unlock and launch timeouts, rejected lock rollback, and stale session completion passed.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

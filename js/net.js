@@ -12,12 +12,13 @@
   let intent = null;
   let authority = null;
   const INTRO_TIMEOUT_MS = 8000;
+  const ROSTER_RETRY_MS = 500;
+  const ROSTER_ATTEMPTS = 3;
   let pollTimer = null;
   let generation = 0;
   let pollGeneration = null;
   let sessionController = null;
-  let rosterPromise = Promise.resolve();
-  let rosterKey = '';
+  let rosterUpdate = null;
 
   function makeClientId() {
     const key = 'neon-coop-identity-v1';
@@ -293,26 +294,48 @@
     }
   }
 
+  function isCurrentRoster(update) {
+    return !!intent && generation === update.generation && rosterUpdate === update;
+  }
+
+  async function writeRoster(update) {
+    for (let attempt = 0; attempt < ROSTER_ATTEMPTS && isCurrentRoster(update); attempt++) {
+      try {
+        const body = await post({ action: 'roster', code: update.code, roster: update.roster });
+        return body.ok === true;
+      } catch (error) {
+        if (attempt + 1 < ROSTER_ATTEMPTS && isCurrentRoster(update)) {
+          await new Promise(resolve => setTimeout(resolve, ROSTER_RETRY_MS));
+        }
+      }
+    }
+    return false;
+  }
+
   function synchronizeRoster(message) {
-    if (message.t !== 'lobby_state') {return;}
     const roster = message.phase === 'run' ? Object.fromEntries(Array.from(authority.room.roster).filter(([id]) => id !== clientId)) : null;
-    const key = JSON.stringify(roster);
-    if (key === rosterKey) {return;}
-    rosterKey = key;
-    const code = Net.code;
-    rosterPromise = rosterPromise.then(() => post({ action: 'roster', code, roster })).then(body => {
-      if (!body.ok) {throw new Error('Roster lock failed');}
-    });
-    rosterPromise.catch(error => {
-      if (!intent || Net.code !== code) {return;}
-      // A timed-out or cancelled introduction must not close a live room.
-      if (error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {return;}
-      fail('LOBBY ROSTER UPDATE FAILED');
+    const key = JSON.stringify([message.runId, roster]);
+    if (rosterUpdate?.key === key && !rosterUpdate.failed) {return;}
+    const previous = rosterUpdate;
+    const update = { key, generation, code: Net.code, roster, failed: false };
+    rosterUpdate = update;
+    // Serialize writes, but skip superseded retries and let new revisions proceed
+    // even when the previous write failed.
+    update.result = Promise.resolve(previous?.result).then(() => writeRoster(update)).then(ok => {
+      if (!isCurrentRoster(update) || ok) {return ok;}
+      update.failed = true;
+      if (roster !== null) {
+        authority.handle(clientId, { t: 'return_lobby', runId: message.runId });
+        Net.onError?.('ROSTER LOCK FAILED // READY AGAIN TO RETRY');
+      } else {
+        Net.onError?.('LOBBY ROSTER UPDATE FAILED // TRY AGAIN');
+      }
+      return false;
     });
   }
 
   function deliverRoom(member, message) {
-    synchronizeRoster(message);
+    if (message.t === 'lobby_state') {synchronizeRoster(message);}
     const currentGeneration = generation;
     const deliver = () => {
       if (!intent || generation !== currentGeneration) {return;}
@@ -324,8 +347,14 @@
         }
       }
     };
-    if (message.t === 'launch') {rosterPromise.then(deliver).catch(() => {});}
-    else {deliver();}
+    if (message.t === 'launch') {
+      const update = rosterUpdate;
+      update.result.then(ok => {
+        if (ok && isCurrentRoster(update) && authority.room.phase === 'run' && authority.room.runId === message.runId) {
+          deliver();
+        }
+      });
+    } else {deliver();}
   }
 
   async function poll() {
@@ -378,8 +407,7 @@
     Net.role = role;
     Net.code = code;
     Net.seat = 0;
-    rosterKey = '';
-    rosterPromise = Promise.resolve();
+    rosterUpdate = null;
     status('connecting');
     Net.refreshStatus().then(async available => {
       if (generation !== currentGeneration) {return;}

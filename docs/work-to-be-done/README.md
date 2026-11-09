@@ -8,6 +8,14 @@ as specified in [AGENTS.md](../../AGENTS.md#git-and-delivery). These documents
 preserve scope, decisions, and validation evidence. Project-wide decisions live
 in [the decision log](../decisions.md).
 
+## GitHub bug fixes
+
+| Issue | Status |
+| --- | --- |
+| [#72 — Recover co-op roster synchronization](gh-072-roster-recovery.md) | Done |
+
+## Local backlog
+
 | ID | Issue | Status |
 | --- | --- | --- |
 | 001 | [Improve overall performance, especially during large enemy waves](001-performance.md) | Implemented — needs validation |

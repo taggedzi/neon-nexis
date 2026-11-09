@@ -1119,9 +1119,34 @@ test('028 a lone host locks its roster, admits guests between runs, and preserve
   await fillRoomCode(guest, code);
   await guest.locator('#btn-coop-join').click();
   await expect.poll(()=>host.evaluate(()=>window.NEON.Coop.lobby.members.length),{timeout:30000}).toBe(2);
+  await host.evaluate(() => {
+    const fetchIntro = window.fetch;
+    const lock = window.rosterLockTest = { attempts: 0, launches: 0 };
+    const net = window.NEON.Net;
+    const receive = net.onMessage;
+    net.onMessage = (message, clientId) => {
+      if (message.t === 'launch') {lock.launches++;}
+      receive(message, clientId);
+    };
+    window.fetch = async (url, options) => {
+      const request = options?.body && JSON.parse(options.body);
+      if (request?.action === 'roster' && request.roster !== null) {
+        lock.attempts++;
+        if (lock.attempts === 1) {throw new DOMException('Injected roster timeout', 'TimeoutError');}
+        await new Promise(resolve => {lock.release = resolve;});
+      }
+      return fetchIntro(url, options);
+    };
+  });
   await host.locator('#btn-coop-start').click();
   await guest.locator('#btn-coop-start').click();
+  await expect.poll(() => host.evaluate(() => window.rosterLockTest.attempts), { timeout: 10000 }).toBe(2);
+  expect(await host.evaluate(() => window.NEON.Coop.active)).toBe(false);
+  expect(await guest.evaluate(() => window.NEON.Coop.active)).toBe(false);
+  await host.evaluate(() => window.rosterLockTest.release());
   await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode),{timeout:30000}).toBe('playing');
+  expect(await host.evaluate(() => window.rosterLockTest.launches)).toBe(1);
+  expect(await host.evaluate(() => window.NEON.Net.code)).toBe(code);
   await host.evaluate(()=>window.NEON.Game.completeLevel('timer'));
   await expect.poll(()=>guest.evaluate(()=>window.NEON.Game.mode)).toBe('complete');
   await guest.evaluate(()=>window.NEON.Coop.leaveToMenu());
