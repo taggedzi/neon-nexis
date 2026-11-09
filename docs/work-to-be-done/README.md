@@ -13,6 +13,7 @@ in [the decision log](../decisions.md).
 | Issue | Status |
 | --- | --- |
 | [#72 — Recover co-op roster synchronization](gh-072-roster-recovery.md) | Done |
+| [#73 — Use authoritative Magnet pickup range for co-op guests](gh-073-guest-magnet.md) | Done |
 
 ## Local backlog
 

@@ -17,7 +17,7 @@ const box = {
 };
 box.window.addEventListener = () => {};
 vm.createContext(box);
-for (const file of ['util', 'content', 'world', 'game', 'coop', 'sim']) {
+for (const file of ['util', 'content', 'ships', 'world', 'game', 'coop', 'sim']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file + '.js'), 'utf8'), box);
 }
 
@@ -138,4 +138,55 @@ G.groundItems = [{ id: 'outer-magnet', kind: 'mod', itemId: mod.id, x: 0, y: 0,
 G.updateGroundItems(0.1);
 assert.ok(G.groundItems[0].x > 0);
 assert.notEqual(G.groundItems[0].collected, true);
+guest.x = 200;
+guest.y = 0;
+guest.magnet = true;
+Coop.remotePlayers = [guest];
+G.updateGroundItems(0);
+assert.equal(G.groundItems[0].grantOwner, 'guest', 'legacy guest Magnet still expands the range');
+guest.magnet = false;
 console.log('Pickup eligibility: different ship ranges and outer magnet attraction passed.');
+
+const sharedGuest = { ...guest, progressionMode: 'shared_v1', shipType: 'kite',
+  x: 50, y: 50, buffs: { magnet: 9 }, pickupRadius: 50 };
+player.progressionMode = 'shared_v1';
+player.buffs.magnet = 0;
+player.x = 1000;
+player.y = 50;
+Coop.remotePlayers = [sharedGuest];
+const awards = [], credits = [];
+N.ProgressionRuntime = { collect(game, item, collector) {
+  awards.push(collector.clientId);
+  item.collected = true;
+  return { ok: true };
+} };
+N.PlayerStats = { credit(key, collector) { credits.push([key, collector.clientId]); } };
+
+function sharedPickup(x) {
+  G.groundItems = [{ x, y: 50, pickupDelay: 0 }];
+  G.updateGroundItems(0);
+  return G.groundItems.length === 0;
+}
+
+assert.equal(sharedPickup(250), true, 'the active host-owned timer expands guest range');
+assert.deepEqual(awards, ['guest']);
+assert.deepEqual(credits, [['itemsPickedUp', 'guest']]);
+assert.equal(sharedPickup(600), false, 'pickup beyond expanded range stays on the ground');
+G.level.layout = { cols: 3, rows: 1, floor: [1, 0, 1] };
+assert.equal(sharedPickup(250), false, 'expanded range does not bypass walls');
+G.level.layout = null;
+sharedGuest.buffs.magnet = 0;
+Coop.applyRemoteState({ magnet: true, pickupRadius: 1000, buffs: { magnet: 99 } }, 'guest');
+assert.equal(sharedGuest.buffs.magnet, 0, 'guest state cannot refresh an expired buff');
+assert.equal(sharedPickup(250), false, 'expired guest falls back to ordinary range');
+assert.equal(sharedPickup(125), true, 'ordinary range uses the derived stats');
+assert.deepEqual(awards, ['guest', 'guest']);
+sharedGuest.buffs.magnet = 9;
+player.x = 300;
+let hostPickup = 0;
+G.collectGroundItem = item => { hostPickup++; item.collected = true; };
+assert.equal(sharedPickup(250), true, 'nearer eligible host wins against the magnetized guest');
+assert.equal(hostPickup, 1);
+assert.equal(awards.length, 2);
+assert.equal(credits.length, 2);
+console.log('Shared guest pickup: authoritative Magnet, expiry, wall, and derived range passed.');

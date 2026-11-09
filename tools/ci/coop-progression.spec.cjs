@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('048 public shared rewards recover gaps, resource revisions and offline grants', async ({ browser }) => {
+test('048 public shared rewards recover gaps, offline grants and retained Magnet pickup', async ({ browser }) => {
   test.setTimeout(150000);
   const contexts = [], pages = [], errors = [];
   try {
@@ -90,6 +90,15 @@ test('048 public shared rewards recover gaps, resource revisions and offline gra
       return !result.ok && revision === p.resourceRevision;
     }, bad);
     expect(unchanged).toBe(true);
+    const magnet = await host.evaluate(() => {
+      const N = window.NEON, G = N.Game;
+      N.Coop.requestGlobalPause();
+      N.Coop.applyGlobalPause(N.Net.clientId);
+      const item = G.spawnGroundLoot({ kind: 'consumable', id: 'magnet', color: '#9d5cff' }, G.player.x, G.player.y);
+      return { granted: N.ProgressionRuntime.collect(G, item).ok, seconds: N.Coop.remotePlayers[0].buffs.magnet };
+    });
+    expect(magnet).toEqual({ granted: true, seconds: 9 });
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.buffs.magnet)).toBe(9);
     const identity = await guest.evaluate(() => window.NEON.Net.clientId);
     const code = await host.evaluate(() => window.NEON.Net.code);
     await guest.evaluate(() => window.NEON.Coop.leaveToMenu());
@@ -101,10 +110,35 @@ test('048 public shared rewards recover gaps, resource revisions and offline gra
     });
     await guest.evaluate(code => window.NEON.Coop.joinRoom(code, { shipType: 'talon' }), code);
     await expect.poll(() => guest.evaluate(() => window.NEON.Coop.active), { timeout: 30000 }).toBe(true);
-    await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.progression.appliedEventSequence)).toBe(3);
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.progression.appliedEventSequence)).toBe(4);
     expect(await guest.evaluate(() => window.NEON.Net.clientId)).toBe(identity);
+    const restoredMagnet = await guest.evaluate(() => window.NEON.Game.player.buffs.magnet);
+    expect(restoredMagnet).toBeGreaterThan(0);
+    expect(restoredMagnet).toBeLessThanOrEqual(9);
     expect(await guest.evaluate(() => window.NEON.Game.player.progression.offensive[0].level)).toBe(3);
     expect(await guest.evaluate(() => window.NEON.Game.player.progression.offensive[1].id)).toBe(before[1]);
+    const pickup = await host.evaluate(() => {
+      const N = window.NEON, G = N.Game, player = G.player, mirror = N.Coop.remotePlayers[0];
+      const layout = G.level.layout, hostX = player.x;
+      const before = N.PlayerStats.authority.itemsPickedUp;
+      // Use an open lane and keep the host out of range for this simulation step.
+      G.level.layout = null;
+      player.x = mirror.x - 1000;
+      try {
+        const item = G.spawnGroundLoot({ kind: 'consumable', id: 'repair', color: '#b6ff2b' }, mirror.x + 200, mirror.y);
+        item.pickupDelay = 0;
+        G.updateGroundItems(0);
+        G.updateGroundItems(0);
+        return { collector: item.collectorId, count: N.PlayerStats.authority.itemsPickedUp - before,
+          range: mirror.stats.pickupRadius, seconds: mirror.buffs.magnet, legacyMagnet: mirror.magnet };
+      } finally {
+        G.level.layout = layout;
+        player.x = hostX;
+      }
+    });
+    expect(pickup).toMatchObject({ collector: identity, count: 1, range: 95, legacyMagnet: false });
+    expect(pickup.seconds).toBeCloseTo(restoredMagnet, 4);
+    await expect.poll(() => guest.evaluate(() => window.NEON.Game.player.progression.appliedEventSequence)).toBe(5);
     expect(errors).toEqual([]);
   } finally {
     for (const context of contexts.reverse()) await context.close();
