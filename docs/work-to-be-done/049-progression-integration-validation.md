@@ -155,3 +155,26 @@ Parent: https://github.com/taggedzi/neon-nexis/issues/57
 Prerequisite: https://github.com/taggedzi/neon-nexis/issues/65
 Local source: `docs/work-to-be-done/049-progression-integration-validation.md`.
 Delivered locally on `feat/uninterrupted-progression-batch` under the owner's combined-batch authorization. GitHub issue closure and PR delivery remain owner-managed; the local tracker records current validation.
+
+### Owner-authorized GitHub delivery — 2026-11-08
+
+The owner requested verification of whether GitHub issues #57–#66 were committed,
+pushed and merged, and explicitly authorized pushing and merging the remaining
+work. This supersedes the earlier delivery-authorization restriction above.
+Inspection found #58–#60 already merged through PRs #68–#71, with parent planning
+merged through PR #67. The remaining implementation is six local commits,
+`88fb7bf` through `badbdc5`, on `feat/uninterrupted-progression-batch`; neither that
+branch nor `feat/044-defensive-quick-use` existed on origin when checked.
+
+Deliver the combined branch as one pull request because it already contains the
+defensive-slot commit and all subsequent integration work. Do not merge the
+older defensive branch separately. Local main matches fetched origin/main at
+`21713d7`, which is an ancestor of this branch; no rebase is currently needed.
+The preceding production-readiness review ran the full suite against `badbdc5`:
+syntax, lint, registered Node checks and 220 browser tests passed, with two
+opt-in performance cases skipped. The pre-push hook must still run normally.
+
+Delivery does not establish the outstanding owner/device/WAN/visual/performance
+criteria or resolve the separately tracked review findings. Keep 040, 047 and
+049 at Implemented — needs validation. Final PR, merge and verification evidence
+will be recorded in the GitHub handoff and task report.
