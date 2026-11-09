@@ -189,3 +189,9 @@ acquire nearby aimed progression structures/caches under their existing
 range/cone/line-of-sight rules. See [043](043-offensive-area-weapons.md) for
 regressions and the superseding targeting decision. Batch owner validation
 remains pending; no other issue status changed.
+
+GitHub delivery follow-up, 2026-11-08: the owner authorized pushing and merging
+the committed combined branch. Issues #58–#60 are already merged; #61–#66's
+remaining implementation is contained in `feat/uninterrupted-progression-batch`,
+including the earlier defensive-slot commit. See [049](049-progression-integration-validation.md#owner-authorized-github-delivery--2026-11-08)
+for the delivery audit. Validation statuses above remain unchanged.
