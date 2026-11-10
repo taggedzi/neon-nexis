@@ -27,6 +27,10 @@ registry is deliberately empty and is never modified by conversion.
 
 `build:website` stages the existing public allowlist in `dist/`, minifies it,
 converts the current WAV collection, and embeds only the generated MP3 paths.
+It also includes PHP and `php/.htaccess` when the selected co-op config has
+`enabled` set to boolean `true`; see the [website deployment guide](website-deployment.md).
+An enabled co-op build contains private configuration and must not be shared
+as a public download archive.
 Upload the **contents of `dist/`** to the website host when you are ready. This
 command builds files; it never uploads or publishes anything. Prefer a host
 that serves MP3 as `audio/mpeg` and supports HTTP byte ranges for efficient

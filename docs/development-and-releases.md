@@ -138,7 +138,9 @@ For local staging and verification:
 Optional local website soundtrack builds are documented in the
 [music guide](music.md). Use `npm run build:website` to include recordings from
 ignored `assets/wav/`; normal staging and the GitHub Publish workflow remain
-music-free. The website build never publishes or uploads anything.
+music-free. The website build also conditionally includes the PHP co-op service
+and private config; see [website deployment](website-deployment.md). The website
+build never publishes or uploads anything.
 
 ```sh
 node tools/ci/package.cjs --minify

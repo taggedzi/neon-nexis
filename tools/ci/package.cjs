@@ -5,14 +5,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { releaseVersion } = require('./release-version.cjs');
+const { websiteCoopFiles } = require('./website-coop.cjs');
 
 const args = process.argv.slice(2);
 if (new Set(args).size !== args.length || (args.includes('--minify') && args.includes('--no-minify')) ||
-    args.some(arg => !['--minify', '--no-minify', '--with-music'].includes(arg))) {
-  throw Error('Usage: node tools/ci/package.cjs [--minify|--no-minify] [--with-music]');
+    args.some(arg => !['--minify', '--no-minify', '--with-music', '--with-coop'].includes(arg))) {
+  throw Error('Usage: node tools/ci/package.cjs [--minify|--no-minify] [--with-music] [--with-coop]');
 }
 const shouldMinify = args.includes('--minify');
 const withMusic = args.includes('--with-music');
+const withCoop = args.includes('--with-coop');
+if (withCoop && process.env.GITHUB_ACTIONS === 'true') {
+  throw Error('Private co-op configuration staging is local only; GitHub packages remain static.');
+}
 if (withMusic && process.env.GITHUB_ACTIONS === 'true') {
   throw Error('Private soundtrack staging is local only; GitHub packages remain music-free.');
 }
@@ -23,6 +28,8 @@ if (output !== path.join(root, 'dist')) {
 }
 
 async function stage() {
+  // Check local configuration before replacing a previously built website.
+  const coopFiles = withCoop ? websiteCoopFiles(root) : [];
   let version = 'development';
   if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
     version = releaseVersion(new Date(process.env.NEON_RELEASE_DATE || Date.now()), process.env.GITHUB_RUN_NUMBER);
@@ -43,6 +50,16 @@ async function stage() {
     fs.copyFileSync(source, destination);
   }
   fs.writeFileSync(path.join(output, 'index.html'), html);
+  for (const [source, relative] of coopFiles) {
+    const destination = path.join(output, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(source, destination);
+  }
+  if (withCoop) {
+    console.log(coopFiles.length
+      ? 'Co-op enabled: staged PHP, php/.htaccess and private configuration. Keep dist/ private until uploaded to your PHP host.'
+      : 'Co-op disabled: PHP files omitted.');
+  }
   const util = path.join(output, 'js/util.js');
   fs.writeFileSync(util, fs.readFileSync(util, 'utf8').replace("N.RELEASE_VERSION = 'development';", `N.RELEASE_VERSION = '${version}';`));
 
