@@ -1,5 +1,19 @@
 # Project decisions
 
+## 2026-11-10 - Deliver the current public changes to GitHub main
+
+- Decision: Push the tracked packaging changes on `fix/website-coop-package`,
+  create a pull request and merge it into GitHub main after required checks.
+  Do not push `personal-server` or include ignored personal configuration,
+  recordings, database files or website output.
+- Approval: Explicit owner instruction in chat on 2026-11-10 to catch up public
+  changes on GitHub before continuing co-op diagnostics.
+- Rationale: Establish a synchronized main before the next investigation.
+- Consequences: GitHub delivery is authorized for this task. Website deployment
+  and the manual Publish game workflow remain separate and are not authorized.
+- Supersedes: The local-only delivery scope for the packaging implementation;
+  the private-branch publication restriction remains in effect.
+
 ## 2026-11-10 - Merge the website packager into local main
 
 - Decision: Merge `fix/website-coop-package` into local `main` after checking
