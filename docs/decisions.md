@@ -1,5 +1,17 @@
 # Project decisions
 
+## 2026-11-10 - Merge the website packager into local main
+
+- Decision: Merge `fix/website-coop-package` into local `main` after checking
+  current origin and validation. Keep `personal-server` local and unpublished.
+- Approval: Explicit owner instruction in chat on 2026-11-10.
+- Rationale: Make conditional website packaging available on the main branch.
+- Consequences: Only tracked packaging, tests and documentation enter main;
+  ignored credentials, recordings and build output remain outside Git. This
+  authorizes the local merge, with no remote push, PR or deployment.
+- Supersedes: The local-integration-only destination in the preceding personal
+  website branch decision; the private-branch publication restriction remains.
+
 ## 2026-11-10 - Keep personal website configuration on a local branch
 
 - Decision: Commit the conditional PHP packaging work and fast-forward it
