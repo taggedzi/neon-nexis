@@ -94,7 +94,14 @@ Node 26.13.0 and PHP 8.4.13:
 Prepared on `fix/website-coop-package`. The owner subsequently authorized a
 local commit and fast-forward merge into `personal-server`, which stays local
 and must not be pushed to GitHub. Ignored server config and recordings remain
-outside Git. No full browser suite was run for this packaging-only change.
+outside Git. The owner later authorized public GitHub delivery of the packaging
+changes, excluding `personal-server` and ignored personal files.
+
+The pre-push `npm run check` passed on `53918b9` on 2026-11-10: syntax, lint,
+all registered Node checks, and 220 browser tests passed in 13.5 minutes, with
+the two opt-in performance cases skipped. Functional browser environments were
+Chromium 156.0.8078.4 and Firefox 157.0 on Windows, served by PHP 8.4.13.
+This does not establish real-player performance or resolve reported guest jitter.
 Hostinger PHP execution, enforcement of
 `.htaccess`, upload, cron and live co-op remain untested. Issue 015's status
 remains Implemented — needs validation; different-network acceptance is pending.

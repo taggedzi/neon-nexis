@@ -324,6 +324,17 @@ Hostinger upload, access-rule enforcement and live co-op are untested; this
 does not complete the original different-home-networks acceptance criterion or
 change this issue's Implemented — needs validation status.
 
+GitHub delivery validation, 2026-11-10: the owner authorized pushing the public
+changes and merging into main, excluding `personal-server` and ignored personal
+files. The pre-push `npm run check` passed on `53918b9`: syntax, lint, registered
+Node checks and 220 browser tests passed (13.5 minutes); two optional performance
+cases were skipped. Chromium 156.0.8078.4 and Firefox 157.0 ran on Windows with
+PHP 8.4.13. Packaging implementation is `77fdfe5`. The owner reports that the
+live website works, but guest enemies/projectiles stutter in a same-PC
+Chrome-host / Firefox-guest test while the local guest ship stays smooth.
+That is a pending diagnostic investigation, not a passed WAN or performance
+acceptance result. No gameplay changes were included in this packaging delivery.
+
 ### Limitations and remaining work
 
 - The different-home-networks box is unchecked. No coturn install and no
