@@ -1,5 +1,33 @@
 # Project decisions
 
+## 2026-11-10 - Keep personal website configuration on a local branch
+
+- Decision: Commit the conditional PHP packaging work and fast-forward it
+  locally into `personal-server`. Use that branch for personal website builds;
+  do not push or publish it to GitHub.
+- Approval: Explicit owner instruction in chat on 2026-11-10.
+- Rationale: The owner uses this branch for personal server settings.
+- Consequences: Keep `personal-server` checked out for the local site work.
+  Ignored PHP credentials, soundtrack files and build output remain untracked.
+  No PR, remote push or website deployment is part of this handoff. This
+  overrides the usual PR handoff for this local integration only.
+
+## 2026-11-10 - Conditionally package PHP for the personal website
+
+- Decision: `npm run build:website` evaluates the selected PHP config locally
+  and includes the co-op PHP service, `php/.htaccess`, and that config only
+  when its `enabled` flag is boolean true. GitHub release packages stay static.
+- Approval: Owner request on 2026-11-10 to automate conditional PHP packaging
+  for a Hostinger Premium website. Config selection, a fixed file allowlist,
+  and private-config isolation are agent implementation choices.
+- Rationale: The existing website build omitted the PHP service entirely.
+- Consequences: Website builds require local PHP. Enabled output contains
+  credentials and is intended only for the PHP host. Server paths, SQLite
+  permissions, STUN/TURN and cron still require production configuration.
+  No upload, publication or changes to the owner's config are authorized by
+  this packaging work. No earlier gameplay decision is superseded.
+- Details and validation: [website deployment](website-deployment.md).
+
 ## 2026-11-08 — Deterministic Firefox loopback test transport
 
 - Decision: Disposable Firefox test profiles permit loopback ICE candidates and

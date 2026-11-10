@@ -302,6 +302,28 @@ Commits on `feat/php-coop-introduction`: `b0f2239`, `50c05dc`, `ab76e16`,
   browsers after those fixes: `40 passed (11.2m)`, exit 0. The log is
   `playwright-coop-4.log`.
 
+### Personal website packaging follow-up — 2026-11-10
+
+The owner requested automatic PHP and `php/.htaccess` staging for a Hostinger
+Premium website only when co-op is enabled. This focused maintenance change is
+implemented on `fix/website-coop-package`. The owner subsequently authorized
+a local commit and merge into `personal-server`; that branch must stay off
+GitHub. `package.json` now opts
+the local website build into conditional PHP staging in `tools/ci/package.cjs`
+and the bounded helper `tools/ci/website-coop.cjs`. The selected enabled config
+is copied as `php/coop-config.php`; public release builds exclude it. A fixed
+allowlist excludes databases, backups and development routers. Source config
+and production state are unchanged.
+
+`node tools/check-package.cjs` passed enabled/disabled/config-override, dotfile,
+allowlist, credential-isolation and failure cases, and executed the packaged
+PHP status endpoint and cleanup script against temporary fixture state.
+Music regression, syntax, lint, `git diff --check`, and the actual website
+build with six tracks also passed. See [deployment and validation details](../website-deployment.md).
+Hostinger upload, access-rule enforcement and live co-op are untested; this
+does not complete the original different-home-networks acceptance criterion or
+change this issue's Implemented — needs validation status.
+
 ### Limitations and remaining work
 
 - The different-home-networks box is unchecked. No coturn install and no
